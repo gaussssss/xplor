@@ -5,6 +5,8 @@ class FileEntry {
     required this.isDirectory,
     this.size,
     this.lastModified,
+    this.isApplication = false,
+    this.iconPath,
   });
 
   final String name;
@@ -12,4 +14,6 @@ class FileEntry {
   final bool isDirectory;
   final int? size;
   final DateTime? lastModified;
+  final bool isApplication;
+  final String? iconPath;
 }

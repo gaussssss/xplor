@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -67,8 +69,10 @@ class _ListEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconColor = entry.isDirectory
         ? Colors.amberAccent.shade200
-        : Colors.blueGrey.shade200;
-    final iconData = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
+        : (entry.isApplication ? Colors.greenAccent.shade200 : Colors.blueGrey.shade200);
+    final iconData = entry.isDirectory
+        ? LucideIcons.folder
+        : (entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
     final modifiedLabel =
         entry.lastModified != null ? _formatDate(entry.lastModified!) : '—';
 
@@ -77,7 +81,12 @@ class _ListEntry extends StatelessWidget {
             value: isSelected,
             onChanged: (_) => onToggleSelection?.call(),
           )
-        : Icon(iconData, color: iconColor);
+        : _EntryIcon(
+            entry: entry,
+            icon: iconData,
+            color: iconColor,
+            size: 22,
+          );
 
     return GestureDetector(
       behavior: HitTestBehavior.deferToChild,
@@ -123,8 +132,12 @@ class _GridEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final iconColor = entry.isDirectory ? colorScheme.primary : Colors.white70;
-    final iconData = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
+    final iconColor = entry.isDirectory
+        ? colorScheme.primary
+        : (entry.isApplication ? Colors.greenAccent.shade200 : Colors.white70);
+    final iconData = entry.isDirectory
+        ? LucideIcons.folder
+        : (entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -154,7 +167,12 @@ class _GridEntry extends StatelessWidget {
                     color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(iconData, color: iconColor, size: 26),
+                  child: _EntryIcon(
+                    entry: entry,
+                    icon: iconData,
+                    color: iconColor,
+                    size: 26,
+                  ),
                 ),
                 const Spacer(),
                 if (selectionMode)
@@ -195,6 +213,39 @@ class _GridEntry extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _EntryIcon extends StatelessWidget {
+  const _EntryIcon({
+    required this.entry,
+    required this.icon,
+    required this.color,
+    required this.size,
+  });
+
+  final FileEntry entry;
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconPath = entry.iconPath;
+    if (iconPath != null && iconPath.toLowerCase().endsWith('.png')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(iconPath),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              Icon(icon, color: color, size: size),
+        ),
+      );
+    }
+    return Icon(icon, color: color, size: size);
   }
 }
 

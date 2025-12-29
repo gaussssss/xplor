@@ -180,6 +180,9 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   Future<void> open(FileEntry entry) {
+    if (entry.isApplication) {
+      return launchApplication(entry);
+    }
     if (!entry.isDirectory) return Future.value();
     return loadDirectory(entry.path);
   }
@@ -405,6 +408,8 @@ class ExplorerViewModel extends ChangeNotifier {
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
   String? get selectedTag => _state.selectedTag;
+  Future<void> openPackageAsFolder(FileEntry entry) =>
+      loadDirectory(entry.path);
 
   Future<void> goBack() async {
     if (_backStack.isEmpty) return;
@@ -418,6 +423,24 @@ class ExplorerViewModel extends ChangeNotifier {
     final target = _forwardStack.removeLast();
     _backStack.add(_state.currentPath);
     await loadDirectory(target, pushHistory: false);
+  }
+
+  Future<void> launchApplication(FileEntry entry) async {
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', [entry.path]);
+      } else if (Platform.isWindows) {
+        await Process.run(entry.path, []);
+      } else {
+        await Process.run('xdg-open', [entry.path]);
+      }
+      _state = _state.copyWith(statusMessage: 'Application lancee');
+    } catch (_) {
+      _state =
+          _state.copyWith(statusMessage: 'Impossible de lancer l application');
+    } finally {
+      notifyListeners();
+    }
   }
 
   Future<void> duplicateSelected() async {

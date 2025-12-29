@@ -446,7 +446,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   void _handleEntryTap(FileEntry entry) {
-    _viewModel.open(entry);
+    if (entry.isApplication) {
+      _viewModel.launchApplication(entry);
+    } else {
+      _viewModel.open(entry);
+    }
   }
 
   Future<void> _promptCreateFolder() async {
@@ -529,6 +533,18 @@ class _ExplorerPageState extends State<ExplorerPage> {
       menuItems.add(
         const PopupMenuItem<String>(value: 'open', child: Text('Ouvrir')),
       );
+      if (entry.isApplication) {
+        menuItems.addAll([
+          const PopupMenuItem<String>(
+            value: 'launchApp',
+            child: Text('Lancer l application'),
+          ),
+          const PopupMenuItem<String>(
+            value: 'openPackage',
+            child: Text('Ouvrir comme dossier'),
+          ),
+        ]);
+      }
       menuItems.add(
         const PopupMenuItem<String>(
           value: 'reveal',
@@ -601,6 +617,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
         break;
       case 'reveal':
         if (entry != null) await _viewModel.openInFinder(entry);
+        break;
+      case 'launchApp':
+        if (entry != null) await _viewModel.launchApplication(entry);
+        break;
+      case 'openPackage':
+        if (entry != null) await _viewModel.openPackageAsFolder(entry);
         break;
       case 'copy':
         _viewModel.copySelectionToClipboard();
