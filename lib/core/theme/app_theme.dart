@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 class AppTheme {
   const AppTheme._();
 
-  static const _background = Color(0xFF0B0E14);
-  static const _surface = Color(0xFF111725);
-  static const _primary = Color(0xFF5CE1E6);
-  static const _secondary = Color(0xFF7BA5FF);
+  static const _background = Color(0xFF0A0A0A);
+  static const _surface = Color(0xFF111111);
+  static const _primary = Color(0xFFFFFFFF);
+  static const _secondary = Color(0xFF9E9E9E);
 
   static ThemeData dark() {
     final base = ThemeData.dark(useMaterial3: true);
@@ -25,36 +25,34 @@ class AppTheme {
       ),
       cardColor: _surface,
       dividerColor: Colors.white12,
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: NoSplash.splashFactory,
       listTileTheme: const ListTileThemeData(
         iconColor: Colors.white70,
         textColor: Colors.white,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withOpacity(0.04),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        fillColor: Colors.white.withOpacity(0.05),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white12),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white12),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _primary),
+          borderRadius: BorderRadius.circular(999),
+          borderSide: BorderSide.none,
         ),
         hintStyle: const TextStyle(color: Colors.white60),
         labelStyle: const TextStyle(color: Colors.white70),
       ),
       chipTheme: base.chipTheme.copyWith(
-        backgroundColor: Colors.white.withOpacity(0.06),
-        side: const BorderSide(color: Colors.white12),
-        labelStyle: const TextStyle(color: Colors.white),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.white.withOpacity(0.08),
+        side: BorderSide.none,
+        labelStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
       textTheme: base.textTheme.apply(
         bodyColor: Colors.white,

@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';
-import '../../../explorer/domain/usecases/copy_entries.dart';
 import '../../../explorer/domain/usecases/create_directory.dart';
 import '../../../explorer/domain/usecases/delete_entries.dart';
 import '../../../explorer/domain/usecases/duplicate_entries.dart';
@@ -31,10 +31,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
   late final ExplorerViewModel _viewModel;
   late final TextEditingController _pathController;
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
   late final List<_NavItem> _favoriteItems;
   late final List<_NavItem> _systemItems;
   String? _lastStatusMessage;
   bool _contextMenuOpen = false;
+  bool _isSearchExpanded = false;
 
   @override
   void initState() {
@@ -53,9 +55,46 @@ class _ExplorerPageState extends State<ExplorerPage> {
     );
     _pathController = TextEditingController(text: initialPath);
     _searchController = TextEditingController(text: '');
+    _searchFocusNode = FocusNode();
     _favoriteItems = _buildFavoriteItems();
     _systemItems = _buildSystemItems(initialPath);
     _viewModel.loadDirectory(initialPath, pushHistory: false);
+  }
+
+  Widget _buildSearchToggle() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      width: _isSearchExpanded ? 260 : 48,
+      child: _isSearchExpanded
+          ? TextField(
+              focusNode: _searchFocusNode,
+              controller: _searchController,
+              onChanged: _viewModel.updateSearch,
+              onSubmitted: _viewModel.updateSearch,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(LucideIcons.search),
+                hintText: 'Recherche',
+                suffixIcon: IconButton(
+                  icon: const Icon(LucideIcons.x),
+                  onPressed: () {
+                    setState(() => _isSearchExpanded = false);
+                    _searchFocusNode.unfocus();
+                  },
+                  tooltip: 'Fermer la recherche',
+                ),
+              ),
+            )
+          : ToolbarButton(
+              icon: LucideIcons.search,
+              tooltip: 'Rechercher',
+              onPressed: () {
+                setState(() => _isSearchExpanded = true);
+                Future.microtask(() => _searchFocusNode.requestFocus());
+              },
+              isActive: false,
+            ),
+    );
   }
 
   @override
@@ -63,6 +102,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _viewModel.dispose();
     _pathController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -98,13 +138,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
         return Scaffold(
           body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0B0E14), Color(0xFF0E1321)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            color: Theme.of(context).colorScheme.background,
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -125,6 +159,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                         children: [
                           GlassPanel(child: _buildToolbar(state)),
                           const SizedBox(height: 12),
+                          GlassPanel(child: _buildActionBar(state)),
+                          const SizedBox(height: 12),
                           Expanded(
                             child: GlassPanel(
                               padding: const EdgeInsets.all(0),
@@ -132,14 +168,25 @@ class _ExplorerPageState extends State<ExplorerPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: _StatsFooter(state: state),
+                          ),
+                          const SizedBox(height: 12),
                           GlassPanel(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 10,
                             ),
-                            child: BreadcrumbBar(
-                              path: state.currentPath,
-                              onNavigate: (path) => _viewModel.loadDirectory(path),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                BreadcrumbBar(
+                                  path: state.currentPath,
+                                  onNavigate: (path) =>
+                                      _viewModel.loadDirectory(path),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -159,7 +206,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return Row(
       children: [
         ToolbarButton(
-          icon: Icons.arrow_back_rounded,
+          icon: LucideIcons.arrowLeft,
           tooltip: 'Arriere',
           onPressed: state.isLoading || !_viewModel.canGoBack
               ? null
@@ -167,7 +214,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ),
         const SizedBox(width: 8),
         ToolbarButton(
-          icon: Icons.arrow_forward_rounded,
+          icon: LucideIcons.arrowRight,
           tooltip: 'Avant',
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
@@ -182,29 +229,23 @@ class _ExplorerPageState extends State<ExplorerPage> {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: _SearchInput(
-            controller: _searchController,
-            onChanged: _viewModel.updateSearch,
-          ),
-        ),
+        _buildSearchToggle(),
         const SizedBox(width: 12),
         ToolbarButton(
-          icon: Icons.refresh_rounded,
+          icon: LucideIcons.refreshCw,
           tooltip: 'Rafraichir',
           onPressed: state.isLoading ? null : _viewModel.refresh,
         ),
         const SizedBox(width: 12),
         ToolbarButton(
-          icon: Icons.view_list_rounded,
+          icon: LucideIcons.list,
           tooltip: 'Vue liste',
           isActive: state.viewMode == ExplorerViewMode.list,
           onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
         ),
         const SizedBox(width: 8),
         ToolbarButton(
-          icon: Icons.grid_view_rounded,
+          icon: LucideIcons.grid,
           tooltip: 'Vue grille',
           isActive: state.viewMode == ExplorerViewMode.grid,
           onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
@@ -234,7 +275,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 48),
+              const Icon(LucideIcons.alertCircle, size: 48),
               const SizedBox(height: 12),
               Text(
                 state.error!,
@@ -258,40 +299,32 @@ class _ExplorerPageState extends State<ExplorerPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: const [
               SizedBox(height: 80),
-              Center(child: Icon(Icons.folder_off_rounded, size: 56)),
+              Center(child: Icon(LucideIcons.folderX, size: 56)),
               SizedBox(height: 8),
-              Center(child: Text('Aucun element dans ce dossier (ou acces limite)')),
+              Center(
+                child: Text('Aucun element dans ce dossier (ou acces limite)'),
+              ),
               SizedBox(height: 40),
             ],
           )
         : state.viewMode == ExplorerViewMode.list
-            ? _buildList(entries, selectionMode)
-            : _buildGrid(entries, selectionMode);
+        ? _buildList(entries, selectionMode)
+        : _buildGrid(entries, selectionMode);
 
     return GestureDetector(
       behavior: HitTestBehavior.deferToChild,
-      onSecondaryTapDown: (details) => _showContextMenu(null, details.globalPosition),
-      child: Column(
+      onSecondaryTapDown: (details) =>
+          _showContextMenu(null, details.globalPosition),
+      child: Stack(
         children: [
-          _buildActionBar(state),
-          const Divider(height: 1),
-          Expanded(
-            child: Stack(
-              children: [
-                RefreshIndicator(
-                  onRefresh: _viewModel.refresh,
-                  child: content,
-                ),
-                if (state.isLoading)
-                  const Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-              ],
+          RefreshIndicator(onRefresh: _viewModel.refresh, child: content),
+          if (state.isLoading)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(minHeight: 2),
             ),
-          ),
         ],
       ),
     );
@@ -299,70 +332,101 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   Widget _buildActionBar(ExplorerViewState state) {
     final selectionCount = state.selectedPaths.length;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          FilledButton.icon(
-            icon: const Icon(Icons.create_new_folder_rounded),
-            label: const Text('Nouveau dossier'),
-            onPressed: state.isLoading ? null : _promptCreateFolder,
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.copy_rounded),
-            label: const Text('Copier'),
-            onPressed: state.isLoading || selectionCount == 0
-                ? null
-                : _viewModel.copySelectionToClipboard,
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            icon: const Icon(Icons.paste_rounded),
-            label: const Text('Coller'),
-            onPressed:
-                state.isLoading || !_viewModel.canPaste ? null : _viewModel.pasteClipboard,
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            icon: const Icon(Icons.drive_file_rename_outline_rounded),
-            label: const Text('Renommer'),
-            onPressed: state.isLoading || selectionCount != 1
-                ? null
-                : _promptRename,
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.drive_folder_upload_rounded),
-            label: const Text('Deplacer vers...'),
-            onPressed: state.isLoading || selectionCount == 0
-                ? null
-                : _promptMove,
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.delete_forever_rounded),
-            label: const Text('Supprimer'),
-            onPressed: state.isLoading || selectionCount == 0
-                ? null
-                : _confirmDeletion,
-          ),
-          const Spacer(),
-          if (selectionCount > 0) ...[
-            Text(
-              '$selectionCount selectionne(s)',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(color: Colors.white70),
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    );
+    final outlinedStyle = OutlinedButton.styleFrom(
+      side: const BorderSide(color: Colors.white24),
+      shape: buttonShape,
+      foregroundColor: Colors.white,
+      overlayColor: Colors.white10,
+      minimumSize: const Size(0, 44),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      textStyle: const TextStyle(fontWeight: FontWeight.w600),
+    );
+    final filledStyle = FilledButton.styleFrom(
+      shape: buttonShape,
+      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.16),
+      foregroundColor: Colors.white,
+      overlayColor: Colors.white24,
+      minimumSize: const Size(0, 44),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      textStyle: const TextStyle(fontWeight: FontWeight.w600),
+    );
+
+    return SizedBox(
+      height: 64,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            FilledButton.icon(
+              icon: const Icon(LucideIcons.folderPlus),
+              label: const Text('Nouveau dossier'),
+              onPressed: state.isLoading ? null : _promptCreateFolder,
+              style: filledStyle,
             ),
-            IconButton(
-              tooltip: 'Vider la selection',
-              onPressed: state.isLoading ? null : _viewModel.clearSelection,
-              icon: const Icon(Icons.close_rounded),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              icon: const Icon(LucideIcons.copy),
+              label: const Text('Copier'),
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _viewModel.copySelectionToClipboard,
+              style: outlinedStyle,
             ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              icon: const Icon(LucideIcons.clipboard),
+              label: const Text('Coller'),
+              onPressed: state.isLoading || !_viewModel.canPaste
+                  ? null
+                  : _viewModel.pasteClipboard,
+              style: filledStyle,
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              icon: const Icon(LucideIcons.edit3),
+              label: const Text('Renommer'),
+              onPressed: state.isLoading || selectionCount != 1
+                  ? null
+                  : _promptRename,
+              style: filledStyle,
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              icon: const Icon(LucideIcons.move),
+              label: const Text('Deplacer vers...'),
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _promptMove,
+              style: outlinedStyle,
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              icon: const Icon(LucideIcons.trash2),
+              label: const Text('Supprimer'),
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _confirmDeletion,
+              style: outlinedStyle,
+            ),
+            const Spacer(),
+            if (selectionCount > 0) ...[
+              Text(
+                '$selectionCount selectionne(s)',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: Colors.white70),
+              ),
+              IconButton(
+                tooltip: 'Vider la selection',
+                onPressed: state.isLoading ? null : _viewModel.clearSelection,
+                icon: const Icon(LucideIcons.x),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -384,8 +448,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
   Future<void> _promptRename() async {
     final selected = _viewModel.state.selectedPaths;
     if (selected.length != 1) return;
-    final entry = _viewModel.state.entries
-        .firstWhere((element) => selected.contains(element.path));
+    final entry = _viewModel.state.entries.firstWhere(
+      (element) => selected.contains(element.path),
+    );
     final newName = await _showTextDialog(
       title: 'Renommer',
       label: 'Nouveau nom',
@@ -441,18 +506,14 @@ class _ExplorerPageState extends State<ExplorerPage> {
     if (_contextMenuOpen) return;
     _contextMenuOpen = true;
 
-    if (entry != null &&
-        !_viewModel.state.selectedPaths.contains(entry.path)) {
+    if (entry != null && !_viewModel.state.selectedPaths.contains(entry.path)) {
       _viewModel.selectSingle(entry);
     }
 
     final menuItems = <PopupMenuEntry<String>>[];
     if (entry != null) {
       menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'open',
-          child: Text('Ouvrir'),
-        ),
+        const PopupMenuItem<String>(value: 'open', child: Text('Ouvrir')),
       );
       menuItems.add(
         const PopupMenuItem<String>(
@@ -461,21 +522,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ),
       );
       menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'copy',
-          child: Text('Copier'),
-        ),
+        const PopupMenuItem<String>(value: 'copy', child: Text('Copier')),
       );
       menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'cut',
-          child: Text('Couper'),
-        ),
+        const PopupMenuItem<String>(value: 'cut', child: Text('Couper')),
       );
     }
 
-    final pasteDestination =
-        entry != null && entry.isDirectory ? entry.path : null;
+    final pasteDestination = entry != null && entry.isDirectory
+        ? entry.path
+        : null;
     if (_viewModel.canPaste) {
       menuItems.add(
         PopupMenuItem<String>(
@@ -497,14 +553,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
           value: 'move',
           child: Text('Deplacer vers...'),
         ),
-        const PopupMenuItem<String>(
-          value: 'rename',
-          child: Text('Renommer'),
-        ),
-        const PopupMenuItem<String>(
-          value: 'delete',
-          child: Text('Supprimer'),
-        ),
+        const PopupMenuItem<String>(value: 'rename', child: Text('Renommer')),
+        const PopupMenuItem<String>(value: 'delete', child: Text('Supprimer')),
       ]);
     } else {
       menuItems.add(
@@ -604,8 +654,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }) {
     final selectedEntries = _viewModel.state.selectedPaths.contains(entry.path)
         ? _viewModel.state.entries
-            .where((e) => _viewModel.state.selectedPaths.contains(e.path))
-            .toList()
+              .where((e) => _viewModel.state.selectedPaths.contains(e.path))
+              .toList()
         : <FileEntry>[entry];
 
     final tile = FileEntryTile(
@@ -645,8 +695,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
         if (data == null || data.isEmpty) return false;
         final hasSelf = data.any((item) => item.path == entry.path);
         if (hasSelf) return false;
-        final intoDescendant =
-            data.any((item) => _isAncestorPath(item.path, entry.path));
+        final intoDescendant = data.any(
+          (item) => _isAncestorPath(item.path, entry.path),
+        );
         if (intoDescendant) return false;
         return true;
       },
@@ -672,10 +723,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   bool _isAncestorPath(String parent, String child) {
     final separator = Platform.pathSeparator;
-    final normalizedParent =
-        parent.endsWith(separator) ? parent : '$parent$separator';
-    final normalizedChild =
-        child.endsWith(separator) ? child : '$child$separator';
+    final normalizedParent = parent.endsWith(separator)
+        ? parent
+        : '$parent$separator';
+    final normalizedChild = child.endsWith(separator)
+        ? child
+        : '$child$separator';
     return normalizedChild.startsWith(normalizedParent);
   }
 
@@ -728,24 +781,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildFavoriteItems() {
     final home = Platform.environment['HOME'] ?? Directory.current.parent.path;
     return [
-      _NavItem(
-        label: 'Accueil',
-        icon: Icons.home_filled,
-        path: home,
-      ),
+      _NavItem(label: 'Accueil', icon: LucideIcons.home, path: home),
       _NavItem(
         label: 'Bureau',
-        icon: Icons.desktop_mac_rounded,
+        icon: LucideIcons.monitor,
         path: _join(home, 'Desktop'),
       ),
       _NavItem(
         label: 'Documents',
-        icon: Icons.folder_shared_rounded,
+        icon: LucideIcons.folderOpen,
         path: _join(home, 'Documents'),
       ),
       _NavItem(
         label: 'Telechargements',
-        icon: Icons.download_rounded,
+        icon: LucideIcons.download,
         path: _join(home, 'Downloads'),
       ),
     ];
@@ -755,17 +804,17 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return [
       _NavItem(
         label: 'Racine',
-        icon: Icons.computer_rounded,
+        icon: LucideIcons.hardDrive,
         path: Platform.pathSeparator,
       ),
       _NavItem(
         label: 'Applications',
-        icon: Icons.apps_rounded,
+        icon: LucideIcons.box,
         path: Platform.isWindows ? 'C:\\Program Files' : '/Applications',
       ),
       _NavItem(
         label: 'Projet courant',
-        icon: Icons.folder_special_rounded,
+        icon: LucideIcons.folder,
         path: initialPath,
       ),
     ];
@@ -784,9 +833,7 @@ class _DragFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = entry.isDirectory
-        ? Icons.folder_rounded
-        : Icons.insert_drive_file_rounded;
+    final icon = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -842,7 +889,7 @@ class _Sidebar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.auto_awesome_rounded,
+                  LucideIcons.star,
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
@@ -852,17 +899,15 @@ class _Sidebar extends StatelessWidget {
                 children: [
                   Text(
                     'Xplor',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Text(
                     'Explorateur futuriste',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: Colors.white70),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: Colors.white70),
                   ),
                 ],
               ),
@@ -898,10 +943,96 @@ class _Sidebar extends StatelessWidget {
           const Divider(height: 12),
           Text(
             'Navigation inspiree de Windows Explorer avec une touche macOS.',
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: Colors.white70),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsFooter extends StatelessWidget {
+  const _StatsFooter({required this.state});
+
+  final ExplorerViewState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = state.entries
+        .where((e) => state.selectedPaths.contains(e.path))
+        .toList();
+    final selectionCount = selected.length;
+    final folderCount = state.entries.where((e) => e.isDirectory).length;
+    final fileCount = state.entries.where((e) => !e.isDirectory).length;
+    final totalSize = selected.fold<int>(0, (sum, e) => sum + (e.size ?? 0));
+
+    return Opacity(
+      opacity: 0.7,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _StatChip(label: 'Selectionés', value: '$selectionCount'),
+            const SizedBox(width: 8),
+            _StatChip(label: 'Dossiers', value: '$folderCount'),
+            const SizedBox(width: 8),
+            _StatChip(label: 'Fichiers', value: '$fileCount'),
+            const SizedBox(width: 8),
+            _StatChip(label: 'Taille', value: _formatBytes(totalSize)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '—';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    double value = bytes.toDouble();
+    var unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex++;
+    }
+    final precision = value >= 10 ? 0 : 1;
+    return '${value.toStringAsFixed(precision)} ${units[unitIndex]}';
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              letterSpacing: 0.4,
+              color: Colors.white70,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -910,10 +1041,7 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _PathInput extends StatelessWidget {
-  const _PathInput({
-    required this.controller,
-    required this.onSubmit,
-  });
+  const _PathInput({required this.controller, required this.onSubmit});
 
   final TextEditingController controller;
   final void Function(String value) onSubmit;
@@ -926,9 +1054,9 @@ class _PathInput extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: 'Chemin du dossier',
-        prefixIcon: const Icon(Icons.folder_open_rounded),
+        prefixIcon: const Icon(LucideIcons.folderOpen),
         suffixIcon: IconButton(
-          icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+          icon: const Icon(LucideIcons.arrowRight, size: 16),
           onPressed: () => onSubmit(controller.text),
         ),
       ),
@@ -937,10 +1065,7 @@ class _PathInput extends StatelessWidget {
 }
 
 class _SearchInput extends StatelessWidget {
-  const _SearchInput({
-    required this.controller,
-    required this.onChanged,
-  });
+  const _SearchInput({required this.controller, required this.onChanged});
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -953,18 +1078,14 @@ class _SearchInput extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: 'Recherche (nom ou extension)',
-        prefixIcon: const Icon(Icons.search_rounded),
+        prefixIcon: const Icon(LucideIcons.search),
       ),
     );
   }
 }
 
 class _NavItem {
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.path,
-  });
+  const _NavItem({required this.label, required this.icon, required this.path});
 
   final String label;
   final IconData icon;

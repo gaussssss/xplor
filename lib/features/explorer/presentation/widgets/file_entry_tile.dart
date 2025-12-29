@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../domain/entities/file_entry.dart';
 import '../viewmodels/explorer_view_model.dart';
@@ -67,9 +68,7 @@ class _ListEntry extends StatelessWidget {
     final iconColor = entry.isDirectory
         ? Colors.amberAccent.shade200
         : Colors.blueGrey.shade200;
-    final iconData = entry.isDirectory
-        ? Icons.folder_rounded
-        : Icons.insert_drive_file_rounded;
+    final iconData = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
     final modifiedLabel =
         entry.lastModified != null ? _formatDate(entry.lastModified!) : '—';
 
@@ -86,7 +85,10 @@ class _ListEntry extends StatelessWidget {
       onDoubleTap: onOpen,
       onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
       child: ListTile(
-        leading: leadingWidget,
+        leading: IconTheme(
+          data: const IconThemeData(size: 22),
+          child: leadingWidget,
+        ),
         selected: isSelected,
         selectedTileColor: Colors.white.withOpacity(0.05),
         title: Text(
@@ -122,9 +124,7 @@ class _GridEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final iconColor = entry.isDirectory ? colorScheme.primary : Colors.white70;
-    final iconData = entry.isDirectory
-        ? Icons.folder_rounded
-        : Icons.insert_drive_file_rounded;
+    final iconData = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -132,7 +132,7 @@ class _GridEntry extends StatelessWidget {
       onDoubleTap: onOpen,
       onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -149,12 +149,12 @@ class _GridEntry extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(iconData, color: iconColor, size: 22),
+                  child: Icon(iconData, color: iconColor, size: 26),
                 ),
                 const Spacer(),
                 if (selectionMode)
