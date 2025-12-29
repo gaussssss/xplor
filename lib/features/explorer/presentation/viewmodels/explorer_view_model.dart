@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/file_entry.dart';
 import '../../domain/usecases/copy_entries.dart';
@@ -24,6 +25,7 @@ class ExplorerViewState {
     required this.clipboardCount,
     required this.isCutOperation,
     required this.selectedTag,
+    required this.recentPaths,
     this.error,
     this.statusMessage,
   });
@@ -37,6 +39,7 @@ class ExplorerViewState {
   final int clipboardCount;
   final bool isCutOperation;
   final String? selectedTag;
+  final List<String> recentPaths;
   final String? error;
   final String? statusMessage;
 
@@ -51,6 +54,7 @@ class ExplorerViewState {
       clipboardCount: 0,
       isCutOperation: false,
       selectedTag: null,
+      recentPaths: const [],
     );
   }
 
@@ -64,6 +68,7 @@ class ExplorerViewState {
     int? clipboardCount,
     bool? isCutOperation,
     String? selectedTag,
+    List<String>? recentPaths,
     String? error,
     String? statusMessage,
     bool clearError = false,
@@ -79,6 +84,7 @@ class ExplorerViewState {
       clipboardCount: clipboardCount ?? this.clipboardCount,
       isCutOperation: isCutOperation ?? this.isCutOperation,
       selectedTag: selectedTag ?? this.selectedTag,
+      recentPaths: recentPaths ?? this.recentPaths,
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
     );
@@ -115,6 +121,7 @@ class ExplorerViewModel extends ChangeNotifier {
   List<FileEntry> _clipboard = [];
   final List<String> _backStack = [];
   final List<String> _forwardStack = [];
+  List<String> _recentPaths = [];
 
   ExplorerViewState get state => _state;
 
@@ -158,6 +165,7 @@ class ExplorerViewModel extends ChangeNotifier {
         clearError: true,
         clearStatus: true,
       );
+      await _recordRecent(targetPath);
     } on FileSystemException catch (error) {
       _state = _state.copyWith(
         isLoading: false,
@@ -229,7 +237,7 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _createDirectory(_state.currentPath, name);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: 'Dossier cree',
         clearError: true,
@@ -251,7 +259,7 @@ class ExplorerViewModel extends ChangeNotifier {
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
       await _deleteEntries(toDelete);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toDelete.length} element(s) supprime(s)',
         isLoading: false,
@@ -272,7 +280,7 @@ class ExplorerViewModel extends ChangeNotifier {
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
       await _moveEntries(toMove, destinationPath);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toMove.length} element(s) deplace(s)',
         isLoading: false,
@@ -292,7 +300,7 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _renameEntry(entry, newName);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: 'Renomme avec succes',
         isLoading: false,
@@ -359,7 +367,7 @@ class ExplorerViewModel extends ChangeNotifier {
       } else {
         await _copyEntries(_clipboard, targetPath);
       }
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage:
             '${_clipboard.length} element(s) ${_state.isCutOperation ? 'deplaces' : 'colles'}',
@@ -381,7 +389,7 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _moveEntries(entries, destinationPath);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${entries.length} element(s) deplace(s)',
         isLoading: false,
@@ -408,6 +416,7 @@ class ExplorerViewModel extends ChangeNotifier {
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
   String? get selectedTag => _state.selectedTag;
+  List<String> get recentPaths => _state.recentPaths;
   Future<void> openPackageAsFolder(FileEntry entry) =>
       loadDirectory(entry.path);
 
@@ -423,6 +432,15 @@ class ExplorerViewModel extends ChangeNotifier {
     final target = _forwardStack.removeLast();
     _backStack.add(_state.currentPath);
     await loadDirectory(target, pushHistory: false);
+  }
+
+  Future<void> goToLastVisited() async {
+    final target = _recentPaths.firstWhere(
+      (p) => p != _state.currentPath,
+      orElse: () => '',
+    );
+    if (target.isEmpty) return;
+    await loadDirectory(target);
   }
 
   Future<void> launchApplication(FileEntry entry) async {
@@ -452,7 +470,7 @@ class ExplorerViewModel extends ChangeNotifier {
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
       await _duplicateEntries(toDuplicate);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toDuplicate.length} element(s) dupliques',
         isLoading: false,
@@ -497,4 +515,38 @@ class ExplorerViewModel extends ChangeNotifier {
     'Violet': ['.zip', '.tar', '.gz', '.rar', '.7z'],
     'Gris': ['*'],
   };
+
+  static const _recentKey = 'recent_paths';
+
+  Future<void> bootstrap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _recentPaths = prefs.getStringList(_recentKey) ?? [];
+      _state = _state.copyWith(recentPaths: List.unmodifiable(_recentPaths));
+      notifyListeners();
+    } catch (_) {
+      // ignore prefs errors
+    }
+  }
+
+  Future<void> _recordRecent(String path) async {
+    if (path.isEmpty) return;
+    _recentPaths.remove(path);
+    _recentPaths.insert(0, path);
+    if (_recentPaths.length > 15) {
+      _recentPaths = _recentPaths.sublist(0, 15);
+    }
+    _state = _state.copyWith(recentPaths: List.unmodifiable(_recentPaths));
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_recentKey, _recentPaths);
+    } catch (_) {
+      // ignore persistence errors
+    }
+  }
+
+  Future<void> _reloadCurrent() {
+    return loadDirectory(_state.currentPath, pushHistory: false);
+  }
 }

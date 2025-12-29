@@ -162,7 +162,7 @@ class _GridEntry extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -171,7 +171,7 @@ class _GridEntry extends StatelessWidget {
                     entry: entry,
                     icon: iconData,
                     color: iconColor,
-                    size: 26,
+                    size: 34,
                   ),
                 ),
                 const Spacer(),

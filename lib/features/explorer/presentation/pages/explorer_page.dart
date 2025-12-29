@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -40,6 +41,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   String? _lastStatusMessage;
   bool _contextMenuOpen = false;
   bool _isSearchExpanded = false;
+  bool _isToastShowing = false;
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _tagItems = _buildTags();
     _volumes = _readVolumes();
     _viewModel.loadDirectory(initialPath, pushHistory: false);
+    _viewModel.bootstrap();
   }
 
   Widget _buildSearchToggle() {
@@ -131,15 +134,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
           _lastStatusMessage = state.statusMessage;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.statusMessage!),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            _showToast(state.statusMessage!);
             _viewModel.clearStatus();
-            _lastStatusMessage = null;
           });
+        } else if (state.statusMessage == null && _lastStatusMessage != null) {
+          _lastStatusMessage = null;
         }
 
         return Scaffold(
@@ -159,6 +158,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                         quickItems: _quickItems,
                         tags: _tagItems,
                         volumes: _volumes,
+                        recentPaths: state.recentPaths,
                         selectedTag: _viewModel.selectedTag,
                         onNavigate: _viewModel.loadDirectory,
                         onTagSelected: (tag) => _viewModel.setTagFilter(
@@ -233,6 +233,14 @@ class _ExplorerPageState extends State<ExplorerPage> {
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
               : _viewModel.goForward,
+        ),
+        const SizedBox(width: 8),
+        ToolbarButton(
+          icon: LucideIcons.history,
+          tooltip: 'Dernier emplacement',
+          onPressed: state.isLoading || state.recentPaths.length < 2
+              ? null
+              : _viewModel.goToLastVisited,
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -370,7 +378,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
     return SizedBox(
       height: 64,
-      child: Padding(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: [
@@ -425,7 +434,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   : _confirmDeletion,
               style: outlinedStyle,
             ),
-            const Spacer(),
+            const SizedBox(width: 16),
             if (selectionCount > 0) ...[
               Text(
                 '$selectionCount selectionne(s)',
@@ -899,7 +908,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
     try {
       final result = Process.runSync('df', ['-Pk', path]);
       if (result.exitCode != 0) return null;
-      print(result.stdout);
       final lines = (result.stdout as String)
           .trim()
           .split('\n')
@@ -951,6 +959,43 @@ class _ExplorerPageState extends State<ExplorerPage> {
     if (base.endsWith(Platform.pathSeparator)) return '$base$child';
     return '$base${Platform.pathSeparator}$child';
   }
+
+  void _showToast(String message) {
+    if (_isToastShowing) return;
+    try {
+      _isToastShowing = true;
+      final theme = Theme.of(context);
+      Flushbar(
+        message: message,
+        maxWidth: 360,
+        margin: const EdgeInsets.only(left: 12, bottom: 8, right: 300),
+        borderRadius: BorderRadius.circular(14),
+        backgroundColor: theme.colorScheme.surface.withOpacity(0.9),
+        duration: const Duration(milliseconds: 1700),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        icon: Icon(
+          LucideIcons.info,
+          size: 22,
+          color: theme.colorScheme.primary,
+        ),
+        leftBarIndicatorColor: theme.colorScheme.primary,
+        shouldIconPulse: false,
+        flushbarPosition: FlushbarPosition.BOTTOM,
+        onStatusChanged: (status) {
+          if (status == FlushbarStatus.DISMISSED ||
+              status == FlushbarStatus.IS_HIDING) {
+            _isToastShowing = false;
+          }
+        },
+      ).show(context);
+    } catch (_) {
+      _isToastShowing = false;
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
 }
 
 class _DragFeedback extends StatelessWidget {
@@ -998,6 +1043,7 @@ class _Sidebar extends StatelessWidget {
     required this.quickItems,
     required this.tags,
     required this.volumes,
+    this.recentPaths = const [],
     this.selectedTag,
     this.onTagSelected,
   });
@@ -1007,6 +1053,7 @@ class _Sidebar extends StatelessWidget {
   final List<_NavItem> quickItems;
   final List<_TagItem> tags;
   final List<_VolumeInfo> volumes;
+  final List<String> recentPaths;
   final String? selectedTag;
   final void Function(String path) onNavigate;
   final void Function(String tag)? onTagSelected;
@@ -1032,6 +1079,26 @@ class _Sidebar extends StatelessWidget {
                   )
                   .toList(),
             ),
+            if (recentPaths.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SidebarSection(
+                title: 'Recents',
+                compact: true,
+                items: recentPaths
+                    .take(6)
+                    .map(
+                      (path) => SidebarItem(
+                        label: path
+                            .split(Platform.pathSeparator)
+                            .where((p) => p.isNotEmpty)
+                            .last,
+                        icon: LucideIcons.history,
+                        onTap: () => onNavigate(path),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
             const SizedBox(height: 12),
             SidebarSection(
               title: 'Favoris',
