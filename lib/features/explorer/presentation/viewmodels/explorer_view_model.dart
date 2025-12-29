@@ -23,6 +23,7 @@ class ExplorerViewState {
     required this.selectedPaths,
     required this.clipboardCount,
     required this.isCutOperation,
+    required this.selectedTag,
     this.error,
     this.statusMessage,
   });
@@ -35,6 +36,7 @@ class ExplorerViewState {
   final Set<String> selectedPaths;
   final int clipboardCount;
   final bool isCutOperation;
+  final String? selectedTag;
   final String? error;
   final String? statusMessage;
 
@@ -48,6 +50,7 @@ class ExplorerViewState {
       selectedPaths: <String>{},
       clipboardCount: 0,
       isCutOperation: false,
+      selectedTag: null,
     );
   }
 
@@ -60,6 +63,7 @@ class ExplorerViewState {
     Set<String>? selectedPaths,
     int? clipboardCount,
     bool? isCutOperation,
+    String? selectedTag,
     String? error,
     String? statusMessage,
     bool clearError = false,
@@ -74,6 +78,7 @@ class ExplorerViewState {
       selectedPaths: selectedPaths ?? this.selectedPaths,
       clipboardCount: clipboardCount ?? this.clipboardCount,
       isCutOperation: isCutOperation ?? this.isCutOperation,
+      selectedTag: selectedTag ?? this.selectedTag,
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
     );
@@ -115,11 +120,14 @@ class ExplorerViewModel extends ChangeNotifier {
 
   List<FileEntry> get visibleEntries {
     final query = _state.searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return _state.entries;
-
-    return _state.entries
-        .where((entry) => entry.name.toLowerCase().contains(query))
-        .toList();
+    Iterable<FileEntry> filtered = _state.entries;
+    if (query.isNotEmpty) {
+      filtered = filtered.where((entry) => entry.name.toLowerCase().contains(query));
+    }
+    if (_state.selectedTag != null) {
+      filtered = filtered.where(_matchesTag);
+    }
+    return filtered.toList();
   }
 
   Future<void> loadDirectory(
@@ -298,6 +306,11 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setTagFilter(String? tag) {
+    _state = _state.copyWith(selectedTag: tag);
+    notifyListeners();
+  }
+
   void setViewMode(ExplorerViewMode mode) {
     if (_state.viewMode == mode) return;
     _state = _state.copyWith(viewMode: mode);
@@ -391,6 +404,7 @@ class ExplorerViewModel extends ChangeNotifier {
   bool get canPaste => _clipboard.isNotEmpty;
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
+  String? get selectedTag => _state.selectedTag;
 
   Future<void> goBack() async {
     if (_backStack.isEmpty) return;
@@ -441,4 +455,23 @@ class ExplorerViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  bool _matchesTag(FileEntry entry) {
+    final tag = _state.selectedTag;
+    if (tag == null) return true;
+    final extensions = _tagExtensions[tag] ?? [];
+    if (extensions.contains('*')) return true;
+    final lower = entry.name.toLowerCase();
+    return extensions.any((ext) => lower.endsWith(ext));
+  }
+
+  static const Map<String, List<String>> _tagExtensions = {
+    'Rouge': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+    'Orange': ['.mp4', '.mov', '.mkv', '.avi'],
+    'Jaune': ['.pdf'],
+    'Vert': ['.txt', '.md', '.rtf'],
+    'Bleu': ['.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'],
+    'Violet': ['.zip', '.tar', '.gz', '.rar', '.7z'],
+    'Gris': ['*'],
+  };
 }
