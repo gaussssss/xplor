@@ -55,7 +55,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _searchController = TextEditingController(text: '');
     _favoriteItems = _buildFavoriteItems();
     _systemItems = _buildSystemItems(initialPath);
-    _viewModel.loadDirectory(initialPath);
+    _viewModel.loadDirectory(initialPath, pushHistory: false);
   }
 
   @override
@@ -121,6 +121,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           GlassPanel(child: _buildToolbar(state)),
                           const SizedBox(height: 12),
@@ -128,6 +129,17 @@ class _ExplorerPageState extends State<ExplorerPage> {
                             child: GlassPanel(
                               padding: const EdgeInsets.all(0),
                               child: _buildContent(state, entries),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          GlassPanel(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: BreadcrumbBar(
+                              path: state.currentPath,
+                              onNavigate: (path) => _viewModel.loadDirectory(path),
                             ),
                           ),
                         ],
@@ -144,71 +156,58 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Widget _buildToolbar(ExplorerViewState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            ToolbarButton(
-              icon: Icons.arrow_upward_rounded,
-              tooltip: 'Dossier parent',
-              onPressed: state.isLoading || _viewModel.isAtRoot
-                  ? null
-                  : _viewModel.goToParent,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: BreadcrumbBar(
-                path: state.currentPath,
-                onNavigate: (path) => _viewModel.loadDirectory(path),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ToolbarButton(
-              icon: Icons.refresh_rounded,
-              tooltip: 'Rafraichir',
-              onPressed: state.isLoading ? null : _viewModel.refresh,
-            ),
-          ],
+        ToolbarButton(
+          icon: Icons.arrow_back_rounded,
+          tooltip: 'Arriere',
+          onPressed: state.isLoading || !_viewModel.canGoBack
+              ? null
+              : _viewModel.goBack,
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: _PathInput(
-                controller: _pathController,
-                onSubmit: (value) => _viewModel.loadDirectory(value),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: _SearchInput(
-                controller: _searchController,
-                onChanged: _viewModel.updateSearch,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ToolbarButton(
-                  icon: Icons.view_list_rounded,
-                  tooltip: 'Vue liste',
-                  isActive: state.viewMode == ExplorerViewMode.list,
-                  onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
-                ),
-                const SizedBox(width: 8),
-                ToolbarButton(
-                  icon: Icons.grid_view_rounded,
-                  tooltip: 'Vue grille',
-                  isActive: state.viewMode == ExplorerViewMode.grid,
-                  onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
-                ),
-              ],
-            ),
-          ],
+        const SizedBox(width: 8),
+        ToolbarButton(
+          icon: Icons.arrow_forward_rounded,
+          tooltip: 'Avant',
+          onPressed: state.isLoading || !_viewModel.canGoForward
+              ? null
+              : _viewModel.goForward,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: _PathInput(
+            controller: _pathController,
+            onSubmit: (value) => _viewModel.loadDirectory(value),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: _SearchInput(
+            controller: _searchController,
+            onChanged: _viewModel.updateSearch,
+          ),
+        ),
+        const SizedBox(width: 12),
+        ToolbarButton(
+          icon: Icons.refresh_rounded,
+          tooltip: 'Rafraichir',
+          onPressed: state.isLoading ? null : _viewModel.refresh,
+        ),
+        const SizedBox(width: 12),
+        ToolbarButton(
+          icon: Icons.view_list_rounded,
+          tooltip: 'Vue liste',
+          isActive: state.viewMode == ExplorerViewMode.list,
+          onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
+        ),
+        const SizedBox(width: 8),
+        ToolbarButton(
+          icon: Icons.grid_view_rounded,
+          tooltip: 'Vue grille',
+          isActive: state.viewMode == ExplorerViewMode.grid,
+          onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
         ),
       ],
     );
