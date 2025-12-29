@@ -25,19 +25,16 @@ class ToolbarButton extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: isActive
-                ? colorScheme.primary.withOpacity(0.18)
-                : Colors.white.withOpacity(0.04),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isActive
-                  ? colorScheme.primary.withOpacity(0.5)
-                  : Colors.white10,
-            ),
+                ? colorScheme.primary.withOpacity(0.12)
+                : Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           child: Icon(
             icon,
-            color: isActive ? colorScheme.primary : Colors.white70,
+            color: isActive ? colorScheme.primary : Colors.white.withOpacity(0.9),
+            size: 20,
           ),
         ),
       ),

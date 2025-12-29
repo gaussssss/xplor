@@ -43,7 +43,7 @@ class ExplorerViewState {
       currentPath: startingPath,
       entries: const [],
       isLoading: false,
-      viewMode: ExplorerViewMode.list,
+      viewMode: ExplorerViewMode.grid,
       searchQuery: '',
       selectedPaths: <String>{},
       clipboardCount: 0,
@@ -108,6 +108,8 @@ class ExplorerViewModel extends ChangeNotifier {
   final RenameEntry _renameEntry;
   ExplorerViewState _state;
   List<FileEntry> _clipboard = [];
+  final List<String> _backStack = [];
+  final List<String> _forwardStack = [];
 
   ExplorerViewState get state => _state;
 
@@ -120,8 +122,16 @@ class ExplorerViewModel extends ChangeNotifier {
         .toList();
   }
 
-  Future<void> loadDirectory(String path) async {
+  Future<void> loadDirectory(
+    String path, {
+    bool pushHistory = true,
+  }) async {
     final targetPath = path.trim().isEmpty ? _state.currentPath : path.trim();
+    if (pushHistory && targetPath == _state.currentPath) return;
+    if (pushHistory && _state.currentPath != targetPath) {
+      _backStack.add(_state.currentPath);
+      _forwardStack.clear();
+    }
     _state = _state.copyWith(
       isLoading: true,
       clearError: true,
@@ -158,7 +168,7 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   Future<void> refresh() {
-    return loadDirectory(_state.currentPath);
+    return loadDirectory(_state.currentPath, pushHistory: false);
   }
 
   Future<void> open(FileEntry entry) {
@@ -379,6 +389,22 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   bool get canPaste => _clipboard.isNotEmpty;
+  bool get canGoBack => _backStack.isNotEmpty;
+  bool get canGoForward => _forwardStack.isNotEmpty;
+
+  Future<void> goBack() async {
+    if (_backStack.isEmpty) return;
+    final target = _backStack.removeLast();
+    _forwardStack.add(_state.currentPath);
+    await loadDirectory(target, pushHistory: false);
+  }
+
+  Future<void> goForward() async {
+    if (_forwardStack.isEmpty) return;
+    final target = _forwardStack.removeLast();
+    _backStack.add(_state.currentPath);
+    await loadDirectory(target, pushHistory: false);
+  }
 
   Future<void> duplicateSelected() async {
     if (_state.selectedPaths.isEmpty) return;
