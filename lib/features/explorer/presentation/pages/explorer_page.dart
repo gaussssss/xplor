@@ -1088,10 +1088,10 @@ class _Sidebar extends StatelessWidget {
                     .take(6)
                     .map(
                       (path) => SidebarItem(
-                        label: path
-                            .split(Platform.pathSeparator)
-                            .where((p) => p.isNotEmpty)
-                            .last,
+                            label: path
+                              .split(Platform.pathSeparator)
+                              .where((p) => p.isNotEmpty)
+                              .lastWhere((_) => true, orElse: () => path),
                         icon: LucideIcons.history,
                         onTap: () => onNavigate(path),
                       ),
