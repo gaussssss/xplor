@@ -2,10 +2,9 @@ import 'dart:io';
 
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
-import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:shadcn_ui/shadcn_ui.dart' hide LucideIcons;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
@@ -46,7 +45,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isSearchExpanded = false;
   bool _isToastShowing = false;
   bool _isSidebarCollapsed = false;
-  bool _showAllVolumes = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
 
   @override
@@ -74,6 +72,24 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _volumes = _readVolumes();
     _viewModel.loadDirectory(initialPath, pushHistory: false);
     _viewModel.bootstrap();
+    _loadSidebarWidth();
+  }
+
+  /// Charge la largeur du sidebar depuis SharedPreferences
+  Future<void> _loadSidebarWidth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedWidth = prefs.getDouble('sidebar_width');
+    if (savedWidth != null && mounted) {
+      setState(() {
+        _sidebarWidth = savedWidth.clamp(180.0, 400.0);
+      });
+    }
+  }
+
+  /// Sauvegarde la largeur du sidebar dans SharedPreferences
+  Future<void> _saveSidebarWidth(double width) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('sidebar_width', width);
   }
 
   Widget _buildSearchToggle() {
@@ -170,15 +186,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     recentPaths: state.recentPaths,
                     selectedTags: _viewModel.selectedTags,
                     selectedTypes: _viewModel.selectedTypes,
-                    showAllVolumes: _showAllVolumes,
                     onNavigate: _viewModel.loadDirectory,
                     onTagToggle: _viewModel.toggleTag,
                     onTypeToggle: _viewModel.toggleType,
                     onToggleCollapse: () {
                       setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
-                    },
-                    onToggleVolumes: () {
-                      setState(() => _showAllVolumes = !_showAllVolumes);
                     },
                     collapsed: _isSidebarCollapsed,
                   ),
@@ -193,6 +205,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                   _sidebarWidth = (_sidebarWidth + details.delta.dx)
                                       .clamp(180.0, 400.0); // Min 180px, Max 400px
                                 });
+                              },
+                              onPanEnd: (_) {
+                                // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
+                                _saveSidebarWidth(_sidebarWidth);
                               },
                               child: Container(
                                 width: 8,
@@ -1146,11 +1162,9 @@ class _Sidebar extends StatelessWidget {
     this.recentPaths = const [],
     this.selectedTags = const <String>{},
     this.selectedTypes = const <String>{},
-    this.showAllVolumes = false,
     this.onTagToggle,
     this.onTypeToggle,
     this.onToggleCollapse,
-    this.onToggleVolumes,
     this.collapsed = false,
   });
 
@@ -1162,12 +1176,10 @@ class _Sidebar extends StatelessWidget {
   final List<String> recentPaths;
   final Set<String> selectedTags;
   final Set<String> selectedTypes;
-  final bool showAllVolumes;
   final void Function(String path) onNavigate;
   final void Function(String tag)? onTagToggle;
   final void Function(String type)? onTypeToggle;
   final VoidCallback? onToggleCollapse;
-  final VoidCallback? onToggleVolumes;
   final bool collapsed;
 
   @override
@@ -1180,31 +1192,9 @@ class _Sidebar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _SidebarHeader(
-                collapsed: true,
-                onToggleCollapse: onToggleCollapse,
-              ),
+              // Pas de header avec doublon du toggle - juste les icônes
               const SizedBox(height: 8),
-              ...quickItems
-                  .map(
-                    (item) => _RailButton(
-                      icon: item.icon,
-                      tooltip: item.label,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
-              const SizedBox(height: 6),
-              ...systemItems
-                  .map(
-                    (item) => _RailButton(
-                      icon: item.icon,
-                      tooltip: item.label,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
-              const SizedBox(height: 6),
+              // Favoris (3 premiers)
               ...favoriteItems
                   .take(3)
                   .map(
@@ -1213,28 +1203,51 @@ class _Sidebar extends StatelessWidget {
                       tooltip: item.label,
                       onTap: () => onNavigate(item.path),
                     ),
-                  )
-                  .toList(),
+                  ),
+              const SizedBox(height: 6),
+              // Divider subtil
+              Container(
+                width: 32,
+                height: 1,
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+              const SizedBox(height: 6),
+              // Emplacements système
+              ...systemItems
+                  .map(
+                    (item) => _RailButton(
+                      icon: item.icon,
+                      tooltip: item.label,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  ),
               if (volumes.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                ...volumes
-                    .take(showAllVolumes ? volumes.length : 2)
-                    .map(
-                      (volume) => _RailButton(
-                        icon: lucide.LucideIcons.hardDrive,
-                        tooltip: volume.label,
-                        onTap: () => onNavigate(volume.path),
-                      ),
-                    ),
+                // Divider subtil
+                Container(
+                  width: 32,
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+                const SizedBox(height: 6),
+                ...volumes.take(2).map(
+                  (volume) => _RailButton(
+                    icon: lucide.LucideIcons.hardDrive,
+                    tooltip: volume.label,
+                    onTap: () => onNavigate(volume.path),
+                  ),
+                ),
                 if (volumes.length > 2)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: _RailButton(
-                      icon: showAllVolumes
-                          ? lucide.LucideIcons.chevronUp
-                          : lucide.LucideIcons.chevronDown,
-                      tooltip: showAllVolumes ? 'Moins' : 'Plus',
-                      onTap: onToggleVolumes,
+                      icon: lucide.LucideIcons.chevronRight,
+                      tooltip: 'Tous les disques',
+                      onTap: () => _showAllDisksDialog(
+                        context,
+                        volumes,
+                        onNavigate,
+                      ),
                     ),
                   ),
               ],
@@ -1330,14 +1343,12 @@ class _Sidebar extends StatelessWidget {
                             ),
                       ),
                     ),
-                    ...volumes
-                        .take(showAllVolumes ? volumes.length : 2)
-                        .map(
-                          (volume) => _VolumeItem(
-                            volume: volume,
-                            onTap: () => onNavigate(volume.path),
-                          ),
-                        ),
+                    ...volumes.take(2).map(
+                      (volume) => _VolumeItem(
+                        volume: volume,
+                        onTap: () => onNavigate(volume.path),
+                      ),
+                    ),
                     if (volumes.length > 2)
                       Align(
                         alignment: Alignment.centerLeft,
@@ -1350,17 +1361,17 @@ class _Sidebar extends StatelessWidget {
                             ),
                             minimumSize: const Size(0, 32),
                           ),
-                          onPressed: onToggleVolumes,
-                          icon: Icon(
-                            showAllVolumes
-                                ? lucide.LucideIcons.chevronUp
-                                : lucide.LucideIcons.chevronDown,
+                          onPressed: () => _showAllDisksDialog(
+                            context,
+                            volumes,
+                            onNavigate,
+                          ),
+                          icon: const Icon(
+                            lucide.LucideIcons.chevronRight,
                             size: 14,
                           ),
                           label: Text(
-                            showAllVolumes
-                                ? 'Voir moins'
-                                : 'Voir tous (${volumes.length})',
+                            'Voir tous (${volumes.length})',
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
@@ -1412,118 +1423,6 @@ class _Sidebar extends StatelessWidget {
         ),
         ),
       ),
-    );
-  }
-}
-
-class _SidebarHeader extends StatelessWidget {
-  const _SidebarHeader({required this.collapsed, this.onToggleCollapse});
-
-  final bool collapsed;
-  final VoidCallback? onToggleCollapse;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    if (collapsed) {
-      return Column(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  scheme.primary.withOpacity(0.45),
-                  scheme.primary.withOpacity(0.12),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
-            ),
-            child: Icon(lucide.LucideIcons.compass, color: Colors.white),
-          ),
-          const SizedBox(height: 6),
-          _CollapseControl(
-            expand: true,
-            onPressed: onToggleCollapse,
-          ),
-        ],
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white.withOpacity(0.03),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.08),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Icon(
-              lucide.LucideIcons.compass,
-              size: 18,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Navigation rapide',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (onToggleCollapse != null)
-            _CollapseControl(
-              expand: false,
-              onPressed: onToggleCollapse,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CollapseControl extends StatelessWidget {
-  const _CollapseControl({required this.expand, required this.onPressed});
-
-  final bool expand;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = expand ? lucide.LucideIcons.panelRightOpen : lucide.LucideIcons.panelLeftOpen;
-    if (Platform.isMacOS) {
-      return macos.MacosIconButton(
-        icon: Icon(icon, size: 16),
-        onPressed: onPressed,
-      );
-    }
-    if (Platform.isWindows) {
-      return fluent.IconButton(
-        icon: Icon(icon, size: 16),
-        onPressed: onPressed,
-      );
-    }
-    return IconButton(
-      tooltip: expand ? 'Etendre' : 'Réduire',
-      icon: Icon(icon, size: 18),
-      onPressed: onPressed,
     );
   }
 }
