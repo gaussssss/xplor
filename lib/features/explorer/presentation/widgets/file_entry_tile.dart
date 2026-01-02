@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/theme/design_tokens.dart';
 import '../../domain/entities/file_entry.dart';
 import '../viewmodels/explorer_view_model.dart';
 
@@ -67,6 +68,7 @@ class _ListEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final iconColor = entry.isDirectory
         ? Colors.amberAccent.shade200
         : (entry.isApplication ? Colors.greenAccent.shade200 : Colors.blueGrey.shade200);
@@ -85,7 +87,7 @@ class _ListEntry extends StatelessWidget {
             entry: entry,
             icon: iconData,
             color: iconColor,
-            size: 22,
+            size: DesignTokens.iconSizeSmall,
           );
 
     return GestureDetector(
@@ -93,20 +95,65 @@ class _ListEntry extends StatelessWidget {
       onTap: onToggleSelection,
       onDoubleTap: onOpen,
       onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
-      child: ListTile(
-        leading: IconTheme(
-          data: const IconThemeData(size: 22),
-          child: leadingWidget,
+      child: Container(
+        height: DesignTokens.fileEntryTileHeight,
+        padding: EdgeInsets.symmetric(
+          horizontal: DesignTokens.spacingMD,
         ),
-        selected: isSelected,
-        selectedTileColor: Colors.white.withOpacity(0.05),
-        title: Text(
-          entry.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
         ),
-        subtitle: Text('Modifie le $modifiedLabel'),
-        trailing: Text(_formatSize(entry.size)),
+        child: Row(
+          children: [
+            SizedBox(
+              width: DesignTokens.iconSizeMedium,
+              child: IconTheme(
+                data: IconThemeData(size: DesignTokens.iconSizeSmall),
+                child: leadingWidget,
+              ),
+            ),
+            SizedBox(width: DesignTokens.spacingMD),
+            Expanded(
+              flex: 3,
+              child: Text(
+                entry.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                    ),
+              ),
+            ),
+            SizedBox(width: DesignTokens.spacingLG),
+            Expanded(
+              flex: 2,
+              child: Text(
+                'Modifié le $modifiedLabel',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+              ),
+            ),
+            SizedBox(width: DesignTokens.spacingLG),
+            SizedBox(
+              width: 80,
+              child: Text(
+                _formatSize(entry.size),
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -145,16 +192,13 @@ class _GridEntry extends StatelessWidget {
       onDoubleTap: onOpen,
       onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.all(DesignTokens.paddingMD),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.white10,
-            width: isSelected ? 1.5 : 1,
-          ),
-          color: Theme.of(context)
-              .cardColor
-              .withOpacity(isSelected ? 1 : 0.85),
+          borderRadius: DesignTokens.borderRadiusXS,
+          // Pas de border - trop chargé
+          color: isSelected
+              ? colorScheme.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,16 +206,16 @@ class _GridEntry extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(DesignTokens.paddingMD),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: DesignTokens.borderRadiusXS,
                   ),
                   child: _EntryIcon(
                     entry: entry,
                     icon: iconData,
                     color: iconColor,
-                    size: 34,
+                    size: DesignTokens.iconSizeXLarge,
                   ),
                 ),
                 const Spacer(),
@@ -183,31 +227,35 @@ class _GridEntry extends StatelessWidget {
                 else
                   Text(
                     _formatSize(entry.size),
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium
-                        ?.copyWith(color: Colors.white70),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 11,
+                        ),
                   ),
               ],
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: DesignTokens.spacingMD),
             Text(
               entry.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: DesignTokens.spacingXS),
             Text(
               entry.lastModified != null
-                  ? 'Modifie le ${_formatDate(entry.lastModified!)}'
+                  ? 'Modifié le ${_formatDate(entry.lastModified!)}'
                   : 'Date inconnue',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: Colors.white70),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
             ),
           ],
         ),
@@ -234,7 +282,7 @@ class _EntryIcon extends StatelessWidget {
     final iconPath = entry.iconPath;
     if (iconPath != null && iconPath.toLowerCase().endsWith('.png')) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: DesignTokens.borderRadiusXS,
         child: Image.file(
           File(iconPath),
           width: size,

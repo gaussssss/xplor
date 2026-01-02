@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/design_tokens.dart';
+
+/// Bouton compact pour la toolbar (36x36px - Windows 11 style)
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
     super.key,
@@ -17,24 +20,33 @@ class ToolbarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Tooltip(
       message: tooltip,
-      child: InkResponse(
-        onTap: onPressed,
-        radius: 28,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isActive
-                ? colorScheme.primary.withOpacity(0.12)
-                : Colors.white.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-          ),
-          padding: const EdgeInsets.all(12),
-          child: Icon(
-            icon,
-            color: isActive ? colorScheme.primary : Colors.white.withOpacity(0.9),
-            size: 20,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: DesignTokens.borderRadiusXS,
+          child: Container(
+            width: DesignTokens.toolbarButtonSize,
+            height: DesignTokens.toolbarButtonSize,
+            decoration: BoxDecoration(
+              // Seulement un subtle background pour l'état actif
+              color: isActive
+                  ? colorScheme.primary.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: DesignTokens.borderRadiusXS,
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: isActive
+                    ? colorScheme.primary
+                    : Colors.white.withValues(alpha: 0.7),
+                size: DesignTokens.iconSizeNormal,
+              ),
+            ),
           ),
         ),
       ),

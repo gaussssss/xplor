@@ -1,0 +1,208 @@
+import 'package:flutter/material.dart';
+
+/// Les 4 palettes de couleurs disponibles dans l'application
+enum ColorPalette {
+  /// Palette moderne et professionnelle (bleu/purple équilibré)
+  modernTech,
+
+  /// Palette néon futuriste et énergique (défaut) ⚡
+  neonCyberpunk,
+
+  /// Palette chaleureuse et créative (coral/peach)
+  warmSunset,
+
+  /// Palette sophistiquée et premium (ocean blue/indigo) 🌊
+  deepOcean,
+}
+
+/// Extension pour obtenir les métadonnées d'une palette
+extension ColorPaletteExtension on ColorPalette {
+  String get displayName {
+    switch (this) {
+      case ColorPalette.modernTech:
+        return 'Modern Tech';
+      case ColorPalette.neonCyberpunk:
+        return 'Neon Cyberpunk';
+      case ColorPalette.warmSunset:
+        return 'Warm Sunset';
+      case ColorPalette.deepOcean:
+        return 'Deep Ocean';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case ColorPalette.modernTech:
+        return 'Professionnel, moderne, propre';
+      case ColorPalette.neonCyberpunk:
+        return 'Futuriste, énergique, électrique';
+      case ColorPalette.warmSunset:
+        return 'Chaleureux, accueillant, créatif';
+      case ColorPalette.deepOcean:
+        return 'Sophistiqué, élégant, premium';
+    }
+  }
+
+  String get emoji {
+    switch (this) {
+      case ColorPalette.modernTech:
+        return '💼';
+      case ColorPalette.neonCyberpunk:
+        return '⚡';
+      case ColorPalette.warmSunset:
+        return '🌅';
+      case ColorPalette.deepOcean:
+        return '🌊';
+    }
+  }
+}
+
+/// Données d'une palette de couleurs avec sémantique claire
+class ColorPaletteData {
+  const ColorPaletteData({
+    required this.primary,
+    required this.navigation,
+    required this.info,
+    required this.success,
+    required this.warning,
+    required this.error,
+    required this.folder,
+    required this.file,
+    required this.application,
+  });
+
+  /// Couleur principale pour actions primaires et boutons
+  final Color primary;
+
+  /// Couleur pour navigation, sidebar et éléments de navigation
+  final Color navigation;
+
+  /// Couleur pour informations, status et tooltips
+  final Color info;
+
+  /// Couleur pour opérations réussies (copie, création)
+  final Color success;
+
+  /// Couleur pour avertissements (permissions, espace disque)
+  final Color warning;
+
+  /// Couleur pour erreurs et suppressions
+  final Color error;
+
+  /// Couleur spécifique pour les dossiers
+  final Color folder;
+
+  /// Couleur spécifique pour les fichiers génériques
+  final Color file;
+
+  /// Couleur spécifique pour les applications
+  final Color application;
+}
+
+/// Classe statique contenant toutes les palettes de couleurs
+class ColorPalettes {
+  ColorPalettes._();
+
+  /// Palette Modern Tech - Professionnel et équilibré
+  static const modernTech = ColorPaletteData(
+    primary: Color(0xFF60A5FA), // Blue moderne
+    navigation: Color(0xFFA78BFA), // Purple doux
+    info: Color(0xFF22D3EE), // Cyan vif
+    success: Color(0xFF34D399), // Green positif
+    warning: Color(0xFFFB923C), // Orange chaud
+    error: Color(0xFFF87171), // Red doux
+    folder: Color(0xFFFBBF24), // Yellow ambre
+    file: Color(0xFF60A5FA), // Blue (même que primary)
+    application: Color(0xFF34D399), // Green (même que success)
+  );
+
+  /// Palette Neon Cyberpunk - Futuriste et énergique ⚡ (DÉFAUT)
+  static const neonCyberpunk = ColorPaletteData(
+    primary: Color(0xFF00D4FF), // Blue néon électrique
+    navigation: Color(0xFFB24BF3), // Purple néon vibrant
+    info: Color(0xFF00FFC8), // Teal néon lumineux
+    success: Color(0xFF39FF14), // Green néon intense
+    warning: Color(0xFFFF6B35), // Orange néon explosif
+    error: Color(0xFFFF007F), // Pink néon flashy
+    folder: Color(0xFFFBBF24), // Yellow ambre (conservé pour lisibilité)
+    file: Color(0xFF00D4FF), // Blue néon
+    application: Color(0xFF39FF14), // Green néon
+  );
+
+  /// Palette Warm Sunset - Chaleureux et créatif 🌅
+  static const warmSunset = ColorPaletteData(
+    primary: Color(0xFFFF6B6B), // Coral chaleureux
+    navigation: Color(0xFFFFB366), // Peach doux
+    info: Color(0xFFC69EEB), // Lavender subtil
+    success: Color(0xFF6BCF7F), // Mint frais
+    warning: Color(0xFFFFD93D), // Gold lumineux
+    error: Color(0xFFE63946), // Crimson profond
+    folder: Color(0xFFFFD93D), // Gold (même que warning)
+    file: Color(0xFFFF6B6B), // Coral
+    application: Color(0xFF6BCF7F), // Mint
+  );
+
+  /// Palette Deep Ocean - Sophistiqué et premium 🌊
+  static const deepOcean = ColorPaletteData(
+    primary: Color(0xFF0EA5E9), // Ocean blue profond
+    navigation: Color(0xFF6366F1), // Indigo riche
+    info: Color(0xFF14B8A6), // Turquoise aqua
+    success: Color(0xFF10B981), // Emerald précieux
+    warning: Color(0xFFF59E0B), // Amber chaud
+    error: Color(0xFFF43F5E), // Rose intense
+    folder: Color(0xFFF59E0B), // Amber (même que warning)
+    file: Color(0xFF0EA5E9), // Ocean blue
+    application: Color(0xFF10B981), // Emerald
+  );
+
+  /// Récupère les données d'une palette spécifique
+  static ColorPaletteData getData(ColorPalette palette) {
+    switch (palette) {
+      case ColorPalette.modernTech:
+        return modernTech;
+      case ColorPalette.neonCyberpunk:
+        return neonCyberpunk;
+      case ColorPalette.warmSunset:
+        return warmSunset;
+      case ColorPalette.deepOcean:
+        return deepOcean;
+    }
+  }
+
+  /// Retourne le paramètre de glow (intensité) selon la palette
+  /// Néon Cyberpunk a besoin de glows plus prononcés
+  static double getGlowIntensity(ColorPalette palette) {
+    switch (palette) {
+      case ColorPalette.neonCyberpunk:
+        return 0.6; // Glow intense pour effet néon
+      case ColorPalette.modernTech:
+      case ColorPalette.warmSunset:
+      case ColorPalette.deepOcean:
+        return 0.3; // Glow subtil
+    }
+  }
+
+  /// Retourne le blur radius pour les ombres selon la palette
+  static double getShadowBlurRadius(ColorPalette palette) {
+    switch (palette) {
+      case ColorPalette.neonCyberpunk:
+        return 20.0; // Ombres plus diffuses pour effet néon
+      case ColorPalette.modernTech:
+      case ColorPalette.warmSunset:
+      case ColorPalette.deepOcean:
+        return 10.0; // Ombres standard
+    }
+  }
+
+  /// Retourne le spread radius pour les ombres selon la palette
+  static double getShadowSpreadRadius(ColorPalette palette) {
+    switch (palette) {
+      case ColorPalette.neonCyberpunk:
+        return 2.0; // Spread plus large pour effet de halo néon
+      case ColorPalette.modernTech:
+      case ColorPalette.warmSunset:
+      case ColorPalette.deepOcean:
+        return 0.5; // Spread minimal
+    }
+  }
+}

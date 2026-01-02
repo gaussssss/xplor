@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:fluent_ui/fluent_ui.dart' as fluent;
+import 'package:lucide_icons/lucide_icons.dart' as lucide;
+import 'package:macos_ui/macos_ui.dart' as macos;
+import 'package:shadcn_ui/shadcn_ui.dart' hide LucideIcons;
 
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
@@ -17,7 +20,7 @@ import '../../../explorer/domain/usecases/copy_entries.dart';
 import '../viewmodels/explorer_view_model.dart';
 import '../widgets/breadcrumb_bar.dart';
 import '../widgets/file_entry_tile.dart';
-import '../widgets/glass_panel.dart';
+import '../widgets/glass_panel_v2.dart';
 import '../widgets/sidebar_section.dart';
 import '../widgets/toolbar_button.dart';
 
@@ -42,6 +45,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _contextMenuOpen = false;
   bool _isSearchExpanded = false;
   bool _isToastShowing = false;
+  bool _isSidebarCollapsed = false;
 
   @override
   void initState() {
@@ -82,10 +86,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
               onChanged: _viewModel.updateSearch,
               onSubmitted: _viewModel.updateSearch,
               decoration: InputDecoration(
-                prefixIcon: const Icon(LucideIcons.search),
+                prefixIcon: const Icon(lucide.LucideIcons.search),
                 hintText: 'Recherche',
                 suffixIcon: IconButton(
-                  icon: const Icon(LucideIcons.x),
+                  icon: const Icon(lucide.LucideIcons.x),
                   onPressed: () {
                     setState(() => _isSearchExpanded = false);
                     _searchFocusNode.unfocus();
@@ -95,7 +99,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
               ),
             )
           : ToolbarButton(
-              icon: LucideIcons.search,
+              icon: lucide.LucideIcons.search,
               tooltip: 'Rechercher',
               onPressed: () {
                 setState(() => _isSearchExpanded = true);
@@ -146,12 +150,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
             color: Theme.of(context).colorScheme.background,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      width: 240,
+                      width: _isSidebarCollapsed ? 70 : 180,
                       child: _Sidebar(
                         favoriteItems: _favoriteItems,
                         systemItems: _systemItems,
@@ -159,35 +163,52 @@ class _ExplorerPageState extends State<ExplorerPage> {
                         tags: _tagItems,
                         volumes: _volumes,
                         recentPaths: state.recentPaths,
-                        selectedTag: _viewModel.selectedTag,
+                        selectedTags: _viewModel.selectedTags,
+                        selectedTypes: _viewModel.selectedTypes,
                         onNavigate: _viewModel.loadDirectory,
-                        onTagSelected: (tag) => _viewModel.setTagFilter(
-                          tag == _viewModel.selectedTag ? null : tag,
-                        ),
+                        onTagToggle: _viewModel.toggleTag,
+                        onTypeToggle: _viewModel.toggleType,
+                        onToggleCollapse: () {
+                          setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
+                        },
+                        collapsed: _isSidebarCollapsed,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          GlassPanel(child: _buildToolbar(state)),
-                          const SizedBox(height: 12),
-                          GlassPanel(child: _buildActionBar(state)),
-                          const SizedBox(height: 12),
+                          GlassPanelV2(
+                            level: GlassPanelLevel.secondary,
+                            child: _buildToolbar(state),
+                          ),
+                          const SizedBox(height: 8),
+                          GlassPanelV2(
+                            level: GlassPanelLevel.secondary,
+                            child: _buildFilterBar(state),
+                          ),
+                          const SizedBox(height: 8),
+                          GlassPanelV2(
+                            level: GlassPanelLevel.secondary,
+                            child: _buildActionBar(state),
+                          ),
+                          const SizedBox(height: 8),
                           Expanded(
-                            child: GlassPanel(
+                            child: GlassPanelV2(
+                              level: GlassPanelLevel.primary,
                               padding: const EdgeInsets.all(0),
                               child: _buildContent(state, entries),
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: _StatsFooter(state: state),
                           ),
-                          const SizedBox(height: 12),
-                          GlassPanel(
+                          const SizedBox(height: 8),
+                          GlassPanelV2(
+                            level: GlassPanelLevel.tertiary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 10,
@@ -220,7 +241,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return Row(
       children: [
         ToolbarButton(
-          icon: LucideIcons.arrowLeft,
+          icon: lucide.LucideIcons.arrowLeft,
           tooltip: 'Arriere',
           onPressed: state.isLoading || !_viewModel.canGoBack
               ? null
@@ -228,7 +249,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ),
         const SizedBox(width: 8),
         ToolbarButton(
-          icon: LucideIcons.arrowRight,
+          icon: lucide.LucideIcons.arrowRight,
           tooltip: 'Avant',
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
@@ -236,7 +257,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ),
         const SizedBox(width: 8),
         ToolbarButton(
-          icon: LucideIcons.history,
+          icon: lucide.LucideIcons.history,
           tooltip: 'Dernier emplacement',
           onPressed: state.isLoading || state.recentPaths.length < 2
               ? null
@@ -254,25 +275,82 @@ class _ExplorerPageState extends State<ExplorerPage> {
         _buildSearchToggle(),
         const SizedBox(width: 12),
         ToolbarButton(
-          icon: LucideIcons.refreshCw,
+          icon: lucide.LucideIcons.refreshCw,
           tooltip: 'Rafraichir',
           onPressed: state.isLoading ? null : _viewModel.refresh,
         ),
         const SizedBox(width: 12),
         ToolbarButton(
-          icon: LucideIcons.list,
+          icon: lucide.LucideIcons.list,
           tooltip: 'Vue liste',
           isActive: state.viewMode == ExplorerViewMode.list,
           onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
         ),
         const SizedBox(width: 8),
         ToolbarButton(
-          icon: LucideIcons.grid,
+          icon: lucide.LucideIcons.grid,
           tooltip: 'Vue grille',
           isActive: state.viewMode == ExplorerViewMode.grid,
           onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
         ),
       ],
+    );
+  }
+
+  Widget _buildFilterBar(ExplorerViewState state) {
+    final typeFilters = const [
+      _TypeItem(label: 'Docs', icon: lucide.LucideIcons.fileText),
+      _TypeItem(label: 'Media', icon: lucide.LucideIcons.video),
+      _TypeItem(label: 'Archives', icon: lucide.LucideIcons.package),
+      _TypeItem(label: 'Code', icon: lucide.LucideIcons.code),
+      _TypeItem(label: 'Apps', icon: lucide.LucideIcons.appWindow),
+    ];
+    final hasFilters = state.selectedTags.isNotEmpty ||
+        state.selectedTypes.isNotEmpty ||
+        state.searchQuery.isNotEmpty;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Row(
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ..._tagItems.map(
+                (tag) => _FilterPill(
+                  label: tag.label,
+                  color: tag.color,
+                  isActive: _viewModel.selectedTags.contains(tag.label),
+                  onTap: () => _viewModel.toggleTag(tag.label),
+                ),
+              ),
+              ...typeFilters.map(
+                (type) => _FilterPill(
+                  label: type.label,
+                  color: Theme.of(context).colorScheme.secondary,
+                  icon: type.icon,
+                  isActive: _viewModel.selectedTypes.contains(type.label),
+                  onTap: () => _viewModel.toggleType(type.label),
+                ),
+              ),
+            ],
+          ),
+          if (hasFilters) ...[
+            const SizedBox(width: 12),
+            TextButton.icon(
+              onPressed: () {
+                _viewModel.clearFilters();
+                _viewModel.updateSearch('');
+                _searchController.text = '';
+              },
+              icon: const Icon(lucide.LucideIcons.rotateCw, size: 16),
+              label: const Text('Reset filtres'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -297,7 +375,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.alertCircle, size: 48),
+              const Icon(lucide.LucideIcons.alertCircle, size: 48),
               const SizedBox(height: 12),
               Text(
                 state.error!,
@@ -321,7 +399,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: const [
               SizedBox(height: 80),
-              Center(child: Icon(LucideIcons.folderX, size: 56)),
+              Center(child: Icon(lucide.LucideIcons.folderX, size: 56)),
               SizedBox(height: 8),
               Center(
                 child: Text('Aucun element dans ce dossier (ou acces limite)'),
@@ -354,85 +432,69 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   Widget _buildActionBar(ExplorerViewState state) {
     final selectionCount = state.selectedPaths.length;
-    final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    );
-    final outlinedStyle = OutlinedButton.styleFrom(
-      side: const BorderSide(color: Colors.white24),
-      shape: buttonShape,
-      foregroundColor: Colors.white,
-      overlayColor: Colors.white10,
-      minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-    );
-    final filledStyle = FilledButton.styleFrom(
-      shape: buttonShape,
-      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.16),
-      foregroundColor: Colors.white,
-      overlayColor: Colors.white24,
-      minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-    );
 
     return SizedBox(
-      height: 64,
+      height: 52,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: [
-            FilledButton.icon(
-              icon: const Icon(LucideIcons.folderPlus),
-              label: const Text('Nouveau dossier'),
+            ShadButton(
+              size: ShadButtonSize.sm,
+              leading: const Icon(lucide.LucideIcons.folderPlus, size: 16),
+              child: const Text('Nouveau'),
               onPressed: state.isLoading ? null : _promptCreateFolder,
-              style: filledStyle,
             ),
             const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(LucideIcons.copy),
-              label: const Text('Copier'),
+            ShadButton.raw(
+              variant: ShadButtonVariant.secondary,
+              size: ShadButtonSize.sm,
+              leading: const Icon(lucide.LucideIcons.copy, size: 16),
+              child: const Text('Copier'),
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _viewModel.copySelectionToClipboard,
-              style: outlinedStyle,
             ),
             const SizedBox(width: 8),
-            FilledButton.icon(
-              icon: const Icon(LucideIcons.clipboard),
-              label: const Text('Coller'),
+            ShadButton.raw(
+              variant: ShadButtonVariant.outline,
+              size: ShadButtonSize.sm,
+              leading: const Icon(lucide.LucideIcons.clipboard, size: 16),
+              child: const Text('Coller'),
               onPressed: state.isLoading || !_viewModel.canPaste
                   ? null
                   : _viewModel.pasteClipboard,
-              style: filledStyle,
             ),
             const SizedBox(width: 8),
-            FilledButton.icon(
-              icon: const Icon(LucideIcons.edit3),
-              label: const Text('Renommer'),
+            ShadButton.raw(
+              variant: ShadButtonVariant.secondary,
+              size: ShadButtonSize.sm,
+              leading: const Icon(lucide.LucideIcons.edit3, size: 16),
+              child: const Text('Renommer'),
               onPressed: state.isLoading || selectionCount != 1
                   ? null
                   : _promptRename,
-              style: filledStyle,
             ),
             const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(LucideIcons.move),
-              label: const Text('Deplacer vers...'),
+            ShadButton.raw(
+              variant: ShadButtonVariant.ghost,
+              size: ShadButtonSize.sm,
+              leading: const Icon(lucide.LucideIcons.move, size: 16),
+              child: const Text('Deplacer'),
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _promptMove,
-              style: outlinedStyle,
             ),
             const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(LucideIcons.trash2),
-              label: const Text('Supprimer'),
+            ShadButton.raw(
+              variant: ShadButtonVariant.destructive,
+              size: ShadButtonSize.sm,
+              leading: const Icon(lucide.LucideIcons.trash2, size: 16),
+              child: const Text('Supprimer'),
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _confirmDeletion,
-              style: outlinedStyle,
             ),
             const SizedBox(width: 16),
             if (selectionCount > 0) ...[
@@ -445,7 +507,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
               IconButton(
                 tooltip: 'Vider la selection',
                 onPressed: state.isLoading ? null : _viewModel.clearSelection,
-                icon: const Icon(LucideIcons.x),
+                icon: const Icon(lucide.LucideIcons.x),
               ),
             ],
           ],
@@ -566,6 +628,18 @@ class _ExplorerPageState extends State<ExplorerPage> {
       menuItems.add(
         const PopupMenuItem<String>(value: 'cut', child: Text('Couper')),
       );
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'copyPath',
+          child: Text('Copier le chemin'),
+        ),
+      );
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'openTerminal',
+          child: Text('Ouvrir le terminal ici'),
+        ),
+      );
     }
 
     final pasteDestination = entry != null && entry.isDirectory
@@ -602,6 +676,26 @@ class _ExplorerPageState extends State<ExplorerPage> {
           child: Text('Nouveau dossier'),
         ),
       );
+    }
+    if (_viewModel.state.selectedPaths.isNotEmpty) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'compress',
+          child: Text('Compresser en .zip'),
+        ),
+      );
+    }
+    if (entry == null) {
+      menuItems.addAll([
+        const PopupMenuItem<String>(
+          value: 'copyPath',
+          child: Text('Copier le chemin courant'),
+        ),
+        const PopupMenuItem<String>(
+          value: 'openTerminal',
+          child: Text('Ouvrir le terminal ici'),
+        ),
+      ]);
     }
 
     String? selected;
@@ -656,6 +750,21 @@ class _ExplorerPageState extends State<ExplorerPage> {
         break;
       case 'newFolder':
         await _promptCreateFolder();
+        break;
+      case 'copyPath':
+        _viewModel.copyPathToClipboard(
+          entry?.path ?? _viewModel.state.currentPath,
+        );
+        break;
+      case 'openTerminal':
+        await _viewModel.openTerminalHere(
+          entry != null && entry.isDirectory
+              ? entry.path
+              : _viewModel.state.currentPath,
+        );
+        break;
+      case 'compress':
+        await _viewModel.compressSelected();
         break;
     }
   }
@@ -826,20 +935,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildFavoriteItems() {
     final home = Platform.environment['HOME'] ?? Directory.current.parent.path;
     return [
-      _NavItem(label: 'Accueil', icon: LucideIcons.home, path: home),
+      _NavItem(label: 'Accueil', icon: lucide.LucideIcons.home, path: home),
       _NavItem(
         label: 'Bureau',
-        icon: LucideIcons.monitor,
+        icon: lucide.LucideIcons.monitor,
         path: _join(home, 'Desktop'),
       ),
       _NavItem(
         label: 'Documents',
-        icon: LucideIcons.folderOpen,
+        icon: lucide.LucideIcons.folderOpen,
         path: _join(home, 'Documents'),
       ),
       _NavItem(
         label: 'Telechargements',
-        icon: LucideIcons.download,
+        icon: lucide.LucideIcons.download,
         path: _join(home, 'Downloads'),
       ),
     ];
@@ -849,17 +958,17 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return [
       _NavItem(
         label: 'Racine',
-        icon: LucideIcons.hardDrive,
+        icon: lucide.LucideIcons.hardDrive,
         path: Platform.pathSeparator,
       ),
       _NavItem(
         label: 'Applications',
-        icon: LucideIcons.box,
+        icon: lucide.LucideIcons.box,
         path: Platform.isWindows ? 'C:\\Program Files' : '/Applications',
       ),
       _NavItem(
         label: 'Projet courant',
-        icon: LucideIcons.folder,
+        icon: lucide.LucideIcons.folder,
         path: initialPath,
       ),
     ];
@@ -868,8 +977,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildQuickItems() {
     final home = Platform.environment['HOME'] ?? Directory.current.parent.path;
     return [
-      _NavItem(label: 'Recents', icon: LucideIcons.clock3, path: home),
-      _NavItem(label: 'Partage', icon: LucideIcons.share2, path: home),
+      _NavItem(label: 'Recents', icon: lucide.LucideIcons.clock3, path: home),
+      _NavItem(label: 'Partage', icon: lucide.LucideIcons.share2, path: home),
     ];
   }
 
@@ -974,7 +1083,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         duration: const Duration(milliseconds: 1700),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         icon: Icon(
-          LucideIcons.info,
+          lucide.LucideIcons.info,
           size: 22,
           color: theme.colorScheme.primary,
         ),
@@ -1005,7 +1114,7 @@ class _DragFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
+    final icon = entry.isDirectory ? lucide.LucideIcons.folder : lucide.LucideIcons.file;
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -1044,8 +1153,12 @@ class _Sidebar extends StatelessWidget {
     required this.tags,
     required this.volumes,
     this.recentPaths = const [],
-    this.selectedTag,
-    this.onTagSelected,
+    this.selectedTags = const <String>{},
+    this.selectedTypes = const <String>{},
+    this.onTagToggle,
+    this.onTypeToggle,
+    this.onToggleCollapse,
+    this.collapsed = false,
   });
 
   final List<_NavItem> favoriteItems;
@@ -1054,145 +1167,732 @@ class _Sidebar extends StatelessWidget {
   final List<_TagItem> tags;
   final List<_VolumeInfo> volumes;
   final List<String> recentPaths;
-  final String? selectedTag;
+  final Set<String> selectedTags;
+  final Set<String> selectedTypes;
   final void Function(String path) onNavigate;
-  final void Function(String tag)? onTagSelected;
+  final void Function(String tag)? onTagToggle;
+  final void Function(String type)? onTypeToggle;
+  final VoidCallback? onToggleCollapse;
+  final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SidebarSection(
-              title: 'Navigation',
-              compact: true,
-              items: quickItems
-                  .map(
-                    (item) => SidebarItem(
-                      label: item.label,
-                      icon: item.icon,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
-            ),
-            if (recentPaths.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SidebarSection(
-                title: 'Recents',
-                compact: true,
-                items: recentPaths
-                    .take(6)
-                    .map(
-                      (path) => SidebarItem(
-                            label: path
-                              .split(Platform.pathSeparator)
-                              .where((p) => p.isNotEmpty)
-                              .lastWhere((_) => true, orElse: () => path),
-                        icon: LucideIcons.history,
-                        onTap: () => onNavigate(path),
-                      ),
-                    )
-                    .toList(),
+    if (collapsed) {
+      return GlassPanelV2(
+        level: GlassPanelLevel.tertiary,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _SidebarHeader(
+                collapsed: true,
+                onToggleCollapse: onToggleCollapse,
               ),
-            ],
-            const SizedBox(height: 12),
-            SidebarSection(
-              title: 'Favoris',
-              items: favoriteItems
+              const SizedBox(height: 8),
+              ...quickItems
                   .map(
-                    (item) => SidebarItem(
-                      label: item.label,
+                    (item) => _RailButton(
                       icon: item.icon,
+                      tooltip: item.label,
                       onTap: () => onNavigate(item.path),
                     ),
                   )
                   .toList(),
-            ),
-            const SizedBox(height: 12),
-            SidebarSection(
-              title: 'Emplacements',
-              items: systemItems
-                  .map(
-                    (item) => SidebarItem(
-                      label: item.label,
-                      icon: item.icon,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
-            ),
-            if (volumes.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Disques',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  letterSpacing: 0.8,
-                  color: Colors.white60,
-                ),
-              ),
               const SizedBox(height: 6),
-              ...volumes.map(
-                (volume) => _VolumeTile(
-                  volume: volume,
-                  onTap: () => onNavigate(volume.path),
+              ...systemItems
+                  .map(
+                    (item) => _RailButton(
+                      icon: item.icon,
+                      tooltip: item.label,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  )
+                  .toList(),
+              const SizedBox(height: 6),
+              ...favoriteItems
+                  .take(3)
+                  .map(
+                    (item) => _RailButton(
+                      icon: item.icon,
+                      tooltip: item.label,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  )
+                  .toList(),
+              if (volumes.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                ...volumes.map(
+                  (volume) => _RailButton(
+                    icon: lucide.LucideIcons.hardDrive,
+                    tooltip: volume.label,
+                    onTap: () => onNavigate(volume.path),
+                  ),
+                ),
+              ],
+              if (onTypeToggle != null) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: const [
+                    _TypeItem(label: 'Docs', icon: lucide.LucideIcons.fileText),
+                    _TypeItem(label: 'Media', icon: lucide.LucideIcons.video),
+                    _TypeItem(label: 'Archives', icon: lucide.LucideIcons.package),
+                    _TypeItem(label: 'Code', icon: lucide.LucideIcons.code),
+                  ]
+                      .map(
+                        (type) => _TypeMini(
+                          label: type.label,
+                          icon: type.icon,
+                          active: selectedTypes.contains(type.label),
+                          onTap: () => onTypeToggle!(type.label),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: tags
+                      .map(
+                        (tag) => _TagDot(
+                          color: tag.color,
+                          active: selectedTags.contains(tag.label),
+                          onTap: onTagToggle == null
+                              ? null
+                              : () => onTagToggle!(tag.label),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+              if (onToggleCollapse != null) ...[
+                const SizedBox(height: 10),
+                _RailButton(
+                  icon: lucide.LucideIcons.panelRightOpen,
+                  tooltip: 'Etendre',
+                  onTap: onToggleCollapse,
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    final scheme = Theme.of(context).colorScheme;
+    return GlassPanelV2(
+      level: GlassPanelLevel.tertiary,
+      padding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          Positioned(
+            top: -80,
+            left: -30,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    scheme.primary.withOpacity(0.24),
+                    Colors.transparent,
+                  ],
                 ),
               ),
-            ],
-            const SizedBox(height: 12),
-            Text(
-              'Tags',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                letterSpacing: 0.8,
-                color: Colors.white60,
+            ),
+          ),
+          Positioned(
+            bottom: -60,
+            right: -50,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    scheme.tertiary.withOpacity(0.22),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            ...tags.map((tag) {
-              final isActive = selectedTag == tag.label;
-              return InkWell(
-                onTap: onTagSelected == null
-                    ? null
-                    : () => onTagSelected!(tag.label),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 2),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 12),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SidebarHeader(
+                    collapsed: false,
+                    onToggleCollapse: onToggleCollapse,
                   ),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.white.withOpacity(0.08) : null,
-                    borderRadius: BorderRadius.circular(10),
+                  const SizedBox(height: 6),
+                  _SidebarBlock(
+                    child: SidebarSection(
+                      title: 'Navigation',
+                      compact: true,
+                      items: quickItems
+                          .map(
+                            (item) => SidebarItem(
+                              label: item.label,
+                              icon: item.icon,
+                              onTap: () => onNavigate(item.path),
+                            ),
+                          )
+                          .toList(),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: tag.color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          tag.label,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: isActive ? Colors.white : Colors.white70,
+                  if (recentPaths.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _SidebarBlock(
+                      child: SidebarSection(
+                        title: 'Recents',
+                        compact: true,
+                        items: recentPaths
+                            .take(6)
+                            .map(
+                              (path) => SidebarItem(
+                                    label: path
+                                      .split(Platform.pathSeparator)
+                                      .where((p) => p.isNotEmpty)
+                                      .lastWhere((_) => true, orElse: () => path),
+                                icon: lucide.LucideIcons.history,
+                                onTap: () => onNavigate(path),
                               ),
-                        ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  _SidebarBlock(
+                    child: SidebarSection(
+                      title: 'Favoris',
+                      items: favoriteItems
+                          .map(
+                            (item) => SidebarItem(
+                              label: item.label,
+                              icon: item.icon,
+                              onTap: () => onNavigate(item.path),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _SidebarBlock(
+                    child: SidebarSection(
+                      title: 'Emplacements',
+                      items: systemItems
+                          .map(
+                            (item) => SidebarItem(
+                              label: item.label,
+                              icon: item.icon,
+                              onTap: () => onNavigate(item.path),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  if (volumes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _SidebarBlock(
+                      title: 'Disques',
+                      child: Column(
+                        children: volumes
+                            .map(
+                              (volume) => _VolumeTile(
+                                volume: volume,
+                                onTap: () => onNavigate(volume.path),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _SidebarBlock(
+                    title: 'Tags',
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: tags
+                          .map(
+                            (tag) => _TagChip(
+                              tag: tag,
+                              isActive: selectedTags.contains(tag.label),
+                              onTap: onTagToggle == null
+                                  ? null
+                                  : () => onTagToggle!(tag.label),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  if (onTypeToggle != null) ...[
+                    const SizedBox(height: 6),
+                    _SidebarBlock(
+                      title: 'Types',
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: const [
+                          _TypeItem(label: 'Docs', icon: lucide.LucideIcons.fileText),
+                          _TypeItem(label: 'Media', icon: lucide.LucideIcons.video),
+                          _TypeItem(label: 'Archives', icon: lucide.LucideIcons.package),
+                          _TypeItem(label: 'Code', icon: lucide.LucideIcons.code),
+                          _TypeItem(label: 'Apps', icon: lucide.LucideIcons.appWindow),
+                        ]
+                            .map(
+                              (type) => _FilterPill(
+                                label: type.label,
+                                color: Theme.of(context).colorScheme.secondary,
+                                icon: type.icon,
+                                isActive: selectedTypes.contains(type.label),
+                                onTap: () => onTypeToggle!(type.label),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarHeader extends StatelessWidget {
+  const _SidebarHeader({required this.collapsed, this.onToggleCollapse});
+
+  final bool collapsed;
+  final VoidCallback? onToggleCollapse;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (collapsed) {
+      return Column(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  scheme.primary.withOpacity(0.45),
+                  scheme.primary.withOpacity(0.12),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+            ),
+            child: Icon(lucide.LucideIcons.compass, color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          _CollapseControl(
+            expand: true,
+            onPressed: onToggleCollapse,
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withOpacity(0.03),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.08),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Icon(
+              lucide.LucideIcons.compass,
+              size: 18,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Navigation rapide',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (onToggleCollapse != null)
+            _CollapseControl(
+              expand: false,
+              onPressed: onToggleCollapse,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CollapseControl extends StatelessWidget {
+  const _CollapseControl({required this.expand, required this.onPressed});
+
+  final bool expand;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = expand ? lucide.LucideIcons.panelRightOpen : lucide.LucideIcons.panelLeftOpen;
+    if (Platform.isMacOS) {
+      return macos.MacosIconButton(
+        icon: Icon(icon, size: 16),
+        onPressed: onPressed,
+      );
+    }
+    if (Platform.isWindows) {
+      return fluent.IconButton(
+        icon: Icon(icon, size: 16),
+        onPressed: onPressed,
+      );
+    }
+    return IconButton(
+      tooltip: expand ? 'Etendre' : 'Réduire',
+      icon: Icon(icon, size: 18),
+      onPressed: onPressed,
+    );
+  }
+}
+
+class _SidebarBlock extends StatelessWidget {
+  const _SidebarBlock({this.title, required this.child});
+
+  final String? title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.fromRGBO(255, 255, 255, 0.05),
+            Color.fromRGBO(255, 255, 255, 0.02),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.22),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null) ...[
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.6),
+                        blurRadius: 10,
+                        spreadRadius: 0.4,
                       ),
                     ],
                   ),
                 ),
-              );
-            }),
+                const SizedBox(width: 8),
+                Text(
+                  title!.toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 0.9,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _RailButton extends StatelessWidget {
+  const _RailButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withOpacity(0.05),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Icon(icon, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TagDot extends StatelessWidget {
+  const _TagDot({required this.color, required this.active, this.onTap});
+
+  final Color color;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(active ? 0.9 : 0.6),
+              color.withOpacity(active ? 0.5 : 0.25),
+            ],
+          ),
+          border: Border.all(
+            color: active ? Colors.white : Colors.white24,
+            width: active ? 1.4 : 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.color,
+    required this.isActive,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final bool isActive;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: isActive ? color.withOpacity(0.18) : Colors.white.withOpacity(0.02),
+          border: Border.all(
+            color: isActive
+                ? color.withOpacity(0.65)
+                : Colors.white.withOpacity(0.08),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 13, color: Colors.white70),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 6),
+              const Icon(lucide.LucideIcons.check, size: 12),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TypeMini extends StatelessWidget {
+  const _TypeMini({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: active
+                ? Theme.of(context).colorScheme.secondary.withOpacity(0.28)
+                : Colors.white.withOpacity(0.05),
+            border: Border.all(
+              color: active
+                  ? Theme.of(context).colorScheme.secondary.withOpacity(0.8)
+                  : Colors.white.withOpacity(0.12),
+            ),
+          ),
+          child: Icon(icon, size: 14),
+        ),
+      ),
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({
+    required this.tag,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final _TagItem tag;
+  final bool isActive;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tag.color;
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: isActive ? color.withOpacity(0.16) : Colors.white.withOpacity(0.02),
+          border: Border.all(
+            color: isActive
+                ? color.withOpacity(0.7)
+                : Colors.white.withOpacity(0.08),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: tag.color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.4)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              tag.label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isActive ? Colors.white : Colors.white70,
+              ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 6),
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.12),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: const Icon(lucide.LucideIcons.check, size: 12),
+              ),
+            ],
           ],
         ),
       ),
@@ -1211,12 +1911,27 @@ class _VolumeTile extends StatelessWidget {
     final percent = (volume.usage * 100).clamp(0, 100).round();
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white.withOpacity(0.03),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
         child: Row(
           children: [
-            const Icon(LucideIcons.hardDrive, size: 18),
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9),
+                color: Colors.white.withOpacity(0.08),
+              ),
+              child: const Icon(lucide.LucideIcons.hardDrive, size: 14),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1226,11 +1941,15 @@ class _VolumeTile extends StatelessWidget {
                     volume.label,
                     style: Theme.of(
                       context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                    ).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                     child: TweenAnimationBuilder<double>(
                       tween: Tween<double>(
                         begin: 0,
@@ -1241,8 +1960,8 @@ class _VolumeTile extends StatelessWidget {
                       builder: (context, value, _) {
                         return LinearProgressIndicator(
                           value: value,
-                          minHeight: 6,
-                          backgroundColor: Colors.white.withOpacity(0.06),
+                          minHeight: 4,
+                          backgroundColor: Colors.white.withOpacity(0.05),
                         );
                       },
                     ),
@@ -1260,12 +1979,12 @@ class _VolumeTile extends StatelessWidget {
                     context,
                   ).textTheme.labelSmall?.copyWith(color: Colors.white70),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   _formatBytes(volume.totalBytes),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Colors.white54,
-                    fontSize: 10,
+                    fontSize: 9,
                   ),
                 ),
               ],
@@ -1391,9 +2110,9 @@ class _PathInput extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: 'Chemin du dossier',
-        prefixIcon: const Icon(LucideIcons.folderOpen),
+        prefixIcon: const Icon(lucide.LucideIcons.folderOpen),
         suffixIcon: IconButton(
-          icon: const Icon(LucideIcons.arrowRight, size: 16),
+          icon: const Icon(lucide.LucideIcons.arrowRight, size: 16),
           onPressed: () => onSubmit(controller.text),
         ),
       ),
@@ -1415,7 +2134,7 @@ class _SearchInput extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: 'Recherche (nom ou extension)',
-        prefixIcon: const Icon(LucideIcons.search),
+        prefixIcon: const Icon(lucide.LucideIcons.search),
       ),
     );
   }
@@ -1427,6 +2146,13 @@ class _NavItem {
   final String label;
   final IconData icon;
   final String path;
+}
+
+class _TypeItem {
+  const _TypeItem({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
 }
 
 class _TagItem {
