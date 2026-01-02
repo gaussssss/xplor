@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../features/explorer/presentation/widgets/glass_panel_v2.dart';
 import '../theme/animation_tokens.dart';
 import '../theme/color_palettes.dart';
-import '../theme/design_tokens.dart';
+import 'appearance_settings_dialog_v2.dart';
 
 /// Widget de contrôle du thème (light/dark + palette) - Version 2
 /// Design élégant avec toggle moon/sun et sélecteur de palette amélioré
@@ -37,7 +37,32 @@ class ThemeControlsV2 extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('APPARENCE', style: titleStyle),
+        Row(
+          children: [
+            Text('APPARENCE', style: titleStyle),
+            const Spacer(),
+            // Bouton pour ouvrir les paramètres avancés
+            IconButton(
+              icon: Icon(
+                LucideIcons.settings2,
+                size: 14,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: isLight ? 0.6 : 0.7),
+              ),
+              tooltip: 'Paramètres d\'apparence',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const AppearanceSettingsDialogV2(),
+                );
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
         // Toggle élégant moon/sun
         _LightDarkToggle(

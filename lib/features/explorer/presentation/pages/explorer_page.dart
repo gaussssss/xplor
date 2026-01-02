@@ -165,23 +165,28 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 ? Colors.white.withOpacity(0.98)
                 : Colors.black.withOpacity(0.75))
             : theme.colorScheme.surface;
-        final adjustedOnSurface =
-            hasBgImage ? Colors.white : theme.colorScheme.onSurface;
+        final adjustedOnSurface = hasBgImage && isLight
+            ? Colors.black
+            : (hasBgImage ? Colors.white : theme.colorScheme.onSurface);
         final overlayLight = hasBgImage && isLight
-            ? Colors.white.withOpacity(0.85)
+            ? Colors.white.withOpacity(0.55)
             : null;
         final overlayPrimary = hasBgImage && isLight
-            ? Colors.white.withOpacity(0.9)
+            ? Colors.white.withOpacity(0.6)
             : null;
         final themed = theme.copyWith(
           colorScheme: theme.colorScheme.copyWith(
             surface: adjustedSurface,
             onSurface: adjustedOnSurface,
-            onPrimary: hasBgImage ? Colors.white : theme.colorScheme.onPrimary,
-            onSecondary:
-                hasBgImage ? Colors.white : theme.colorScheme.onSecondary,
-            onTertiary:
-                hasBgImage ? Colors.white : theme.colorScheme.onTertiary,
+            onPrimary: hasBgImage && isLight
+                ? Colors.black
+                : (hasBgImage ? Colors.white : theme.colorScheme.onPrimary),
+            onSecondary: hasBgImage && isLight
+                ? Colors.black
+                : (hasBgImage ? Colors.white : theme.colorScheme.onSecondary),
+            onTertiary: hasBgImage && isLight
+                ? Colors.black
+                : (hasBgImage ? Colors.white : theme.colorScheme.onTertiary),
           ),
         );
 
@@ -209,17 +214,29 @@ class _ExplorerPageState extends State<ExplorerPage> {
         return Theme(
           data: themed,
           child: Scaffold(
-            body: Container(
-              decoration: BoxDecoration(
-                color: bgColor,
-                image: hasBgImage
-                    ? DecorationImage(
+            body: Stack(
+              children: [
+                // Background image
+                if (hasBgImage)
+                  Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
                         image: FileImage(File(bgImagePath)),
                         fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: SafeArea(
+                      ),
+                    ),
+                  ),
+                // Overlay layer (dark in dark mode, light in light mode)
+                if (hasBgImage)
+                  Container(
+                    color: isLight
+                        ? Colors.white.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.4),
+                  ),
+                // Main content
+                Container(
+                  color: hasBgImage ? Colors.transparent : bgColor,
+                  child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Row(
@@ -334,7 +351,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   ],
                 ),
               ),
-            ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -2041,7 +2060,7 @@ void _showAllDisksDialog(
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Ce PC - Tous les disques',
+                      'Tous les disques',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: Colors.white,

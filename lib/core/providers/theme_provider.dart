@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/widgets/appearance_settings_dialog_v2.dart' as settings;
 import '../config/feature_flags.dart';
 import '../theme/color_palettes.dart';
 import '../theme/design_tokens.dart';
@@ -13,18 +14,32 @@ import '../theme/design_tokens.dart';
 /// Utilise ChangeNotifier pour notifier les widgets des changements
 /// Persiste la palette sélectionnée avec SharedPreferences
 class ThemeProvider extends ChangeNotifier {
-  /// Clé pour sauvegarder la palette dans SharedPreferences
+  /// Clés pour sauvegarder les paramètres dans SharedPreferences
   static const String _paletteKey = 'selected_color_palette';
   static const String _backgroundColorKey = 'selected_background_color';
   static const String _backgroundImageKey = 'selected_background_image';
+  static const String _backgroundFolderKey = 'selected_background_folder';
+  static const String _backgroundTypeKey = 'background_type';
+  static const String _themeModeKey = 'theme_mode';
   static const String _lightModeKey = 'use_light_theme';
+  static const String _useGlassmorphismKey = 'use_glassmorphism';
+  static const String _blurIntensityKey = 'blur_intensity';
+  static const String _showAnimationsKey = 'show_animations';
   static const String _mockBackgroundFolder = '/Volumes/Datas/Backgrounds';
 
   /// Palette actuellement active
   ColorPalette _currentPalette = ColorPalette.warmSunset;
   Color _backgroundColor = DesignTokens.background;
   String? _backgroundImagePath;
+  String? _backgroundFolderPath;
   bool _isLight = false;
+
+  /// Nouveaux paramètres d'apparence
+  settings.ThemeMode _themeModePreference = settings.ThemeMode.adaptive;
+  settings.BackgroundType _backgroundType = settings.BackgroundType.none;
+  bool _useGlassmorphism = true;
+  double _blurIntensity = 10.0;
+  bool _showAnimations = true;
 
   /// Indique si le provider est en cours de chargement
   bool _isLoading = true;
@@ -72,6 +87,14 @@ class ThemeProvider extends ChangeNotifier {
 
   /// Retourne true si les palettes sont activées via feature flag
   bool get isEnabled => FeatureFlags.useColorPalettes;
+
+  /// Nouveaux getters pour les paramètres d'apparence
+  settings.ThemeMode get themeModePreference => _themeModePreference;
+  settings.BackgroundType get backgroundType => _backgroundType;
+  String? get backgroundFolderPath => _backgroundFolderPath;
+  bool get useGlassmorphism => _useGlassmorphism;
+  double get blurIntensity => _blurIntensity;
+  bool get showAnimations => _showAnimations;
 
   // ==========================================================================
   // MÉTHODES PUBLIQUES
@@ -171,6 +194,69 @@ class ThemeProvider extends ChangeNotifier {
     await prefs.setInt(_backgroundColorKey, _backgroundColor.value);
   }
 
+  /// Nouvelles méthodes pour les paramètres d'apparence
+  Future<void> setThemeMode(settings.ThemeMode mode) async {
+    if (_themeModePreference == mode) return;
+    _themeModePreference = mode;
+
+    // Appliquer le mode immédiatement
+    if (mode == settings.ThemeMode.light) {
+      await setLightMode(true);
+    } else if (mode == settings.ThemeMode.dark) {
+      await setLightMode(false);
+    } else {
+      // Adaptive: déterminer selon le système
+      final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      await setLightMode(brightness == Brightness.light);
+    }
+
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_themeModeKey, mode.index);
+  }
+
+  Future<void> setBackgroundType(settings.BackgroundType type) async {
+    if (_backgroundType == type) return;
+    _backgroundType = type;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_backgroundTypeKey, type.index);
+  }
+
+  Future<void> setBackgroundFolder(String folderPath) async {
+    _backgroundFolderPath = folderPath;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_backgroundFolderKey, folderPath);
+
+    // Charger une image aléatoire depuis le dossier
+    await _applyRandomBackgroundFromFolder(folderPath);
+  }
+
+  Future<void> setUseGlassmorphism(bool value) async {
+    if (_useGlassmorphism == value) return;
+    _useGlassmorphism = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_useGlassmorphismKey, value);
+  }
+
+  Future<void> setBlurIntensity(double value) async {
+    if (_blurIntensity == value) return;
+    _blurIntensity = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_blurIntensityKey, value);
+  }
+
+  Future<void> setShowAnimations(bool value) async {
+    if (_showAnimations == value) return;
+    _showAnimations = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showAnimationsKey, value);
+  }
+
   Color _backgroundFor(ColorPalette palette) {
     switch (palette) {
       case ColorPalette.neonCyberpunk:
@@ -249,9 +335,46 @@ class ThemeProvider extends ChangeNotifier {
                 ? _backgroundForLight(_currentPalette)
                 : _backgroundFor(_currentPalette));
       }
-      // Si aucune image n'est définie, tenter un fond mock aléatoire (pour tests)
-      if (_backgroundImagePath == null) {
-        await _applyRandomMockBackgroundIfPresent();
+
+      // Charger les nouveaux paramètres d'apparence
+      final savedThemeMode = prefs.getInt(_themeModeKey);
+      if (savedThemeMode != null && savedThemeMode < settings.ThemeMode.values.length) {
+        _themeModePreference = settings.ThemeMode.values[savedThemeMode];
+      }
+
+      final savedBackgroundType = prefs.getInt(_backgroundTypeKey);
+      if (savedBackgroundType != null && savedBackgroundType < settings.BackgroundType.values.length) {
+        _backgroundType = settings.BackgroundType.values[savedBackgroundType];
+      }
+
+      final savedBackgroundFolder = prefs.getString(_backgroundFolderKey);
+      if (savedBackgroundFolder != null && savedBackgroundFolder.isNotEmpty) {
+        _backgroundFolderPath = savedBackgroundFolder;
+      }
+
+      final savedGlassmorphism = prefs.getBool(_useGlassmorphismKey);
+      if (savedGlassmorphism != null) {
+        _useGlassmorphism = savedGlassmorphism;
+      }
+
+      final savedBlurIntensity = prefs.getDouble(_blurIntensityKey);
+      if (savedBlurIntensity != null) {
+        _blurIntensity = savedBlurIntensity;
+      }
+
+      final savedAnimations = prefs.getBool(_showAnimationsKey);
+      if (savedAnimations != null) {
+        _showAnimations = savedAnimations;
+      }
+
+      // Appliquer le fond selon le type configuré
+      if (_backgroundType == settings.BackgroundType.imageFolder && _backgroundFolderPath != null) {
+        await _applyRandomBackgroundFromFolder(_backgroundFolderPath!);
+      } else if (_backgroundType == settings.BackgroundType.none || _backgroundImagePath == null) {
+        // Si aucun fond configuré et aucune image, tenter le dossier mock (pour tests)
+        if (_backgroundType == settings.BackgroundType.none) {
+          await _applyRandomMockBackgroundIfPresent();
+        }
       }
     } catch (e) {
       debugPrint('❌ ThemeProvider: Error loading palette: $e');
@@ -300,6 +423,44 @@ class ThemeProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('❌ ThemeProvider: Error applying mock background: $e');
+    }
+  }
+
+  /// Charge aléatoirement une image depuis un dossier personnalisé
+  Future<void> _applyRandomBackgroundFromFolder(String folderPath) async {
+    try {
+      final dir = Directory(folderPath);
+      if (!dir.existsSync()) {
+        debugPrint('❌ ThemeProvider: Folder does not exist: $folderPath');
+        return;
+      }
+
+      final images = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) {
+            final lower = f.path.toLowerCase();
+            return lower.endsWith('.jpg') ||
+                lower.endsWith('.jpeg') ||
+                lower.endsWith('.png') ||
+                lower.endsWith('.webp') ||
+                lower.endsWith('.gif');
+          })
+          .toList();
+
+      if (images.isEmpty) {
+        debugPrint('❌ ThemeProvider: No images found in folder: $folderPath');
+        return;
+      }
+
+      final file = images[Random().nextInt(images.length)];
+      await setBackgroundImage(file);
+
+      if (FeatureFlags.debugThemeChanges) {
+        debugPrint('🖼️ ThemeProvider: Random background from folder: ${file.path}');
+      }
+    } catch (e) {
+      debugPrint('❌ ThemeProvider: Error applying random background: $e');
     }
   }
 }
