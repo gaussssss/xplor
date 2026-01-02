@@ -271,6 +271,15 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return Row(
       children: [
         ToolbarButton(
+          icon: lucide.LucideIcons.arrowUp,
+          tooltip: 'Remonter au dossier parent',
+          onPressed: state.currentPath == '/' || state.currentPath.isEmpty
+              ? null
+              : _viewModel.goToParent,
+        ),
+        
+        const SizedBox(width: 12),
+        ToolbarButton(
           icon: lucide.LucideIcons.arrowLeft,
           tooltip: 'Arriere',
           onPressed: state.isLoading || !_viewModel.canGoBack
@@ -284,6 +293,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
               : _viewModel.goForward,
+        ),const SizedBox(width: 8),
+        ToolbarButton(
+          icon: lucide.LucideIcons.refreshCw,
+          tooltip: 'Rafraichir',
+          onPressed: state.isLoading ? null : _viewModel.refresh,
         ),
         const SizedBox(width: 8),
         ToolbarButton(
@@ -303,20 +317,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ),
         const SizedBox(width: 12),
         _buildSearchToggle(),
-        const SizedBox(width: 12),
-        ToolbarButton(
-          icon: lucide.LucideIcons.arrowUp,
-          tooltip: 'Remonter au dossier parent',
-          onPressed: state.currentPath == '/' || state.currentPath.isEmpty
-              ? null
-              : _viewModel.goToParent,
-        ),
-        const SizedBox(width: 8),
-        ToolbarButton(
-          icon: lucide.LucideIcons.refreshCw,
-          tooltip: 'Rafraichir',
-          onPressed: state.isLoading ? null : _viewModel.refresh,
-        ),
         const SizedBox(width: 12),
         ToolbarButton(
           icon: _isSidebarCollapsed
