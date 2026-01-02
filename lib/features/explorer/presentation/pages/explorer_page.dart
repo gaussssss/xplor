@@ -20,6 +20,7 @@ import '../viewmodels/explorer_view_model.dart';
 import '../widgets/breadcrumb_bar.dart';
 import '../widgets/file_entry_tile.dart';
 import '../widgets/glass_panel_v2.dart';
+import '../widgets/list_view_table.dart';
 import '../widgets/sidebar_section.dart';
 import '../widgets/toolbar_button.dart';
 
@@ -346,16 +347,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
         const SizedBox(width: 12),
         _buildSearchToggle(),
         const SizedBox(width: 12),
-        ToolbarButton(
-          icon: _isSidebarCollapsed
-              ? lucide.LucideIcons.panelLeftOpen
-              : lucide.LucideIcons.panelLeftClose,
-          tooltip: _isSidebarCollapsed ? 'Afficher le menu' : 'Masquer le menu',
-          onPressed: () {
-            setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
-          },
-        ),
-        const SizedBox(width: 8),
         ToolbarButton(
           icon: lucide.LucideIcons.list,
           tooltip: 'Vue liste',
@@ -944,18 +935,23 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Widget _buildList(List<FileEntry> entries, bool selectionMode) {
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return _buildDraggableEntry(
-          entry: entry,
-          selectionMode: selectionMode,
-          viewMode: ExplorerViewMode.list,
-        );
+    return ListViewTable(
+      entries: entries,
+      selectionMode: selectionMode,
+      isSelected: (entry) => _viewModel.isSelected(entry),
+      onEntryTap: (entry) {
+        if (selectionMode) {
+          _viewModel.toggleSelection(entry);
+        } else {
+          _viewModel.selectSingle(entry);
+        }
+      },
+      onEntryDoubleTap: (entry) => _handleEntryTap(entry),
+      onEntrySecondaryTap: (entry, offset) {
+        if (!_viewModel.isSelected(entry)) {
+          _viewModel.selectSingle(entry);
+        }
+        _showContextMenu(entry, offset);
       },
     );
   }
@@ -1348,6 +1344,40 @@ class _Sidebar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+            // Bouton pour replier le menu en haut
+            if (onToggleCollapse != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 4),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onToggleCollapse,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      height: 32,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            lucide.LucideIcons.panelLeftClose,
+                            size: 16,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Replier',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
             // Favoris
             SidebarSection(
               title: 'Favoris',

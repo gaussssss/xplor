@@ -1,0 +1,589 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart' as lucide;
+
+import '../../domain/entities/file_entry.dart';
+
+/// Colonne disponible pour la vue liste
+enum FileColumn {
+  name,
+  size,
+  dateModified,
+  kind,
+  dateCreated,
+  dateAccessed,
+  permissions,
+  tags,
+}
+
+/// Configuration d'une colonne
+class ColumnConfig {
+  const ColumnConfig({
+    required this.column,
+    required this.label,
+    required this.width,
+    this.minWidth = 80,
+    this.maxWidth = 500,
+  });
+
+  final FileColumn column;
+  final String label;
+  final double width;
+  final double minWidth;
+  final double maxWidth;
+}
+
+/// Ordre de tri
+enum SortOrder {
+  ascending,
+  descending,
+}
+
+/// Configuration de tri
+class SortConfig {
+  const SortConfig({
+    required this.column,
+    required this.order,
+  });
+
+  final FileColumn column;
+  final SortOrder order;
+
+  SortConfig toggle() {
+    return SortConfig(
+      column: column,
+      order: order == SortOrder.ascending
+          ? SortOrder.descending
+          : SortOrder.ascending,
+    );
+  }
+}
+
+/// Vue liste avec colonnes configurables
+class ListViewTable extends StatefulWidget {
+  const ListViewTable({
+    super.key,
+    required this.entries,
+    required this.onEntryTap,
+    required this.onEntryDoubleTap,
+    required this.onEntrySecondaryTap,
+    required this.isSelected,
+    this.selectionMode = false,
+  });
+
+  final List<FileEntry> entries;
+  final void Function(FileEntry) onEntryTap;
+  final void Function(FileEntry) onEntryDoubleTap;
+  final void Function(FileEntry, Offset) onEntrySecondaryTap;
+  final bool Function(FileEntry) isSelected;
+  final bool selectionMode;
+
+  @override
+  State<ListViewTable> createState() => _ListViewTableState();
+}
+
+class _ListViewTableState extends State<ListViewTable> {
+  // Colonnes par défaut
+  List<ColumnConfig> _columns = [
+    const ColumnConfig(column: FileColumn.name, label: 'Nom', width: 300),
+    const ColumnConfig(column: FileColumn.dateModified, label: 'Date de modification', width: 180),
+    const ColumnConfig(column: FileColumn.kind, label: 'Type', width: 120),
+    const ColumnConfig(column: FileColumn.size, label: 'Taille', width: 100),
+  ];
+
+  SortConfig? _sortConfig;
+
+  // Colonnes disponibles mais non affichées
+  static const _availableColumns = [
+    ColumnConfig(column: FileColumn.dateCreated, label: 'Date de création', width: 180),
+    ColumnConfig(column: FileColumn.dateAccessed, label: 'Dernier accès', width: 180),
+    ColumnConfig(column: FileColumn.permissions, label: 'Permissions', width: 100),
+    ColumnConfig(column: FileColumn.tags, label: 'Tags', width: 120),
+  ];
+
+  List<FileEntry> get _sortedEntries {
+    if (_sortConfig == null) return widget.entries;
+
+    final sorted = List<FileEntry>.from(widget.entries);
+    sorted.sort((a, b) {
+      int comparison = 0;
+
+      switch (_sortConfig!.column) {
+        case FileColumn.name:
+          comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          break;
+        case FileColumn.size:
+          comparison = (a.size ?? 0).compareTo(b.size ?? 0);
+          break;
+        case FileColumn.dateModified:
+          comparison = (a.lastModified ?? DateTime(1970))
+              .compareTo(b.lastModified ?? DateTime(1970));
+          break;
+        case FileColumn.kind:
+          final aType = a.isDirectory ? 'Dossier' : _getFileType(a.name);
+          final bType = b.isDirectory ? 'Dossier' : _getFileType(b.name);
+          comparison = aType.compareTo(bType);
+          break;
+        default:
+          comparison = 0;
+      }
+
+      // Toujours afficher les dossiers en premier
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+
+      return _sortConfig!.order == SortOrder.ascending ? comparison : -comparison;
+    });
+
+    return sorted;
+  }
+
+  void _toggleSort(FileColumn column) {
+    setState(() {
+      if (_sortConfig?.column == column) {
+        _sortConfig = _sortConfig!.toggle();
+      } else {
+        _sortConfig = SortConfig(column: column, order: SortOrder.ascending);
+      }
+    });
+  }
+
+  void _resizeColumn(int index, double delta) {
+    setState(() {
+      final column = _columns[index];
+      final newWidth = (column.width + delta)
+          .clamp(column.minWidth, column.maxWidth);
+      _columns[index] = ColumnConfig(
+        column: column.column,
+        label: column.label,
+        width: newWidth,
+        minWidth: column.minWidth,
+        maxWidth: column.maxWidth,
+      );
+    });
+  }
+
+  void _showColumnSelector(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _ColumnSelectorDialog(
+        visibleColumns: _columns,
+        availableColumns: _availableColumns,
+        onColumnsChanged: (newColumns) {
+          setState(() {
+            _columns = newColumns;
+          });
+        },
+      ),
+    );
+  }
+
+  String _getFileType(String filename) {
+    if (filename.contains('.')) {
+      final ext = filename.split('.').last.toUpperCase();
+      return 'Fichier $ext';
+    }
+    return 'Fichier';
+  }
+
+  String _formatSize(int? bytes) {
+    if (bytes == null) return '—';
+    if (bytes < 1024) return '$bytes o';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} Ko';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} Mo';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} Go';
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '—';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateDay = DateTime(date.year, date.month, date.day);
+
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    if (dateDay == today) {
+      return "Aujourd'hui $hour:$minute";
+    } else if (dateDay == today.subtract(const Duration(days: 1))) {
+      return 'Hier $hour:$minute';
+    } else {
+      return '$day/$month/$year $hour:$minute';
+    }
+  }
+
+  String _getCellValue(FileEntry entry, FileColumn column) {
+    switch (column) {
+      case FileColumn.name:
+        return entry.name;
+      case FileColumn.size:
+        return entry.isDirectory ? '—' : _formatSize(entry.size);
+      case FileColumn.dateModified:
+        return _formatDate(entry.lastModified);
+      case FileColumn.kind:
+        return entry.isDirectory ? 'Dossier' : _getFileType(entry.name);
+      default:
+        return '—';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedEntries = _sortedEntries;
+    // Calculer la largeur totale: checkbox (40) + colonnes + bouton sélecteur (40)
+    final totalWidth = 40.0 + _columns.fold(0.0, (sum, col) => sum + col.width) + 40.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: constraints.maxWidth,
+              maxWidth: totalWidth > constraints.maxWidth ? totalWidth : constraints.maxWidth,
+            ),
+            child: Column(
+              children: [
+                // Header
+                _buildHeader(),
+                // Rows
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: sortedEntries.length,
+                    itemBuilder: (context, index) {
+                      final entry = sortedEntries[index];
+                      return _buildRow(entry);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Selection checkbox column
+          SizedBox(
+            width: 40,
+            child: widget.selectionMode
+                ? const Icon(
+                    lucide.LucideIcons.check,
+                    size: 16,
+                    color: Colors.transparent,
+                  )
+                : null,
+          ),
+          // Data columns
+          ..._columns.asMap().entries.map((entry) {
+            final index = entry.key;
+            final column = entry.value;
+            return _buildHeaderCell(column, index);
+          }),
+          // Column selector button
+          SizedBox(
+            width: 40,
+            child: IconButton(
+              icon: Icon(
+                lucide.LucideIcons.layoutGrid,
+                size: 16,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+              tooltip: 'Gérer les colonnes',
+              onPressed: () => _showColumnSelector(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderCell(ColumnConfig column, int index) {
+    final isSorted = _sortConfig?.column == column.column;
+    final isAscending = _sortConfig?.order == SortOrder.ascending;
+
+    return SizedBox(
+      width: column.width,
+      child: Stack(
+        children: [
+          // Header label with sort indicator
+          InkWell(
+            onTap: () => _toggleSort(column.column),
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      column.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isSorted)
+                    Icon(
+                      isAscending
+                          ? lucide.LucideIcons.arrowUp
+                          : lucide.LucideIcons.arrowDown,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Resize handle
+          if (index < _columns.length - 1)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeColumn,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    _resizeColumn(index, details.delta.dx);
+                  },
+                  child: Container(
+                    width: 8,
+                    color: Colors.transparent,
+                    child: Center(
+                      child: Container(
+                        width: 1,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRow(FileEntry entry) {
+    final isSelected = widget.isSelected(entry);
+
+    return InkWell(
+      onTap: () => widget.onEntryTap(entry),
+      onDoubleTap: () => widget.onEntryDoubleTap(entry),
+      onSecondaryTapDown: (details) {
+        widget.onEntrySecondaryTap(entry, details.globalPosition);
+      },
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
+              : Colors.transparent,
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withValues(alpha: 0.05),
+              width: 1,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Selection checkbox
+            SizedBox(
+              width: 40,
+              child: widget.selectionMode && isSelected
+                  ? Icon(
+                      lucide.LucideIcons.check,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    )
+                  : null,
+            ),
+            // Data cells
+            ..._columns.map((column) => _buildCell(entry, column)),
+            // Spacer for column selector button
+            const SizedBox(width: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCell(FileEntry entry, ColumnConfig column) {
+    return SizedBox(
+      width: column.width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          _getCellValue(entry, column.column),
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.white.withValues(alpha: 0.85),
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog pour sélectionner les colonnes visibles
+class _ColumnSelectorDialog extends StatefulWidget {
+  const _ColumnSelectorDialog({
+    required this.visibleColumns,
+    required this.availableColumns,
+    required this.onColumnsChanged,
+  });
+
+  final List<ColumnConfig> visibleColumns;
+  final List<ColumnConfig> availableColumns;
+  final void Function(List<ColumnConfig>) onColumnsChanged;
+
+  @override
+  State<_ColumnSelectorDialog> createState() => _ColumnSelectorDialogState();
+}
+
+class _ColumnSelectorDialogState extends State<_ColumnSelectorDialog> {
+  late List<ColumnConfig> _selected;
+  late List<ColumnConfig> _available;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List.from(widget.visibleColumns);
+    _available = widget.availableColumns
+        .where((col) => !_selected.any((s) => s.column == col.column))
+        .toList();
+  }
+
+  void _toggleColumn(ColumnConfig column) {
+    setState(() {
+      final isSelected = _selected.any((c) => c.column == column.column);
+      if (isSelected) {
+        // Ne pas permettre de retirer la colonne Nom
+        if (column.column == FileColumn.name) return;
+        _selected.removeWhere((c) => c.column == column.column);
+        _available.add(column);
+      } else {
+        _selected.add(column);
+        _available.removeWhere((c) => c.column == column.column);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allColumns = [..._selected, ..._available];
+
+    return Dialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  lucide.LucideIcons.layoutGrid,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Gérer les colonnes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Sélectionnez les colonnes à afficher',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...allColumns.map((column) {
+              final isSelected = _selected.any((c) => c.column == column.column);
+              final isName = column.column == FileColumn.name;
+
+              return CheckboxListTile(
+                value: isSelected,
+                onChanged: isName ? null : (_) => _toggleColumn(column),
+                title: Text(
+                  column.label,
+                  style: TextStyle(
+                    color: isName
+                        ? Colors.white.withValues(alpha: 0.5)
+                        : Colors.white.withValues(alpha: 0.85),
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: isName
+                    ? const Text(
+                        'Obligatoire',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white38,
+                        ),
+                      )
+                    : null,
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: Theme.of(context).colorScheme.primary,
+              );
+            }),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annuler'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.onColumnsChanged(_selected);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Appliquer'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
