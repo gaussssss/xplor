@@ -78,6 +78,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _quickItems = _buildQuickItems();
     _tagItems = _buildTags();
     _volumes = _readVolumes();
+    _viewModel.loadPreferences();
     _viewModel.loadDirectory(initialPath, pushHistory: false);
     _viewModel.bootstrap();
     _loadSidebarWidth();
@@ -490,7 +491,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       );
     }
 
-    final selectionMode = state.selectedPaths.isNotEmpty;
+    final selectionMode = state.isMultiSelectionMode;
     final content = entries.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -1013,17 +1014,18 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
-        final crossAxisCount = (maxWidth / 220).clamp(2, 6).floor();
+        // Plus de colonnes et espacement réduit pour un meilleur affichage
+        final crossAxisCount = (maxWidth / 160).clamp(3, 8).floor();
 
         return GridView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           itemCount: entries.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.2,
+            crossAxisSpacing: 16, // Espacement horizontal réduit
+            mainAxisSpacing: 16, // Espacement vertical réduit
+            childAspectRatio: 0.75, // Ratio ajusté pour les previews 120x120
           ),
           itemBuilder: (context, index) {
             final entry = entries[index];
@@ -1106,21 +1108,70 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   List<_VolumeInfo> _readVolumes() {
-    final paths = <String>{};
+    final physicalPaths = <String>{};
+    final cloudPaths = <String>[];
+
+    // 1. Volumes physiques montés dans /Volumes
     final volumesDir = Directory('/Volumes');
     if (volumesDir.existsSync()) {
       for (final entity in volumesDir.listSync()) {
-        paths.add(entity.path);
+        physicalPaths.add(entity.path);
+      }
+    }
+
+    // 2. Services cloud - Chemins typiques sur macOS
+    final home = Platform.environment['HOME'] ?? '';
+    if (home.isNotEmpty) {
+      final potentialCloudPaths = [
+        // iCloud Drive
+        '$home/Library/Mobile Documents/com~apple~CloudDocs',
+        // Google Drive (nouveau format CloudStorage)
+        '$home/Library/CloudStorage',
+        // OneDrive (plusieurs variantes)
+        '$home/OneDrive',
+        '$home/OneDrive - Personal',
+        // Dropbox
+        '$home/Dropbox',
+      ];
+
+      for (final cloudPath in potentialCloudPaths) {
+        final dir = Directory(cloudPath);
+
+        // Pour CloudStorage, lister les sous-dossiers (GoogleDrive, OneDrive, etc.)
+        if (cloudPath.contains('CloudStorage') && dir.existsSync()) {
+          try {
+            for (final entity in dir.listSync()) {
+              if (entity is Directory) {
+                cloudPaths.add(entity.path);
+              }
+            }
+          } catch (_) {
+            // Ignorer les erreurs de permission
+          }
+        } else if (dir.existsSync()) {
+          cloudPaths.add(cloudPath);
+        }
       }
     }
 
     final volumes = <_VolumeInfo>[];
-    for (final path in paths) {
+
+    // Ajouter les volumes physiques
+    for (final path in physicalPaths) {
       final info = _getVolumeInfo(path);
       if (info != null) {
         volumes.add(info);
       }
     }
+
+    // Ajouter les services cloud (avec info simplifiée)
+    for (final path in cloudPaths) {
+      final info = _getCloudInfo(path);
+      if (info != null) {
+        volumes.add(info);
+      }
+    }
+
     return volumes;
   }
 
@@ -1155,11 +1206,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
       // Mount point can have spaces, so join remaining parts
       final mountPoint = parts.sublist(5).join(' ');
 
-      // Extract label from mount point
-      final label = mountPoint
-          .split(Platform.pathSeparator)
-          .where((p) => p.isNotEmpty)
-          .lastWhere((p) => p.isNotEmpty, orElse: () => mountPoint);
+      // Extract label from mount point with cloud service detection
+      String label = _extractVolumeLabel(mountPoint);
 
       // totalKilobytes is in 1024-byte blocks (from df -Pk), so multiply by 1024 for bytes
       final totalBytes = (totalKilobytes * 1024).toInt();
@@ -1173,6 +1221,89 @@ class _ExplorerPageState extends State<ExplorerPage> {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Crée une info de volume pour un service cloud
+  /// Utilise le disque système pour les stats mais avec un label cloud
+  _VolumeInfo? _getCloudInfo(String path) {
+    try {
+      final dir = Directory(path);
+      if (!dir.existsSync()) return null;
+
+      // Obtenir les infos du disque système (les dossiers cloud sont sur le disque local)
+      final result = Process.runSync('df', ['-Pk', path]);
+      if (result.exitCode != 0) return null;
+
+      final lines = (result.stdout as String)
+          .trim()
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .toList();
+
+      if (lines.length < 2) return null;
+
+      final line = lines.last;
+      final parts = line.split(RegExp(r'\s+'));
+
+      if (parts.length < 6) return null;
+
+      final totalKilobytes = double.tryParse(parts[1]);
+      if (totalKilobytes == null || totalKilobytes <= 0) return null;
+
+      final capacityStr = parts[4];
+      final capacityPercent =
+          double.tryParse(capacityStr.replaceAll('%', '')) ?? 0;
+      final usage = capacityPercent / 100.0;
+
+      // Utiliser le label cloud au lieu du mount point
+      final label = _extractVolumeLabel(path);
+      final totalBytes = (totalKilobytes * 1024).toInt();
+
+      return _VolumeInfo(
+        label: label,
+        path: path, // Utiliser le chemin cloud, pas le mount point système
+        usage: usage,
+        totalBytes: totalBytes,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Extrait un nom lisible pour un volume ou service cloud
+  String _extractVolumeLabel(String path) {
+    // Détection des services cloud avec emojis et noms clairs
+    if (path.contains('com~apple~CloudDocs')) {
+      return '☁️ iCloud Drive';
+    }
+    if (path.contains('GoogleDrive')) {
+      // Extraire l'email si présent: GoogleDrive-email@gmail.com
+      final match = RegExp(r'GoogleDrive-(.+?)(?:/|$)').firstMatch(path);
+      if (match != null) {
+        final email = match.group(1) ?? '';
+        return '📁 Google Drive ($email)';
+      }
+      return '📁 Google Drive';
+    }
+    if (path.contains('OneDrive')) {
+      if (path.contains('Personal')) {
+        return '☁️ OneDrive Personal';
+      } else if (path.contains('Business')) {
+        return '☁️ OneDrive Business';
+      }
+      return '☁️ OneDrive';
+    }
+    if (path.contains('Dropbox')) {
+      return '📦 Dropbox';
+    }
+
+    // Pour les volumes physiques, extraire le dernier segment du chemin
+    final label = path
+        .split(Platform.pathSeparator)
+        .where((p) => p.isNotEmpty)
+        .lastWhere((p) => p.isNotEmpty, orElse: () => path);
+
+    return label;
   }
 
   String _join(String base, String child) {
@@ -1926,8 +2057,8 @@ class _StatChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: isLight
-            ? Colors.black.withValues(alpha: 0.06)
-            : Colors.white.withValues(alpha: 0.04),
+            ? Colors.white.withValues(alpha: 0.07)
+            : Colors.black.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -2076,13 +2207,13 @@ class _AllDisksDialogContent extends StatelessWidget {
     final isLight = theme.brightness == Brightness.light;
     final onSurface = theme.colorScheme.onSurface;
     final bgColor =
-        isLight ? Colors.white.withValues(alpha: 0.82) : Colors.black.withValues(alpha: 0.85);
+        isLight ? Colors.white.withValues(alpha: 0.78) : Colors.black.withValues(alpha: 0.82);
     final borderColor =
-        isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12);
-    final headerText = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
-    final subtitleText = onSurface.withValues(alpha: isLight ? 0.6 : 0.7);
+        isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.1);
+    final headerText = onSurface.withValues(alpha: isLight ? 0.88 : 0.94);
+    final subtitleText = onSurface.withValues(alpha: isLight ? 0.58 : 0.68);
     final tileBg =
-        isLight ? onSurface.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.06);
+        isLight ? onSurface.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.05);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -2106,34 +2237,43 @@ class _AllDisksDialogContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     Icon(
                       lucide.LucideIcons.hardDrive,
                       color: theme.colorScheme.primary,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Text(
                       'Tous les disques',
                       style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: headerText,
+                            fontSize: 18,
                           ),
                     ),
                     const Spacer(),
                     IconButton(
                       icon: const Icon(lucide.LucideIcons.x),
                       onPressed: () => Navigator.of(context).pop(),
-                      color: onSurface.withValues(alpha: 0.5),
+                      color: onSurface.withValues(alpha: 0.45),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
                     ),
                   ],
                 ),
               ),
               Divider(height: 1, color: borderColor),
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.6,
+                  ),
                   itemCount: volumes.length,
                   itemBuilder: (context, index) {
                     final volume = volumes[index];
@@ -2147,51 +2287,58 @@ class _AllDisksDialogContent extends StatelessWidget {
                         },
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          padding: const EdgeInsets.all(16),
-                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                             color: tileBg,
                           ),
                           child: Row(
                             children: [
                               Container(
-                                width: 48,
-                                height: 48,
+                                width: 34,
+                                height: 34,
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
                                   lucide.LucideIcons.hardDrive,
                                   color: theme.colorScheme.primary,
+                                  size: 18,
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
                                       volume.label,
-                                      style: theme.textTheme.titleMedium?.copyWith(
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleSmall?.copyWith(
                                             color: headerText,
                                             fontWeight: FontWeight.w600,
+                                            fontSize: 12.5,
                                           ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 2),
                                     Text(
                                       volume.path,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: theme.textTheme.bodySmall?.copyWith(
                                             color: subtitleText,
+                                            fontSize: 11,
                                           ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 5),
                                     ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(3),
                                       child: LinearProgressIndicator(
                                         value: volume.usage.clamp(0, 1),
-                                        minHeight: 6,
+                                        minHeight: 4,
                                         backgroundColor:
                                             onSurface.withValues(alpha: 0.08),
                                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -2202,22 +2349,25 @@ class _AllDisksDialogContent extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 10),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     '$percent%',
-                                    style: theme.textTheme.titleMedium?.copyWith(
+                                    style: theme.textTheme.labelMedium?.copyWith(
                                           color: headerText,
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12.5,
                                         ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 3),
                                   Text(
                                     _formatBytes(volume.totalBytes),
                                     style: theme.textTheme.bodySmall?.copyWith(
                                           color: subtitleText,
+                                          fontSize: 11,
                                         ),
                                   ),
                                 ],

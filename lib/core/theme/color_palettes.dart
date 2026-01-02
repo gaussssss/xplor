@@ -232,4 +232,42 @@ class ColorPalettes {
         return 0.7; // Légèrement plus large pour glass
     }
   }
+
+  /// Retourne une couleur adaptée pour le mode clair ou sombre
+  /// En mode clair, les couleurs sont assombries et saturées pour meilleure visibilité
+  /// En mode sombre, les couleurs restent vives
+  static Color getAdaptiveColor(Color color, bool isLight) {
+    if (!isLight) {
+      return color; // Mode sombre: couleurs vives originales
+    }
+
+    // Mode clair: assombrir et saturer la couleur
+    final hsl = HSLColor.fromColor(color);
+    return hsl
+        .withLightness((hsl.lightness * 0.45).clamp(0.0, 1.0)) // Assombrir (55% plus sombre)
+        .withSaturation((hsl.saturation * 1.2).clamp(0.0, 1.0)) // Saturer (20% plus saturé)
+        .toColor();
+  }
+
+  /// Récupère les couleurs adaptées au mode actuel (clair/sombre)
+  static ColorPaletteData getAdaptiveData(ColorPalette palette, bool isLight) {
+    final data = getData(palette);
+
+    if (!isLight) {
+      return data; // Mode sombre: couleurs originales
+    }
+
+    // Mode clair: adapter toutes les couleurs
+    return ColorPaletteData(
+      primary: getAdaptiveColor(data.primary, isLight),
+      navigation: getAdaptiveColor(data.navigation, isLight),
+      info: getAdaptiveColor(data.info, isLight),
+      success: getAdaptiveColor(data.success, isLight),
+      warning: getAdaptiveColor(data.warning, isLight),
+      error: getAdaptiveColor(data.error, isLight),
+      folder: getAdaptiveColor(data.folder, isLight),
+      file: getAdaptiveColor(data.file, isLight),
+      application: getAdaptiveColor(data.application, isLight),
+    );
+  }
 }

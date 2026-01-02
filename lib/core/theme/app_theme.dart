@@ -471,7 +471,8 @@ class ThemeBundle {
     String? backgroundImage,
     bool isLight = false,
   }) {
-    final data = ColorPalettes.getData(palette);
+    // Utiliser getAdaptiveData pour adapter les couleurs au mode clair/sombre
+    final data = ColorPalettes.getAdaptiveData(palette, isLight);
     final bg =
         backgroundOverride ?? (isLight ? const Color(0xFFF7F8FA) : DesignTokens.background);
     return ThemeBundle(

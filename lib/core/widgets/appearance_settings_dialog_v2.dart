@@ -443,7 +443,66 @@ class _AppearanceSettingsDialogV2State
           textColor,
           subtleTextColor,
         ),
+        const SizedBox(height: 24),
+        _buildSectionTitle('Comportement', LucideIcons.mousePointer2, textColor),
+        const SizedBox(height: 12),
+        _buildSelectionModeInfo(isLight, textColor, subtleTextColor),
       ],
+    );
+  }
+
+  Widget _buildSelectionModeInfo(
+    bool isLight,
+    Color textColor,
+    Color subtleTextColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isLight
+            ? Colors.blue.withValues(alpha: 0.08)
+            : Colors.blue.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isLight
+              ? Colors.blue.withValues(alpha: 0.2)
+              : Colors.blue.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            LucideIcons.info,
+            size: 18,
+            color: Colors.blue.shade400,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mode de sélection',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Utilisez le bouton □ dans la barre d\'outils pour basculer entre sélection simple et multiple',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: subtleTextColor,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

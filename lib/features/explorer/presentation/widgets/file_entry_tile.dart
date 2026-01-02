@@ -69,6 +69,9 @@ class _ListEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final isLight = brightness == Brightness.light;
+
     final iconColor = entry.isDirectory
         ? colorScheme.primary
         : (entry.isApplication ? colorScheme.secondary : colorScheme.primary.withValues(alpha: 0.8));
@@ -91,7 +94,7 @@ class _ListEntry extends StatelessWidget {
           );
 
     return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
+      behavior: HitTestBehavior.opaque,
       onTap: onToggleSelection,
       onDoubleTap: onOpen,
       onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
@@ -102,7 +105,7 @@ class _ListEntry extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
+              ? colorScheme.primary.withValues(alpha: 0.12)
               : Colors.transparent,
         ),
         child: Row(
@@ -122,7 +125,8 @@ class _ListEntry extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.9),
+                      // Couleur adaptée au mode clair/sombre
+                      color: isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.9),
                       fontSize: 13,
                     ),
               ),
@@ -135,7 +139,8 @@ class _ListEntry extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.65),
+                      // Couleur adaptée au mode clair/sombre
+                      color: isLight ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.65),
                       fontSize: 12,
                     ),
               ),
@@ -147,7 +152,8 @@ class _ListEntry extends StatelessWidget {
                 _formatSize(entry.size),
                 textAlign: TextAlign.right,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.65),
+                      // Couleur adaptée au mode clair/sombre
+                      color: isLight ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.65),
                       fontSize: 12,
                     ),
               ),
@@ -179,14 +185,14 @@ class _GridEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final isLight = brightness == Brightness.light;
+
     final iconColor = entry.isDirectory
         ? colorScheme.primary
         : (entry.isApplication
             ? colorScheme.secondary
             : colorScheme.onSurface.withValues(alpha: 0.7));
-    final iconData = entry.isDirectory
-        ? LucideIcons.folder
-        : (entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -194,74 +200,198 @@ class _GridEntry extends StatelessWidget {
       onDoubleTap: onOpen,
       onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
       child: Container(
-        padding: EdgeInsets.all(DesignTokens.paddingMD),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: DesignTokens.borderRadiusXS,
-          // Pas de border - trop chargé
+          borderRadius: BorderRadius.circular(8),
           color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
+              ? colorScheme.primary.withValues(alpha: 0.12)
               : Colors.transparent,
+          border: isSelected
+              ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1.5)
+              : null,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
+            // Preview/Icon - BEAUCOUP PLUS GRAND
+            Stack(
               children: [
-                Container(
-                  padding: EdgeInsets.all(DesignTokens.paddingMD),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.1),
-                    borderRadius: DesignTokens.borderRadiusXS,
-                  ),
-                child: _EntryIcon(
-                  entry: entry,
-                  icon: iconData,
-                  color: iconColor,
-                  size: DesignTokens.iconSizeXLarge,
-                ),
-                ),
-                const Spacer(),
+                _buildPreview(context, iconColor),
+                // Checkbox en haut à droite si sélection mode
                 if (selectionMode)
-                  Checkbox(
-                    value: isSelected,
-                    onChanged: (_) => onToggleSelection?.call(),
-                  )
-                else
-                  Text(
-                    _formatSize(entry.size),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.65),
-                          fontSize: 11,
-                        ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => onToggleSelection?.call(),
+                    ),
                   ),
               ],
             ),
-            SizedBox(height: DesignTokens.spacingMD),
+            const SizedBox(height: 8),
+            // Nom du fichier
             Text(
               entry.name,
               maxLines: 2,
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.9),
-                    fontSize: 13,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    // Couleur adaptée au mode clair/sombre
+                    color: isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
             ),
-            SizedBox(height: DesignTokens.spacingXS),
+            const SizedBox(height: 4),
+            // Taille
             Text(
-              entry.lastModified != null
-                  ? 'Modifié le ${_formatDate(entry.lastModified!)}'
-                  : 'Date inconnue',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              _formatSize(entry.size),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontSize: 11,
+                    // Couleur adaptée au mode clair/sombre
+                    color: isLight ? Colors.black.withValues(alpha: 0.55) : Colors.white.withValues(alpha: 0.55),
+                    fontSize: 10,
                   ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPreview(BuildContext context, Color iconColor) {
+    final ext = entry.name.toLowerCase().split('.').last;
+    final isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].contains(ext);
+    final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'].contains(ext);
+    final isAudio = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma'].contains(ext);
+
+    // Preview d'image
+    if (isImage && entry.path.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(entry.path),
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildDefaultIcon(context, iconColor),
+        ),
+      );
+    }
+
+    // Preview vidéo (icône play sur fond)
+    if (isVideo) {
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(LucideIcons.video, color: iconColor, size: 48),
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'VIDEO',
+                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Preview audio (pochette)
+    if (isAudio) {
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(LucideIcons.disc3, color: iconColor, size: 48),
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'AUDIO',
+                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Icône par défaut (applications, dossiers, fichiers)
+    return _buildDefaultIcon(context, iconColor);
+  }
+
+  Widget _buildDefaultIcon(BuildContext context, Color iconColor) {
+    IconData iconData;
+
+    if (entry.isDirectory) {
+      iconData = LucideIcons.folder;
+    } else if (entry.isApplication) {
+      iconData = LucideIcons.appWindow;
+    } else {
+      iconData = LucideIcons.file;
+    }
+
+    // Si c'est une application avec un icône personnalisé
+    if (entry.iconPath != null && entry.iconPath!.toLowerCase().endsWith('.png')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          File(entry.iconPath!),
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(iconData, color: iconColor, size: 56),
+          ),
+        ),
+      );
+    }
+
+    // Icône par défaut
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        color: iconColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(iconData, color: iconColor, size: 56),
     );
   }
 }

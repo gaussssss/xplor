@@ -29,6 +29,7 @@ class ExplorerViewState {
     required this.selectedTags,
     required this.selectedTypes,
     required this.recentPaths,
+    required this.isMultiSelectionMode,
     this.error,
     this.statusMessage,
   });
@@ -44,6 +45,7 @@ class ExplorerViewState {
   final Set<String> selectedTags;
   final Set<String> selectedTypes;
   final List<String> recentPaths;
+  final bool isMultiSelectionMode;
   final String? error;
   final String? statusMessage;
 
@@ -60,6 +62,7 @@ class ExplorerViewState {
       selectedTags: const <String>{},
       selectedTypes: const <String>{},
       recentPaths: const [],
+      isMultiSelectionMode: false,
     );
   }
 
@@ -75,6 +78,7 @@ class ExplorerViewState {
     Set<String>? selectedTags,
     Set<String>? selectedTypes,
     List<String>? recentPaths,
+    bool? isMultiSelectionMode,
     String? error,
     String? statusMessage,
     bool clearError = false,
@@ -92,6 +96,7 @@ class ExplorerViewState {
       selectedTags: selectedTags ?? this.selectedTags,
       selectedTypes: selectedTypes ?? this.selectedTypes,
       recentPaths: recentPaths ?? this.recentPaths,
+      isMultiSelectionMode: isMultiSelectionMode ?? this.isMultiSelectionMode,
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
     );
@@ -288,11 +293,26 @@ class ExplorerViewModel extends ChangeNotifier {
 
   void toggleSelection(FileEntry entry) {
     final updated = <String>{..._state.selectedPaths};
-    if (updated.contains(entry.path)) {
-      updated.remove(entry.path);
+
+    if (_state.isMultiSelectionMode) {
+      // Mode sélection multiple: toggle la sélection
+      if (updated.contains(entry.path)) {
+        updated.remove(entry.path);
+      } else {
+        updated.add(entry.path);
+      }
     } else {
-      updated.add(entry.path);
+      // Mode sélection simple: sélectionner seulement celui-ci
+      if (updated.contains(entry.path) && updated.length == 1) {
+        // Si déjà sélectionné et c'est le seul, le désélectionner
+        updated.clear();
+      } else {
+        // Sinon, remplacer la sélection par celui-ci
+        updated.clear();
+        updated.add(entry.path);
+      }
     }
+
     _state = _state.copyWith(selectedPaths: updated, clearStatus: true);
     notifyListeners();
   }
@@ -445,6 +465,55 @@ class ExplorerViewModel extends ChangeNotifier {
       await prefs.setString('view_mode', mode == ExplorerViewMode.list ? 'list' : 'grid');
     } catch (_) {
       // Ignorer les erreurs de sauvegarde
+    }
+  }
+
+  Future<void> toggleMultiSelectionMode() async {
+    final newMode = !_state.isMultiSelectionMode;
+
+    // Si on sort du mode multi-sélection, garder au maximum 1 élément sélectionné
+    final updatedSelection = newMode
+        ? _state.selectedPaths
+        : (_state.selectedPaths.isEmpty
+            ? <String>{}
+            : {_state.selectedPaths.first});
+
+    _state = _state.copyWith(
+      isMultiSelectionMode: newMode,
+      selectedPaths: updatedSelection,
+      clearStatus: true,
+    );
+    notifyListeners();
+
+    // Sauvegarder le mode de sélection
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('multi_selection_mode', newMode);
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
+  }
+
+  Future<void> loadPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Charger le mode de vue
+      final viewModeStr = prefs.getString('view_mode') ?? 'grid';
+      final viewMode = viewModeStr == 'list'
+          ? ExplorerViewMode.list
+          : ExplorerViewMode.grid;
+
+      // Charger le mode de sélection
+      final isMultiSelectionMode = prefs.getBool('multi_selection_mode') ?? false;
+
+      _state = _state.copyWith(
+        viewMode: viewMode,
+        isMultiSelectionMode: isMultiSelectionMode,
+      );
+      notifyListeners();
+    } catch (_) {
+      // Ignorer les erreurs de chargement
     }
   }
 

@@ -56,8 +56,8 @@ class ThemeProvider extends ChangeNotifier {
   /// Retourne la palette actuellement active
   ColorPalette get currentPalette => _currentPalette;
 
-  /// Retourne les données de couleurs de la palette active
-  ColorPaletteData get colors => ColorPalettes.getData(_currentPalette);
+  /// Retourne les données de couleurs de la palette active (adaptées au mode clair/sombre)
+  ColorPaletteData get colors => ColorPalettes.getAdaptiveData(_currentPalette, _isLight);
 
   /// Couleur de fond courante
   Color get backgroundColor => _backgroundColor;
