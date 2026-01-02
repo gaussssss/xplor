@@ -913,6 +913,8 @@ class _AppearanceSettingsDialogV2State
       if (path != null) {
         setState(() => _backgroundImagePath = path);
         return;
+      } else {
+        return; // cancel => ne pas chaîner les fallbacks
       }
     }
 
@@ -928,6 +930,8 @@ class _AppearanceSettingsDialogV2State
         if (result != null && result.isNotEmpty) {
           setState(() => _backgroundImagePath = result.first.path);
           return;
+        } else {
+          return; // cancel
         }
       } catch (e) {
         debugPrint('macos_file_picker image error: $e');
@@ -946,6 +950,8 @@ class _AppearanceSettingsDialogV2State
           _backgroundImagePath = file.path;
         });
         return;
+      } else {
+        return; // cancel
       }
     } on PlatformException catch (e) {
       debugPrint('file_selector image error: $e');
@@ -966,6 +972,8 @@ class _AppearanceSettingsDialogV2State
           _backgroundImagePath = result.files.single.path!;
         });
         return;
+      } else {
+        return; // cancel
       }
     } catch (e) {
       debugPrint('Erreur file_picker image: $e');
@@ -983,6 +991,8 @@ class _AppearanceSettingsDialogV2State
       if (path != null) {
         setState(() => _backgroundFolderPath = path);
         return;
+      } else {
+        return; // cancel
       }
     }
 
@@ -997,6 +1007,8 @@ class _AppearanceSettingsDialogV2State
         if (result != null && result.isNotEmpty) {
           setState(() => _backgroundFolderPath = result.first.path);
           return;
+        } else {
+          return; // cancel
         }
       } catch (e) {
         debugPrint('macos_file_picker dir error: $e');
@@ -1011,6 +1023,8 @@ class _AppearanceSettingsDialogV2State
           _backgroundFolderPath = directoryPath;
         });
         return;
+      } else {
+        return; // cancel
       }
     } on PlatformException catch (e) {
       debugPrint('file_selector dir error: $e');
@@ -1028,6 +1042,8 @@ class _AppearanceSettingsDialogV2State
           _backgroundFolderPath = result;
         });
         return;
+      } else {
+        return; // cancel
       }
     } catch (e) {
       debugPrint('Erreur file_picker dossier: $e');
