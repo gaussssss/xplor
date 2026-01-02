@@ -1,9 +1,16 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons/lucide_icons.dart' as lucide;
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/special_locations.dart';
+import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/theme/color_palettes.dart';
+import '../../../../core/theme/design_tokens.dart';
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';
@@ -17,9 +24,11 @@ import '../../../explorer/domain/usecases/copy_entries.dart';
 import '../viewmodels/explorer_view_model.dart';
 import '../widgets/breadcrumb_bar.dart';
 import '../widgets/file_entry_tile.dart';
-import '../widgets/glass_panel.dart';
+import '../widgets/glass_panel_v2.dart';
+import '../widgets/list_view_table.dart';
 import '../widgets/sidebar_section.dart';
 import '../widgets/toolbar_button.dart';
+import '../../../../core/widgets/theme_controls_v2.dart';
 
 class ExplorerPage extends StatefulWidget {
   const ExplorerPage({super.key});
@@ -42,11 +51,14 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _contextMenuOpen = false;
   bool _isSearchExpanded = false;
   bool _isToastShowing = false;
+  bool _isSidebarCollapsed = false;
+  double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
 
   @override
   void initState() {
     super.initState();
-    final initialPath = Directory.current.path;
+    // Utiliser le vrai HOME de l'utilisateur au lieu du chemin sandbox
+    final initialPath = Platform.environment['HOME'] ?? SpecialLocations.desktop;
     final repository = FileSystemRepositoryImpl(LocalFileSystemDataSource());
     _viewModel = ExplorerViewModel(
       listDirectoryEntries: ListDirectoryEntries(repository),
@@ -68,6 +80,24 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _volumes = _readVolumes();
     _viewModel.loadDirectory(initialPath, pushHistory: false);
     _viewModel.bootstrap();
+    _loadSidebarWidth();
+  }
+
+  /// Charge la largeur du sidebar depuis SharedPreferences
+  Future<void> _loadSidebarWidth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedWidth = prefs.getDouble('sidebar_width');
+    if (savedWidth != null && mounted) {
+      setState(() {
+        _sidebarWidth = savedWidth.clamp(180.0, 400.0);
+      });
+    }
+  }
+
+  /// Sauvegarde la largeur du sidebar dans SharedPreferences
+  Future<void> _saveSidebarWidth(double width) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('sidebar_width', width);
   }
 
   Widget _buildSearchToggle() {
@@ -82,10 +112,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
               onChanged: _viewModel.updateSearch,
               onSubmitted: _viewModel.updateSearch,
               decoration: InputDecoration(
-                prefixIcon: const Icon(LucideIcons.search),
+                prefixIcon: const Icon(lucide.LucideIcons.search),
                 hintText: 'Recherche',
                 suffixIcon: IconButton(
-                  icon: const Icon(LucideIcons.x),
+                  icon: const Icon(lucide.LucideIcons.x),
                   onPressed: () {
                     setState(() => _isSearchExpanded = false);
                     _searchFocusNode.unfocus();
@@ -95,7 +125,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
               ),
             )
           : ToolbarButton(
-              icon: LucideIcons.search,
+              icon: lucide.LucideIcons.search,
               tooltip: 'Rechercher',
               onPressed: () {
                 setState(() => _isSearchExpanded = true);
@@ -120,6 +150,47 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, _) {
+        final themeProvider = context.watch<ThemeProvider>();
+        final bgImagePath = themeProvider.backgroundImagePath;
+        final hasBgImage =
+            bgImagePath != null && File(bgImagePath).existsSync();
+        final isLight = themeProvider.isLight;
+        final theme = Theme.of(context);
+        final bgColor = hasBgImage
+            ? (isLight
+                ? Colors.white.withOpacity(0.7)
+                : Colors.black.withOpacity(0.5))
+            : theme.colorScheme.background;
+        final adjustedSurface = hasBgImage
+            ? (isLight
+                ? Colors.white.withOpacity(0.98)
+                : Colors.black.withOpacity(0.75))
+            : theme.colorScheme.surface;
+        final adjustedOnSurface = hasBgImage && isLight
+            ? Colors.black
+            : (hasBgImage ? Colors.white : theme.colorScheme.onSurface);
+        final overlayLight = hasBgImage && isLight
+            ? Colors.white.withOpacity(0.55)
+            : null;
+        final overlayPrimary = hasBgImage && isLight
+            ? Colors.white.withOpacity(0.6)
+            : null;
+        final themed = theme.copyWith(
+          colorScheme: theme.colorScheme.copyWith(
+            surface: adjustedSurface,
+            onSurface: adjustedOnSurface,
+            onPrimary: hasBgImage && isLight
+                ? Colors.black
+                : (hasBgImage ? Colors.white : theme.colorScheme.onPrimary),
+            onSecondary: hasBgImage && isLight
+                ? Colors.black
+                : (hasBgImage ? Colors.white : theme.colorScheme.onSecondary),
+            onTertiary: hasBgImage && isLight
+                ? Colors.black
+                : (hasBgImage ? Colors.white : theme.colorScheme.onTertiary),
+          ),
+        );
+
         final state = _viewModel.state;
         if (_pathController.text != state.currentPath) {
           _pathController.text = state.currentPath;
@@ -141,53 +212,125 @@ class _ExplorerPageState extends State<ExplorerPage> {
           _lastStatusMessage = null;
         }
 
-        return Scaffold(
-          body: Container(
-            color: Theme.of(context).colorScheme.background,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 240,
-                      child: _Sidebar(
-                        favoriteItems: _favoriteItems,
-                        systemItems: _systemItems,
-                        quickItems: _quickItems,
-                        tags: _tagItems,
-                        volumes: _volumes,
-                        recentPaths: state.recentPaths,
-                        selectedTag: _viewModel.selectedTag,
-                        onNavigate: _viewModel.loadDirectory,
-                        onTagSelected: (tag) => _viewModel.setTagFilter(
-                          tag == _viewModel.selectedTag ? null : tag,
-                        ),
+        return Theme(
+          data: themed,
+          child: Scaffold(
+            body: Stack(
+              children: [
+                // Background image
+                if (hasBgImage)
+                  Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: FileImage(File(bgImagePath)),
+                        fit: BoxFit.cover,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                  ),
+                // Overlay layer (dark in dark mode, light in light mode)
+                if (hasBgImage)
+                  Container(
+                    color: isLight
+                        ? Colors.white.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.4),
+                  ),
+                // Main content
+                Container(
+                  color: hasBgImage ? Colors.transparent : bgColor,
+                  child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sidebar avec resize handle
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: _isSidebarCollapsed ? 70 : _sidebarWidth,
+                            child: _Sidebar(
+                              favoriteItems: _favoriteItems,
+                              systemItems: _systemItems,
+                              quickItems: _quickItems,
+                              tags: _tagItems,
+                              volumes: _volumes,
+                              recentPaths: state.recentPaths,
+                              selectedTags: _viewModel.selectedTags,
+                              selectedTypes: _viewModel.selectedTypes,
+                              onNavigate: _viewModel.loadDirectory,
+                              onTagToggle: _viewModel.toggleTag,
+                              onTypeToggle: _viewModel.toggleType,
+                              onToggleCollapse: () {
+                                setState(
+                                    () => _isSidebarCollapsed = !_isSidebarCollapsed);
+                              },
+                              isLight: themeProvider.isLight,
+                              currentPalette: themeProvider.currentPalette,
+                              onToggleLight: themeProvider.setLightMode,
+                              onPaletteSelected: themeProvider.setPalette,
+                              collapsed: _isSidebarCollapsed,
+                            ),
+                          ),
+                          // Resize handle - seulement visible quand sidebar n'est pas collapsed
+                          if (!_isSidebarCollapsed)
+                           MouseRegion(
+                              cursor: SystemMouseCursors.resizeColumn,
+                              child: GestureDetector(
+                                onPanUpdate: (details) {
+                                  setState(() {
+                                    _sidebarWidth = (_sidebarWidth + details.delta.dx)
+                                        .clamp(180.0, 400.0); // Min 180px, Max 400px
+                                  });
+                                },
+                                onPanEnd: (_) {
+                                  // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
+                                   _saveSidebarWidth(_sidebarWidth);
+                                 },
+                                 child: Container(
+                                   width: 8,
+                                   color: Colors.transparent,
+                                   child: Center(
+                                     child: Container(
+                                       width: 2,
+                                       color: Colors.white.withValues(alpha: 0.1),
+                                     ),
+                                   ),
+                                 ),
+                             ),
+                           )
+                         else
+                            const SizedBox(width: 8),
+                       ],
+                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          GlassPanel(child: _buildToolbar(state)),
-                          const SizedBox(height: 12),
-                          GlassPanel(child: _buildActionBar(state)),
-                          const SizedBox(height: 12),
-                          Expanded(
-                            child: GlassPanel(
-                              padding: const EdgeInsets.all(0),
-                              child: _buildContent(state, entries),
+                          children: [
+                            GlassPanelV2(
+                              level: GlassPanelLevel.secondary,
+                              child: _buildToolbar(state),
                             ),
-                          ),
-                          const SizedBox(height: 12),
+                            const SizedBox(height: 8),
+                            GlassPanelV2(
+                              level: GlassPanelLevel.secondary,
+                              child: _buildActionBar(state),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: GlassPanelV2(
+                                level: GlassPanelLevel.primary,
+                                padding: const EdgeInsets.all(0),
+                                child: _buildContent(state, entries),
+                              ),
+                            ),
+                          const SizedBox(height: 8),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: _StatsFooter(state: state),
                           ),
-                          const SizedBox(height: 12),
-                          GlassPanel(
+                          const SizedBox(height: 8),
+                          GlassPanelV2(
+                            level: GlassPanelLevel.tertiary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 10,
@@ -209,6 +352,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   ],
                 ),
               ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -219,24 +365,49 @@ class _ExplorerPageState extends State<ExplorerPage> {
   Widget _buildToolbar(ExplorerViewState state) {
     return Row(
       children: [
+        // Groupe 1: Navigation historique (back/forward)
         ToolbarButton(
-          icon: LucideIcons.arrowLeft,
-          tooltip: 'Arriere',
+          icon: lucide.LucideIcons.arrowLeft,
+          tooltip: 'Précédent',
           onPressed: state.isLoading || !_viewModel.canGoBack
               ? null
               : _viewModel.goBack,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         ToolbarButton(
-          icon: LucideIcons.arrowRight,
-          tooltip: 'Avant',
+          icon: lucide.LucideIcons.arrowRight,
+          tooltip: 'Suivant',
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
               : _viewModel.goForward,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         ToolbarButton(
-          icon: LucideIcons.history,
+          icon: lucide.LucideIcons.arrowUp,
+          tooltip: 'Dossier parent',
+          onPressed: state.currentPath == '/' || state.currentPath.isEmpty
+              ? null
+              : _viewModel.goToParent,
+        ),
+
+        const SizedBox(width: 12),
+        // Séparateur vertical
+        Container(
+          width: 1,
+          height: 24,
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+        const SizedBox(width: 12),
+
+        // Groupe 2: Actions (refresh/history)
+        ToolbarButton(
+          icon: lucide.LucideIcons.refreshCw,
+          tooltip: 'Rafraîchir',
+          onPressed: state.isLoading ? null : _viewModel.refresh,
+        ),
+        const SizedBox(width: 4),
+        ToolbarButton(
+          icon: lucide.LucideIcons.history,
           tooltip: 'Dernier emplacement',
           onPressed: state.isLoading || state.recentPaths.length < 2
               ? null
@@ -254,20 +425,14 @@ class _ExplorerPageState extends State<ExplorerPage> {
         _buildSearchToggle(),
         const SizedBox(width: 12),
         ToolbarButton(
-          icon: LucideIcons.refreshCw,
-          tooltip: 'Rafraichir',
-          onPressed: state.isLoading ? null : _viewModel.refresh,
-        ),
-        const SizedBox(width: 12),
-        ToolbarButton(
-          icon: LucideIcons.list,
+          icon: lucide.LucideIcons.list,
           tooltip: 'Vue liste',
           isActive: state.viewMode == ExplorerViewMode.list,
           onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
         ),
         const SizedBox(width: 8),
         ToolbarButton(
-          icon: LucideIcons.grid,
+          icon: lucide.LucideIcons.grid,
           tooltip: 'Vue grille',
           isActive: state.viewMode == ExplorerViewMode.grid,
           onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
@@ -297,7 +462,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.alertCircle, size: 48),
+              const Icon(lucide.LucideIcons.alertCircle, size: 48),
               const SizedBox(height: 12),
               Text(
                 state.error!,
@@ -321,7 +486,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: const [
               SizedBox(height: 80),
-              Center(child: Icon(LucideIcons.folderX, size: 56)),
+              Center(child: Icon(lucide.LucideIcons.folderX, size: 56)),
               SizedBox(height: 8),
               Center(
                 child: Text('Aucun element dans ce dossier (ou acces limite)'),
@@ -354,98 +519,120 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   Widget _buildActionBar(ExplorerViewState state) {
     final selectionCount = state.selectedPaths.length;
-    final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    );
-    final outlinedStyle = OutlinedButton.styleFrom(
-      side: const BorderSide(color: Colors.white24),
-      shape: buttonShape,
-      foregroundColor: Colors.white,
-      overlayColor: Colors.white10,
-      minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-    );
-    final filledStyle = FilledButton.styleFrom(
-      shape: buttonShape,
-      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.16),
-      foregroundColor: Colors.white,
-      overlayColor: Colors.white24,
-      minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-    );
 
     return SizedBox(
-      height: 64,
+      height: 44,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: Row(
           children: [
-            FilledButton.icon(
-              icon: const Icon(LucideIcons.folderPlus),
-              label: const Text('Nouveau dossier'),
+            // Groupe 1: Création
+            ToolbarButton(
+              icon: lucide.LucideIcons.folderPlus,
+              tooltip: 'Nouveau dossier',
+              isActive: !state.isLoading,
               onPressed: state.isLoading ? null : _promptCreateFolder,
-              style: filledStyle,
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(LucideIcons.copy),
-              label: const Text('Copier'),
+            const SizedBox(width: 12),
+
+            // Séparateur
+            Container(
+              width: 1,
+              height: 24,
+              color: Colors.white.withValues(alpha: 0.1),
+            ),
+            const SizedBox(width: 12),
+
+            // Groupe 2: Presse-papier
+            ToolbarButton(
+              icon: lucide.LucideIcons.copy,
+              tooltip: 'Copier',
+              isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _viewModel.copySelectionToClipboard,
-              style: outlinedStyle,
             ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              icon: const Icon(LucideIcons.clipboard),
-              label: const Text('Coller'),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.scissors,
+              tooltip: 'Couper',
+              isActive: !state.isLoading && selectionCount > 0,
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _viewModel.cutSelectionToClipboard,
+            ),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.clipboard,
+              tooltip: 'Coller',
+              isActive: !state.isLoading && _viewModel.canPaste,
               onPressed: state.isLoading || !_viewModel.canPaste
                   ? null
                   : _viewModel.pasteClipboard,
-              style: filledStyle,
             ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              icon: const Icon(LucideIcons.edit3),
-              label: const Text('Renommer'),
+            const SizedBox(width: 12),
+
+            // Séparateur
+            Container(
+              width: 1,
+              height: 24,
+              color: Colors.white.withValues(alpha: 0.1),
+            ),
+            const SizedBox(width: 12),
+
+            // Groupe 3: Actions sur fichiers
+            ToolbarButton(
+              icon: lucide.LucideIcons.edit3,
+              tooltip: 'Renommer',
+              isActive: !state.isLoading && selectionCount == 1,
               onPressed: state.isLoading || selectionCount != 1
                   ? null
                   : _promptRename,
-              style: filledStyle,
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(LucideIcons.move),
-              label: const Text('Deplacer vers...'),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.move,
+              tooltip: 'Déplacer',
+              isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _promptMove,
-              style: outlinedStyle,
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(LucideIcons.trash2),
-              label: const Text('Supprimer'),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.trash2,
+              tooltip: 'Supprimer',
+              isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _confirmDeletion,
-              style: outlinedStyle,
             ),
+
             const SizedBox(width: 16),
             if (selectionCount > 0) ...[
               Text(
-                '$selectionCount selectionne(s)',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: Colors.white70),
+                '$selectionCount sélectionné(s)',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
               ),
-              IconButton(
-                tooltip: 'Vider la selection',
-                onPressed: state.isLoading ? null : _viewModel.clearSelection,
-                icon: const Icon(LucideIcons.x),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: state.isLoading ? null : _viewModel.clearSelection,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      lucide.LucideIcons.x,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],
@@ -537,75 +724,61 @@ class _ExplorerPageState extends State<ExplorerPage> {
       _viewModel.selectSingle(entry);
     }
 
-    final menuItems = <PopupMenuEntry<String>>[];
+    final items = <_MenuItem>[];
     if (entry != null) {
-      menuItems.add(
-        const PopupMenuItem<String>(value: 'open', child: Text('Ouvrir')),
-      );
+      items.add(const _MenuItem('open', 'Ouvrir'));
       if (entry.isApplication) {
-        menuItems.addAll([
-          const PopupMenuItem<String>(
-            value: 'launchApp',
-            child: Text('Lancer l application'),
-          ),
-          const PopupMenuItem<String>(
-            value: 'openPackage',
-            child: Text('Ouvrir comme dossier'),
-          ),
+        items.addAll(const [
+          _MenuItem('launchApp', 'Lancer l application'),
+          _MenuItem('openPackage', 'Ouvrir comme dossier'),
         ]);
       }
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'reveal',
-          child: Text('Afficher dans Finder'),
-        ),
-      );
-      menuItems.add(
-        const PopupMenuItem<String>(value: 'copy', child: Text('Copier')),
-      );
-      menuItems.add(
-        const PopupMenuItem<String>(value: 'cut', child: Text('Couper')),
-      );
+      items.addAll(const [
+        _MenuItem('reveal', 'Afficher dans Finder'),
+        _MenuItem('copy', 'Copier'),
+        _MenuItem('cut', 'Couper'),
+        _MenuItem('copyPath', 'Copier le chemin'),
+        _MenuItem('openTerminal', 'Ouvrir le terminal ici'),
+      ]);
     }
 
     final pasteDestination = entry != null && entry.isDirectory
         ? entry.path
         : null;
     if (_viewModel.canPaste) {
-      menuItems.add(
-        PopupMenuItem<String>(
-          value: 'paste',
-          child: Text(
-            pasteDestination != null ? 'Coller dans ce dossier' : 'Coller ici',
-          ),
+      items.add(
+        _MenuItem(
+          'paste',
+          pasteDestination != null ? 'Coller dans ce dossier' : 'Coller ici',
         ),
       );
     }
 
     if (entry != null) {
-      menuItems.addAll([
-        const PopupMenuItem<String>(
-          value: 'duplicate',
-          child: Text('Dupliquer'),
-        ),
-        const PopupMenuItem<String>(
-          value: 'move',
-          child: Text('Deplacer vers...'),
-        ),
-        const PopupMenuItem<String>(value: 'rename', child: Text('Renommer')),
-        const PopupMenuItem<String>(value: 'delete', child: Text('Supprimer')),
+      items.addAll(const [
+        _MenuItem('duplicate', 'Dupliquer'),
+        _MenuItem('move', 'Deplacer vers...'),
+        _MenuItem('rename', 'Renommer'),
+        _MenuItem('delete', 'Supprimer'),
       ]);
     } else {
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'newFolder',
-          child: Text('Nouveau dossier'),
-        ),
-      );
+      items.add(const _MenuItem('newFolder', 'Nouveau dossier'));
+    }
+    if (_viewModel.state.selectedPaths.isNotEmpty) {
+      items.add(const _MenuItem('compress', 'Compresser en .zip'));
+    }
+    if (entry == null) {
+      items.addAll(const [
+        _MenuItem('copyPath', 'Copier le chemin courant'),
+        _MenuItem('openTerminal', 'Ouvrir le terminal ici'),
+      ]);
     }
 
     String? selected;
     try {
+      final brightness = Theme.of(context).brightness;
+      final menuBg = DesignTokens.selectionMenuBackground(brightness);
+      final menuText = Theme.of(context).colorScheme.onSurface;
       selected = await showMenu<String>(
         context: context,
         position: RelativeRect.fromLTRB(
@@ -614,7 +787,19 @@ class _ExplorerPageState extends State<ExplorerPage> {
           globalPosition.dx,
           globalPosition.dy,
         ),
-        items: menuItems,
+        items: items
+            .map(
+              (item) => PopupMenuItem<String>(
+                value: item.value,
+                enabled: item.enabled,
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: menuText),
+                  child: Text(item.label),
+                ),
+              ),
+            )
+            .toList(),
+        color: menuBg,
       );
     } finally {
       _contextMenuOpen = false;
@@ -656,6 +841,21 @@ class _ExplorerPageState extends State<ExplorerPage> {
         break;
       case 'newFolder':
         await _promptCreateFolder();
+        break;
+      case 'copyPath':
+        _viewModel.copyPathToClipboard(
+          entry?.path ?? _viewModel.state.currentPath,
+        );
+        break;
+      case 'openTerminal':
+        await _viewModel.openTerminalHere(
+          entry != null && entry.isDirectory
+              ? entry.path
+              : _viewModel.state.currentPath,
+        );
+        break;
+      case 'compress':
+        await _viewModel.compressSelected();
         break;
     }
   }
@@ -778,18 +978,23 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Widget _buildList(List<FileEntry> entries, bool selectionMode) {
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return _buildDraggableEntry(
-          entry: entry,
-          selectionMode: selectionMode,
-          viewMode: ExplorerViewMode.list,
-        );
+    return ListViewTable(
+      entries: entries,
+      selectionMode: selectionMode,
+      isSelected: (entry) => _viewModel.isSelected(entry),
+      onEntryTap: (entry) {
+        if (selectionMode) {
+          _viewModel.toggleSelection(entry);
+        } else {
+          _viewModel.selectSingle(entry);
+        }
+      },
+      onEntryDoubleTap: (entry) => _handleEntryTap(entry),
+      onEntrySecondaryTap: (entry, offset) {
+        if (!_viewModel.isSelected(entry)) {
+          _viewModel.selectSingle(entry);
+        }
+        _showContextMenu(entry, offset);
       },
     );
   }
@@ -826,20 +1031,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildFavoriteItems() {
     final home = Platform.environment['HOME'] ?? Directory.current.parent.path;
     return [
-      _NavItem(label: 'Accueil', icon: LucideIcons.home, path: home),
+      _NavItem(label: 'Accueil', icon: lucide.LucideIcons.home, path: home),
       _NavItem(
         label: 'Bureau',
-        icon: LucideIcons.monitor,
+        icon: lucide.LucideIcons.monitor,
         path: _join(home, 'Desktop'),
       ),
       _NavItem(
         label: 'Documents',
-        icon: LucideIcons.folderOpen,
+        icon: lucide.LucideIcons.folderOpen,
         path: _join(home, 'Documents'),
       ),
       _NavItem(
         label: 'Telechargements',
-        icon: LucideIcons.download,
+        icon: lucide.LucideIcons.download,
         path: _join(home, 'Downloads'),
       ),
     ];
@@ -848,19 +1053,24 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildSystemItems(String initialPath) {
     return [
       _NavItem(
-        label: 'Racine',
-        icon: LucideIcons.hardDrive,
-        path: Platform.pathSeparator,
+        label: 'Bureau',
+        icon: lucide.LucideIcons.monitor,
+        path: SpecialLocations.desktop,
       ),
       _NavItem(
-        label: 'Applications',
-        icon: LucideIcons.box,
-        path: Platform.isWindows ? 'C:\\Program Files' : '/Applications',
+        label: 'Documents',
+        icon: lucide.LucideIcons.fileText,
+        path: SpecialLocations.documents,
       ),
       _NavItem(
-        label: 'Projet courant',
-        icon: LucideIcons.folder,
-        path: initialPath,
+        label: 'Téléchargements',
+        icon: lucide.LucideIcons.download,
+        path: SpecialLocations.downloads,
+      ),
+      _NavItem(
+        label: 'Images',
+        icon: lucide.LucideIcons.image,
+        path: SpecialLocations.pictures,
       ),
     ];
   }
@@ -868,8 +1078,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildQuickItems() {
     final home = Platform.environment['HOME'] ?? Directory.current.parent.path;
     return [
-      _NavItem(label: 'Recents', icon: LucideIcons.clock3, path: home),
-      _NavItem(label: 'Partage', icon: LucideIcons.share2, path: home),
+      _NavItem(label: 'Recents', icon: lucide.LucideIcons.clock3, path: home),
+      _NavItem(label: 'Partage', icon: lucide.LucideIcons.share2, path: home),
     ];
   }
 
@@ -974,7 +1184,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         duration: const Duration(milliseconds: 1700),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         icon: Icon(
-          LucideIcons.info,
+          lucide.LucideIcons.info,
           size: 22,
           color: theme.colorScheme.primary,
         ),
@@ -998,6 +1208,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 }
 
+class _MenuItem {
+  const _MenuItem(this.value, this.label, {this.enabled = true});
+  final String value;
+  final String label;
+  final bool enabled;
+}
+
 class _DragFeedback extends StatelessWidget {
   const _DragFeedback({required this.entry});
 
@@ -1005,7 +1222,7 @@ class _DragFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = entry.isDirectory ? LucideIcons.folder : LucideIcons.file;
+    final icon = entry.isDirectory ? lucide.LucideIcons.folder : lucide.LucideIcons.file;
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -1044,8 +1261,16 @@ class _Sidebar extends StatelessWidget {
     required this.tags,
     required this.volumes,
     this.recentPaths = const [],
-    this.selectedTag,
-    this.onTagSelected,
+    this.selectedTags = const <String>{},
+    this.selectedTypes = const <String>{},
+    this.onTagToggle,
+    this.onTypeToggle,
+    this.onToggleCollapse,
+    required this.isLight,
+    required this.currentPalette,
+    required this.onToggleLight,
+    required this.onPaletteSelected,
+    this.collapsed = false,
   });
 
   final List<_NavItem> favoriteItems;
@@ -1054,52 +1279,177 @@ class _Sidebar extends StatelessWidget {
   final List<_TagItem> tags;
   final List<_VolumeInfo> volumes;
   final List<String> recentPaths;
-  final String? selectedTag;
+  final Set<String> selectedTags;
+  final Set<String> selectedTypes;
   final void Function(String path) onNavigate;
-  final void Function(String tag)? onTagSelected;
+  final void Function(String tag)? onTagToggle;
+  final void Function(String type)? onTypeToggle;
+  final VoidCallback? onToggleCollapse;
+  final bool collapsed;
+  final bool isLight;
+  final ColorPalette currentPalette;
+  final Future<void> Function(bool) onToggleLight;
+  final Future<void> Function(ColorPalette) onPaletteSelected;
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SidebarSection(
-              title: 'Navigation',
-              compact: true,
-              items: quickItems
+    if (collapsed) {
+      return GlassPanelV2(
+        level: GlassPanelLevel.tertiary,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Pas de header avec doublon du toggle - juste les icônes
+              const SizedBox(height: 8),
+              // Favoris (3 premiers)
+              ...favoriteItems
+                  .take(3)
                   .map(
-                    (item) => SidebarItem(
-                      label: item.label,
+                    (item) => _RailButton(
                       icon: item.icon,
+                      tooltip: item.label,
                       onTap: () => onNavigate(item.path),
                     ),
-                  )
-                  .toList(),
-            ),
-            if (recentPaths.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SidebarSection(
-                title: 'Recents',
-                compact: true,
-                items: recentPaths
-                    .take(6)
-                    .map(
-                      (path) => SidebarItem(
-                            label: path
-                              .split(Platform.pathSeparator)
-                              .where((p) => p.isNotEmpty)
-                              .lastWhere((_) => true, orElse: () => path),
-                        icon: LucideIcons.history,
-                        onTap: () => onNavigate(path),
+                  ),
+              const SizedBox(height: 6),
+              // Divider subtil
+              Container(
+                width: 32,
+                height: 1,
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+              const SizedBox(height: 6),
+              // Emplacements système
+              ...systemItems
+                  .map(
+                    (item) => _RailButton(
+                      icon: item.icon,
+                      tooltip: item.label,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  ),
+              if (volumes.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                // Divider subtil
+                Container(
+                  width: 32,
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+                const SizedBox(height: 6),
+                ...volumes.take(2).map(
+                  (volume) => _RailButton(
+                    icon: lucide.LucideIcons.hardDrive,
+                    tooltip: volume.label,
+                    onTap: () => onNavigate(volume.path),
+                  ),
+                ),
+                if (volumes.length > 2)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: _RailButton(
+                      icon: lucide.LucideIcons.chevronRight,
+                      tooltip: 'Tous les disques',
+                      onTap: () => _showAllDisksDialog(
+                        context,
+                        volumes,
+                        onNavigate,
                       ),
-                    )
-                    .toList(),
+                    ),
+                  ),
+              ],
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: tags
+                      .map(
+                        (tag) => _TagDot(
+                          color: tag.color,
+                          active: selectedTags.contains(tag.label),
+                          onTap: onTagToggle == null
+                              ? null
+                              : () => onTagToggle!(tag.label),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+              if (onToggleCollapse != null) ...[
+                const SizedBox(height: 10),
+                _RailButton(
+                  icon: lucide.LucideIcons.panelRightOpen,
+                  tooltip: 'Etendre',
+                  onTap: onToggleCollapse,
+                ),
+              ],
+              const SizedBox(height: 12),
+              ThemeRailControlsV2(
+                isLight: isLight,
+                currentPalette: currentPalette,
+                onToggleLight: onToggleLight,
+                onPaletteSelected: onPaletteSelected,
               ),
             ],
-            const SizedBox(height: 12),
+          ),
+        ),
+      );
+    }
+
+    return GlassPanelV2(
+      level: GlassPanelLevel.tertiary,
+      padding: const EdgeInsets.all(0),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+            // Bouton pour replier le menu en haut
+            if (onToggleCollapse != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 4),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onToggleCollapse,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      height: 32,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            lucide.LucideIcons.panelLeftClose,
+                            size: 16,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: isLight ? 0.75 : 0.6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Replier',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: isLight ? 0.75 : 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Favoris
             SidebarSection(
               title: 'Favoris',
               items: favoriteItems
@@ -1112,181 +1462,366 @@ class _Sidebar extends StatelessWidget {
                   )
                   .toList(),
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 4),
+
+            // Emplacements (incluant Fichiers récents)
             SidebarSection(
               title: 'Emplacements',
-              items: systemItems
-                  .map(
-                    (item) => SidebarItem(
-                      label: item.label,
-                      icon: item.icon,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
-            ),
-            if (volumes.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Disques',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  letterSpacing: 0.8,
-                  color: Colors.white60,
+              items: [
+                // Fichiers récents en premier si disponibles
+                if (recentPaths.isNotEmpty)
+                  SidebarItem(
+                    label: 'Fichiers récents',
+                    icon: lucide.LucideIcons.clock,
+                    onTap: () => onNavigate(SpecialLocations.recentFiles),
+                  ),
+                // Puis les emplacements système
+                ...systemItems.map(
+                  (item) => SidebarItem(
+                    label: item.label,
+                    icon: item.icon,
+                    onTap: () => onNavigate(item.path),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              ...volumes.map(
-                (volume) => _VolumeTile(
-                  volume: volume,
-                  onTap: () => onNavigate(volume.path),
+              ],
+            ),
+
+            // Disques (maximum 2 affichés)
+            if (volumes.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 4),
+                      child: Text(
+                        'DISQUES',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
+                            ),
+                      ),
+                    ),
+                    ...volumes.take(2).map(
+                      (volume) => _VolumeItem(
+                        volume: volume,
+                        onTap: () => onNavigate(volume.path),
+                      ),
+                    ),
+                    if (volumes.length > 2)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.7),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            minimumSize: const Size(0, 32),
+                          ),
+                          onPressed: () => _showAllDisksDialog(
+                            context,
+                            volumes,
+                            onNavigate,
+                          ),
+                          icon: const Icon(
+                            lucide.LucideIcons.chevronRight,
+                            size: 14,
+                          ),
+                          label: Text(
+                            'Voir tous (${volumes.length})',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            Text(
-              'Tags',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                letterSpacing: 0.8,
-                color: Colors.white60,
+
+            // Tags simplifiés
+            if (tags.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TAGS',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: tags
+                          .map(
+                            (tag) => _TagChipSimple(
+                              tag: tag,
+                              isActive: selectedTags.contains(tag.label),
+                              onTap: onTagToggle == null
+                                  ? null
+                                  : () => onTagToggle!(tag.label),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+              child: ThemeControlsV2(
+                isLight: isLight,
+                currentPalette: currentPalette,
+                onToggleLight: onToggleLight,
+                onPaletteSelected: onPaletteSelected,
               ),
             ),
-            const SizedBox(height: 6),
-            ...tags.map((tag) {
-              final isActive = selectedTag == tag.label;
-              return InkWell(
-                onTap: onTagSelected == null
-                    ? null
-                    : () => onTagSelected!(tag.label),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 2),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.white.withOpacity(0.08) : null,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: tag.color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          tag.label,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: isActive ? Colors.white : Colors.white70,
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
           ],
+        ),
         ),
       ),
     );
   }
 }
 
-class _VolumeTile extends StatelessWidget {
-  const _VolumeTile({required this.volume, required this.onTap});
+class _RailButton extends StatelessWidget {
+  const _RailButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withOpacity(0.05),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Icon(icon, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TagDot extends StatelessWidget {
+  const _TagDot({required this.color, required this.active, this.onTap});
+
+  final Color color;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(active ? 0.9 : 0.6),
+              color.withOpacity(active ? 0.5 : 0.25),
+            ],
+          ),
+          border: Border.all(
+            color: active ? onSurface.withValues(alpha: 0.8) : onSurface.withValues(alpha: 0.2),
+            width: active ? 1.4 : 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tag chip simplifié et compact
+class _TagChipSimple extends StatelessWidget {
+  const _TagChipSimple({
+    required this.tag,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final _TagItem tag;
+  final bool isActive;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            color: isActive
+                ? tag.color.withValues(alpha: 0.2)
+                : Theme.of(context).colorScheme.onSurface.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.light ? 0.08 : 0.04,
+                    ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Petit point de couleur
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: tag.color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                tag.label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                      color: isActive
+                          ? Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.9)
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.65),
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VolumeItem extends StatelessWidget {
+  const _VolumeItem({required this.volume, required this.onTap});
 
   final _VolumeInfo volume;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     final percent = (volume.usage * 100).clamp(0, 100).round();
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            const Icon(LucideIcons.hardDrive, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    volume.label,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.white),
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween<double>(
-                        begin: 0,
-                        end: volume.usage.clamp(0, 1),
-                      ),
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, _) {
-                        return LinearProgressIndicator(
-                          value: value,
-                          minHeight: 6,
-                          backgroundColor: Colors.white.withOpacity(0.06),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          margin: const EdgeInsets.only(bottom: 6),
+          decoration: BoxDecoration(
+            color: isLight
+                ? Colors.black.withValues(alpha: 0.05)
+                : Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                lucide.LucideIcons.hardDrive,
+                size: 16,
+                color: colorScheme.onSurface.withValues(alpha: 0.75),
               ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '$percent%',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: Colors.white70),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      volume.label,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: volume.usage.clamp(0, 1),
+                        minHeight: 3,
+                        backgroundColor:
+                            colorScheme.onSurface.withValues(alpha: 0.12),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          colorScheme.primary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatBytes(volume.totalBytes),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white54,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$percent%',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.65),
+                      fontSize: 11,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes <= 0) return '—';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    double value = bytes.toDouble();
-    var unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-      value /= 1024;
-      unitIndex++;
-    }
-    final precision = value >= 10 ? 0 : 1;
-    return '${value.toStringAsFixed(precision)} ${units[unitIndex]}';
   }
 }
 
@@ -1304,6 +1839,8 @@ class _StatsFooter extends StatelessWidget {
     final folderCount = state.entries.where((e) => e.isDirectory).length;
     final fileCount = state.entries.where((e) => !e.isDirectory).length;
     final totalSize = selected.fold<int>(0, (sum, e) => sum + (e.size ?? 0));
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
 
     return Opacity(
       opacity: 0.7,
@@ -1311,13 +1848,33 @@ class _StatsFooter extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _StatChip(label: 'Selectionés', value: '$selectionCount'),
+            _StatChip(
+              label: 'Selectionés',
+              value: '$selectionCount',
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
             const SizedBox(width: 8),
-            _StatChip(label: 'Dossiers', value: '$folderCount'),
+            _StatChip(
+              label: 'Dossiers',
+              value: '$folderCount',
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
             const SizedBox(width: 8),
-            _StatChip(label: 'Fichiers', value: '$fileCount'),
+            _StatChip(
+              label: 'Fichiers',
+              value: '$fileCount',
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
             const SizedBox(width: 8),
-            _StatChip(label: 'Taille', value: _formatBytes(totalSize)),
+            _StatChip(
+              label: 'Taille',
+              value: _formatBytes(totalSize),
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
           ],
         ),
       ),
@@ -1339,17 +1896,28 @@ class _StatsFooter extends StatelessWidget {
 }
 
 class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value});
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.colorScheme,
+    required this.isLight,
+  });
 
   final String label;
   final String value;
+  final ColorScheme colorScheme;
+  final bool isLight;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: isLight
+            ? Colors.black.withValues(alpha: 0.06)
+            : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1359,7 +1927,7 @@ class _StatChip extends StatelessWidget {
             label.toUpperCase(),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               letterSpacing: 0.4,
-              color: Colors.white70,
+              color: colorScheme.onSurface.withValues(alpha: isLight ? 0.7 : 0.75),
               fontSize: 10,
             ),
           ),
@@ -1369,6 +1937,7 @@ class _StatChip extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
               fontSize: 13,
+              color: colorScheme.onSurface.withValues(alpha: isLight ? 0.9 : 0.85),
             ),
           ),
         ],
@@ -1385,15 +1954,29 @@ class _PathInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textColor = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
+    final labelColor = onSurface.withValues(alpha: isLight ? 0.7 : 0.75);
+    final iconColor = onSurface.withValues(alpha: isLight ? 0.75 : 0.8);
+
     return TextField(
       controller: controller,
       onSubmitted: onSubmit,
-      style: const TextStyle(fontSize: 14),
+      style: TextStyle(fontSize: 14, color: textColor),
       decoration: InputDecoration(
         labelText: 'Chemin du dossier',
-        prefixIcon: const Icon(LucideIcons.folderOpen),
+        labelStyle: TextStyle(color: labelColor),
+        prefixIcon: Icon(
+          lucide.LucideIcons.folderOpen,
+          color: iconColor,
+        ),
         suffixIcon: IconButton(
-          icon: const Icon(LucideIcons.arrowRight, size: 16),
+          icon: Icon(
+            lucide.LucideIcons.arrowRight,
+            size: 16,
+            color: iconColor,
+          ),
           onPressed: () => onSubmit(controller.text),
         ),
       ),
@@ -1415,7 +1998,7 @@ class _SearchInput extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: 'Recherche (nom ou extension)',
-        prefixIcon: const Icon(LucideIcons.search),
+        prefixIcon: const Icon(lucide.LucideIcons.search),
       ),
     );
   }
@@ -1448,4 +2031,212 @@ class _VolumeInfo {
   final String path;
   final double usage;
   final int totalBytes;
+}
+
+/// Affiche une dialog avec tous les disques
+void _showAllDisksDialog(
+  BuildContext context,
+  List<_VolumeInfo> volumes,
+  void Function(String) onNavigate,
+) {
+  showDialog(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: Colors.transparent,
+      child: _AllDisksDialogContent(
+        volumes: volumes,
+        onNavigate: onNavigate,
+      ),
+    ),
+  );
+}
+
+class _AllDisksDialogContent extends StatelessWidget {
+  const _AllDisksDialogContent({
+    required this.volumes,
+    required this.onNavigate,
+  });
+
+  final List<_VolumeInfo> volumes;
+  final void Function(String) onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+    final onSurface = theme.colorScheme.onSurface;
+    final bgColor =
+        isLight ? Colors.white.withValues(alpha: 0.82) : Colors.black.withValues(alpha: 0.85);
+    final borderColor =
+        isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12);
+    final headerText = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
+    final subtitleText = onSurface.withValues(alpha: isLight ? 0.6 : 0.7);
+    final tileBg =
+        isLight ? onSurface.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.06);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 520),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(
+                      lucide.LucideIcons.hardDrive,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Tous les disques',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: headerText,
+                          ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(lucide.LucideIcons.x),
+                      onPressed: () => Navigator.of(context).pop(),
+                      color: onSurface.withValues(alpha: 0.5),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: borderColor),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: volumes.length,
+                  itemBuilder: (context, index) {
+                    final volume = volumes[index];
+                    final percent = (volume.usage * 100).clamp(0, 100).round();
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          onNavigate(volume.path);
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: tileBg,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  lucide.LucideIcons.hardDrive,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      volume.label,
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                            color: headerText,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      volume.path,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                            color: subtitleText,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: volume.usage.clamp(0, 1),
+                                        minHeight: 6,
+                                        backgroundColor:
+                                            onSurface.withValues(alpha: 0.08),
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '$percent%',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                          color: headerText,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatBytes(volume.totalBytes),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                          color: subtitleText,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatBytes(int bytes) {
+  if (bytes <= 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  double value = bytes.toDouble();
+  var unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  final precision = value >= 10 ? 0 : 1;
+  return '${value.toStringAsFixed(precision)} ${units[unitIndex]}';
 }

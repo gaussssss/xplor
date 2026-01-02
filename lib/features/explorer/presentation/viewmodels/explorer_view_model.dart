@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/special_locations.dart';
 import '../../domain/entities/file_entry.dart';
 import '../../domain/usecases/copy_entries.dart';
 import '../../domain/usecases/create_directory.dart';
@@ -24,7 +26,8 @@ class ExplorerViewState {
     required this.selectedPaths,
     required this.clipboardCount,
     required this.isCutOperation,
-    required this.selectedTag,
+    required this.selectedTags,
+    required this.selectedTypes,
     required this.recentPaths,
     this.error,
     this.statusMessage,
@@ -38,7 +41,8 @@ class ExplorerViewState {
   final Set<String> selectedPaths;
   final int clipboardCount;
   final bool isCutOperation;
-  final String? selectedTag;
+  final Set<String> selectedTags;
+  final Set<String> selectedTypes;
   final List<String> recentPaths;
   final String? error;
   final String? statusMessage;
@@ -53,7 +57,8 @@ class ExplorerViewState {
       selectedPaths: <String>{},
       clipboardCount: 0,
       isCutOperation: false,
-      selectedTag: null,
+      selectedTags: const <String>{},
+      selectedTypes: const <String>{},
       recentPaths: const [],
     );
   }
@@ -67,7 +72,8 @@ class ExplorerViewState {
     Set<String>? selectedPaths,
     int? clipboardCount,
     bool? isCutOperation,
-    String? selectedTag,
+    Set<String>? selectedTags,
+    Set<String>? selectedTypes,
     List<String>? recentPaths,
     String? error,
     String? statusMessage,
@@ -83,7 +89,8 @@ class ExplorerViewState {
       selectedPaths: selectedPaths ?? this.selectedPaths,
       clipboardCount: clipboardCount ?? this.clipboardCount,
       isCutOperation: isCutOperation ?? this.isCutOperation,
-      selectedTag: selectedTag ?? this.selectedTag,
+      selectedTags: selectedTags ?? this.selectedTags,
+      selectedTypes: selectedTypes ?? this.selectedTypes,
       recentPaths: recentPaths ?? this.recentPaths,
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
@@ -131,8 +138,11 @@ class ExplorerViewModel extends ChangeNotifier {
     if (query.isNotEmpty) {
       filtered = filtered.where((entry) => entry.name.toLowerCase().contains(query));
     }
-    if (_state.selectedTag != null) {
+    if (_state.selectedTags.isNotEmpty) {
       filtered = filtered.where(_matchesTag);
+    }
+    if (_state.selectedTypes.isNotEmpty) {
+      filtered = filtered.where(_matchesType);
     }
     return filtered.toList();
   }
@@ -143,6 +153,12 @@ class ExplorerViewModel extends ChangeNotifier {
   }) async {
     final targetPath = path.trim().isEmpty ? _state.currentPath : path.trim();
     if (pushHistory && targetPath == _state.currentPath) return;
+
+    // Gérer les emplacements spéciaux
+    if (SpecialLocations.isSpecialLocation(targetPath)) {
+      return _loadSpecialLocation(targetPath, pushHistory: pushHistory);
+    }
+
     if (pushHistory && _state.currentPath != targetPath) {
       _backStack.add(_state.currentPath);
       _forwardStack.clear();
@@ -177,6 +193,75 @@ class ExplorerViewModel extends ChangeNotifier {
       _state = _state.copyWith(
         isLoading: false,
         error: 'Impossible de charger ce dossier.',
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadSpecialLocation(
+    String locationCode, {
+    bool pushHistory = true,
+  }) async {
+    if (pushHistory && _state.currentPath != locationCode) {
+      _backStack.add(_state.currentPath);
+      _forwardStack.clear();
+    }
+
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+      selectedPaths: <String>{},
+    );
+    notifyListeners();
+
+    try {
+      List<FileEntry> entries = [];
+
+      // Charger les fichiers récents
+      if (locationCode == SpecialLocations.recentFiles) {
+        // Créer des entrées virtuelles pour chaque chemin récent
+        for (final recentPath in _recentPaths) {
+          try {
+            final entity = FileSystemEntity.isDirectorySync(recentPath)
+                ? Directory(recentPath)
+                : File(recentPath);
+
+            if (await entity.exists()) {
+              final stat = await entity.stat();
+              final segments = recentPath
+                  .split(Platform.pathSeparator)
+                  .where((s) => s.isNotEmpty)
+                  .toList();
+              final name = segments.isNotEmpty ? segments.last : recentPath;
+
+              entries.add(FileEntry(
+                name: name,
+                path: recentPath,
+                isDirectory: entity is Directory,
+                size: stat.size,
+                lastModified: stat.modified,
+              ));
+            }
+          } catch (_) {
+            // Ignorer les fichiers qui n'existent plus
+          }
+        }
+      }
+
+      _state = _state.copyWith(
+        currentPath: locationCode,
+        entries: entries,
+        isLoading: false,
+        searchQuery: '',
+        clearError: true,
+        clearStatus: true,
+      );
+    } catch (error) {
+      _state = _state.copyWith(
+        isLoading: false,
+        error: 'Impossible de charger cet emplacement spécial.',
       );
     } finally {
       notifyListeners();
@@ -318,14 +403,49 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   void setTagFilter(String? tag) {
-    _state = _state.copyWith(selectedTag: tag);
+    _state = _state.copyWith(selectedTags: tag == null ? <String>{} : {tag});
     notifyListeners();
   }
 
-  void setViewMode(ExplorerViewMode mode) {
+  void toggleTag(String tag) {
+    final updated = <String>{..._state.selectedTags};
+    if (updated.contains(tag)) {
+      updated.remove(tag);
+    } else {
+      updated.add(tag);
+    }
+    _state = _state.copyWith(selectedTags: updated);
+    notifyListeners();
+  }
+
+  void toggleType(String type) {
+    final updated = <String>{..._state.selectedTypes};
+    if (updated.contains(type)) {
+      updated.remove(type);
+    } else {
+      updated.add(type);
+    }
+    _state = _state.copyWith(selectedTypes: updated);
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _state = _state.copyWith(selectedTags: <String>{}, selectedTypes: <String>{});
+    notifyListeners();
+  }
+
+  void setViewMode(ExplorerViewMode mode) async {
     if (_state.viewMode == mode) return;
     _state = _state.copyWith(viewMode: mode);
     notifyListeners();
+
+    // Sauvegarder le mode de vue
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('view_mode', mode == ExplorerViewMode.list ? 'list' : 'grid');
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
   }
 
   void copySelectionToClipboard() {
@@ -415,7 +535,8 @@ class ExplorerViewModel extends ChangeNotifier {
   bool get canPaste => _clipboard.isNotEmpty;
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
-  String? get selectedTag => _state.selectedTag;
+  Set<String> get selectedTags => _state.selectedTags;
+  Set<String> get selectedTypes => _state.selectedTypes;
   List<String> get recentPaths => _state.recentPaths;
   Future<void> openPackageAsFolder(FileEntry entry) =>
       loadDirectory(entry.path);
@@ -498,12 +619,31 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   bool _matchesTag(FileEntry entry) {
-    final tag = _state.selectedTag;
-    if (tag == null) return true;
-    final extensions = _tagExtensions[tag] ?? [];
-    if (extensions.contains('*')) return true;
+    final tags = _state.selectedTags;
+    if (tags.isEmpty) return true;
     final lower = entry.name.toLowerCase();
-    return extensions.any((ext) => lower.endsWith(ext));
+    for (final tag in tags) {
+      final extensions = _tagExtensions[tag] ?? [];
+      if (extensions.contains('*')) return true;
+      if (extensions.any((ext) => lower.endsWith(ext))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _matchesType(FileEntry entry) {
+    final filters = _state.selectedTypes;
+    if (filters.isEmpty) return true;
+    final lower = entry.name.toLowerCase();
+    for (final type in filters) {
+      final extensions = _typeExtensions[type] ?? [];
+      if (extensions.contains('*')) return true;
+      if (extensions.any((ext) => lower.endsWith(ext))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static const Map<String, List<String>> _tagExtensions = {
@@ -516,13 +656,31 @@ class ExplorerViewModel extends ChangeNotifier {
     'Gris': ['*'],
   };
 
+  static const Map<String, List<String>> _typeExtensions = {
+    'Docs': ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.md'],
+    'Media': ['.mp4', '.mov', '.mkv', '.avi', '.mp3', '.wav', '.flac', '.jpg', '.jpeg', '.png', '.gif', '.webp'],
+    'Archives': ['.zip', '.tar', '.gz', '.rar', '.7z'],
+    'Code': ['.dart', '.js', '.ts', '.jsx', '.tsx', '.java', '.kt', '.swift', '.py', '.rb', '.go', '.c', '.cpp', '.rs'],
+    'Apps': ['.app', '.exe', '.pkg', '.dmg'],
+  };
+
   static const _recentKey = 'recent_paths';
 
   Future<void> bootstrap() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _recentPaths = prefs.getStringList(_recentKey) ?? [];
-      _state = _state.copyWith(recentPaths: List.unmodifiable(_recentPaths));
+
+      // Charger le mode de vue sauvegardé
+      final savedViewMode = prefs.getString('view_mode');
+      final viewMode = savedViewMode == 'list'
+          ? ExplorerViewMode.list
+          : ExplorerViewMode.grid;
+
+      _state = _state.copyWith(
+        recentPaths: List.unmodifiable(_recentPaths),
+        viewMode: viewMode,
+      );
       notifyListeners();
     } catch (_) {
       // ignore prefs errors
@@ -548,5 +706,83 @@ class ExplorerViewModel extends ChangeNotifier {
 
   Future<void> _reloadCurrent() {
     return loadDirectory(_state.currentPath, pushHistory: false);
+  }
+
+  Future<void> openTerminalHere([String? path]) async {
+    final target = path ?? _state.currentPath;
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', ['-a', 'Terminal', target]);
+      } else if (Platform.isWindows) {
+        await Process.run(
+          'cmd',
+          ['/C', 'start', 'cmd', '/K', 'cd /d "$target"'],
+        );
+      } else {
+        await Process.run('xdg-open', [target]);
+      }
+      _state = _state.copyWith(statusMessage: 'Terminal ouvert');
+    } catch (_) {
+      _state = _state.copyWith(statusMessage: 'Impossible d ouvrir le terminal');
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  void copyPathToClipboard(String path) {
+    Clipboard.setData(ClipboardData(text: path));
+    _state = _state.copyWith(statusMessage: 'Chemin copie');
+    notifyListeners();
+  }
+
+  Future<void> compressSelected() async {
+    if (_state.selectedPaths.isEmpty) return;
+    // Best-effort simple zip on macOS/Linux.
+    if (Platform.isWindows) {
+      _state = _state.copyWith(statusMessage: 'Compression non supportee ici');
+      notifyListeners();
+      return;
+    }
+    final entries = _state.entries
+        .where((e) => _state.selectedPaths.contains(e.path))
+        .toList();
+    if (entries.isEmpty) return;
+
+    final archiveName = _uniqueArchiveName();
+    _state = _state.copyWith(isLoading: true, clearStatus: true, clearError: true);
+    notifyListeners();
+    try {
+      final args = [
+        '-r',
+        archiveName,
+        ...entries.map((e) => e.path.split(Platform.pathSeparator).last),
+      ];
+      final result = await Process.run('zip', args, workingDirectory: _state.currentPath);
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+      await _reloadCurrent();
+      _state = _state.copyWith(
+        isLoading: false,
+        statusMessage: 'Archive creee: $archiveName',
+      );
+    } catch (_) {
+      _state = _state.copyWith(
+        isLoading: false,
+        statusMessage: 'Echec de la compression',
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  String _uniqueArchiveName() {
+    var base = 'Archive.zip';
+    var counter = 1;
+    while (File('${_state.currentPath}${Platform.pathSeparator}$base').existsSync()) {
+      base = 'Archive_$counter.zip';
+      counter++;
+    }
+    return base;
   }
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/design_tokens.dart';
+
+/// Section de sidebar minimaliste et épurée
 class SidebarSection extends StatelessWidget {
   const SidebarSection({
     super.key,
@@ -14,23 +17,29 @@ class SidebarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header ultra-simple sans décorations
         Padding(
           padding: EdgeInsets.only(
-            bottom: compact ? 6 : 8,
-            left: 6,
-            right: 6,
+            bottom: DesignTokens.spacingXS,
+            left: DesignTokens.spacingMD,
+            top: DesignTokens.spacingMD,
           ),
-          child: Text(
-            title.toUpperCase(),
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(letterSpacing: 0.8, color: Colors.white60),
+            child: Text(
+              title.toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(
+                          alpha: isLight ? 0.7 : 0.4,
+                        ),
+                  ),
+            ),
           ),
-        ),
         ...items.map((item) => _SidebarTile(item: item)),
       ],
     );
@@ -60,27 +69,68 @@ class _SidebarTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = Theme.of(context).colorScheme.primary;
-    return ListTile(
-      onTap: item.onTap,
-      dense: true,
-      minLeadingWidth: 0,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      leading: Icon(
-        item.icon,
-        color: item.isActive ? activeColor : Colors.white.withOpacity(0.82),
-        size: 20,
-      ),
-      title: Text(
-        item.label,
-        style: TextStyle(
-          fontWeight: item.isActive ? FontWeight.w700 : FontWeight.w500,
+    final colorScheme = Theme.of(context).colorScheme;
+    final activeColor = colorScheme.primary;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final isActive = item.isActive;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: item.onTap,
+        borderRadius: DesignTokens.borderRadiusXS,
+        child: Container(
+          height: DesignTokens.sidebarTileHeight,
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.paddingMD,
+          ),
+          decoration: BoxDecoration(
+            // Seulement une subtle bar à gauche pour l'item actif
+            border: isActive
+                ? Border(
+                    left: BorderSide(
+                      color: activeColor,
+                      width: 2,
+                    ),
+                  )
+                : null,
+            // Background ultra-subtle
+            color: isActive
+                ? colorScheme.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                item.icon,
+            color: isActive
+                ? activeColor
+                : colorScheme.onSurface.withValues(alpha: isLight ? 0.85 : 0.7),
+                size: DesignTokens.iconSizeSmall,
+              ),
+              SizedBox(width: DesignTokens.spacingMD),
+              Expanded(
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                        fontSize: 13,
+                        letterSpacing: 0,
+                        color: isActive
+                            ? colorScheme.onSurface.withValues(alpha: 0.95)
+                            : colorScheme.onSurface.withValues(
+                                alpha: isLight ? 0.9 : 0.75,
+                              ),
+                      ),
+                ),
+              ),
+              if (item.trailing != null) item.trailing!,
+            ],
+          ),
         ),
       ),
-      trailing: item.trailing,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      hoverColor: Colors.white.withOpacity(0.05),
-      tileColor: item.isActive ? Colors.white.withOpacity(0.06) : null,
     );
   }
 }

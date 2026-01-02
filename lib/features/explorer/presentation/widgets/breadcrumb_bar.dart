@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/special_locations.dart';
+import '../../../../core/theme/design_tokens.dart';
+
+/// Breadcrumb bar compact (32px hauteur - Windows 11 style)
 class BreadcrumbBar extends StatelessWidget {
   const BreadcrumbBar({
     super.key,
@@ -14,22 +18,46 @@ class BreadcrumbBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final segments = _segmentsForPath(path);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _BreadcrumbChip(
-            label: Platform.isWindows ? 'PC' : 'Disque',
-            onTap: () => onNavigate(_root()),
-            isFirst: true,
+    // Si c'est un emplacement spécial, afficher seulement le nom
+    if (SpecialLocations.isSpecialLocation(path)) {
+      return SizedBox(
+        height: DesignTokens.breadcrumbHeight,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _BreadcrumbChip(
+                label: SpecialLocations.getDisplayName(path),
+                onTap: () => onNavigate(path),
+                isFirst: true,
+              ),
+            ],
           ),
-          for (final segment in segments)
+        ),
+      );
+    }
+
+    final segments = _segmentsForPath(path);
+    return SizedBox(
+      height: DesignTokens.breadcrumbHeight,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
             _BreadcrumbChip(
-              label: segment.label,
-              onTap: () => onNavigate(segment.path),
+              label: Platform.isWindows ? 'PC' : '~',
+              onTap: () => onNavigate(_root()),
+              isFirst: true,
             ),
-        ],
+            for (int i = 0; i < segments.length; i++) ...[
+              const _BreadcrumbSeparator(),
+              _BreadcrumbChip(
+                label: segments[i].label,
+                onTap: () => onNavigate(segments[i].path),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -65,6 +93,26 @@ class _PathSegment {
   final String path;
 }
 
+/// Séparateur entre les breadcrumbs
+class _BreadcrumbSeparator extends StatelessWidget {
+  const _BreadcrumbSeparator();
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: DesignTokens.spacingXS),
+      child: Text(
+        '/',
+        style: TextStyle(
+          color: onSurface.withValues(alpha: 0.35),
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
 class _BreadcrumbChip extends StatelessWidget {
   const _BreadcrumbChip({
     required this.label,
@@ -78,15 +126,29 @@ class _BreadcrumbChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(left: isFirst ? 0 : 6),
-      child: ActionChip(
-        label: Text(label, overflow: TextOverflow.ellipsis),
-        onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        backgroundColor: Colors.white.withOpacity(0.06),
-        side: const BorderSide(color: Colors.white12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: DesignTokens.breadcrumbHeight,
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.paddingMD,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color:
+                        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                  ),
+            ),
+          ),
+        ),
       ),
     );
   }
