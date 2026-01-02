@@ -3,7 +3,13 @@ PODS:
     - FlutterMacOS
   - bitsdojo_window_macos (0.0.1):
     - FlutterMacOS
+  - file_picker (0.0.1):
+    - FlutterMacOS
+  - file_selector_macos (0.0.1):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - macos_file_picker (0.0.1):
+    - FlutterMacOS
   - macos_ui (0.1.0):
     - FlutterMacOS
   - macos_window_utils (1.0.0):
@@ -18,7 +24,10 @@ PODS:
 DEPENDENCIES:
   - appkit_ui_element_colors (from `Flutter/ephemeral/.symlinks/plugins/appkit_ui_element_colors/macos`)
   - bitsdojo_window_macos (from `Flutter/ephemeral/.symlinks/plugins/bitsdojo_window_macos/macos`)
+  - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
+  - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - macos_file_picker (from `Flutter/ephemeral/.symlinks/plugins/macos_file_picker/macos`)
   - macos_ui (from `Flutter/ephemeral/.symlinks/plugins/macos_ui/macos`)
   - macos_window_utils (from `Flutter/ephemeral/.symlinks/plugins/macos_window_utils/macos`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
@@ -29,8 +38,14 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/appkit_ui_element_colors/macos
   bitsdojo_window_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/bitsdojo_window_macos/macos
+  file_picker:
+    :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
+  file_selector_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  macos_file_picker:
+    :path: Flutter/ephemeral/.symlinks/plugins/macos_file_picker/macos
   macos_ui:
     :path: Flutter/ephemeral/.symlinks/plugins/macos_ui/macos
   macos_window_utils:
@@ -43,7 +58,10 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   appkit_ui_element_colors: c8e13c23cbd781e0f5d9b75cad686e6a4bb958da
   bitsdojo_window_macos: 7959fb0ca65a3ccda30095c181ecb856fae48ea9
+  file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
+  file_selector_macos: 9e9e068e90ebee155097d00e89ae91edb2374db7
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  macos_file_picker: 8308ccb8cca0578190f640cd163b3da001db0222
   macos_ui: ff29104a215c2e1b76f37aacdcbba648abb25faa
   macos_window_utils: 23f54331a0fd51eea9e0ed347253bf48fd379d1d
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880

@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:macos_file_picker/macos_file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/theme_provider.dart';
@@ -902,34 +905,151 @@ class _AppearanceSettingsDialogV2State
   }
 
   Future<void> _pickBackgroundImage() async {
+    // Fallback AppleScript natif macOS (aucun plugin requis)
+    if (Platform.isMacOS) {
+      final path = await _pickMacOsPath(
+        command: 'POSIX path of (choose file)',
+      );
+      if (path != null) {
+        setState(() => _backgroundImagePath = path);
+        return;
+      }
+    }
+
+    // Essai natif macOS si dispo
+    if (Platform.isMacOS) {
+      try {
+        final picker = MacosFilePicker();
+        final result = await picker.pick(
+          MacosFilePickerMode.file,
+          allowsMultiple: false,
+          allowedFileExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        );
+        if (result != null && result.isNotEmpty) {
+          setState(() => _backgroundImagePath = result.first.path);
+          return;
+        }
+      } catch (e) {
+        debugPrint('macos_file_picker image error: $e');
+      }
+    }
+
+    // Essai avec file_selector (desktop natif)
+    try {
+      final typeGroup = const XTypeGroup(
+        label: 'Images',
+        extensions: ['png', 'jpg', 'jpeg', 'webp'],
+      );
+      final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
+      if (file != null && file.path.isNotEmpty) {
+        setState(() {
+          _backgroundImagePath = file.path;
+        });
+        return;
+      }
+    } on PlatformException catch (e) {
+      debugPrint('file_selector image error: $e');
+    } on MissingPluginException catch (_) {
+      // ignore, fallback below
+    } catch (e) {
+      debugPrint('Erreur file_selector image: $e');
+    }
+
+    // Fallback avec file_picker
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );
-
       if (result != null && result.files.single.path != null) {
         setState(() {
           _backgroundImagePath = result.files.single.path!;
         });
+        return;
       }
     } catch (e) {
-      debugPrint('Erreur lors de la sélection de l\'image: $e');
+      debugPrint('Erreur file_picker image: $e');
     }
+
+    _showSnack('Impossible d’ouvrir le sélecteur d’image sur cette plateforme.');
   }
 
   Future<void> _pickBackgroundFolder() async {
+    // Fallback AppleScript natif macOS (aucun plugin requis)
+    if (Platform.isMacOS) {
+      final path = await _pickMacOsPath(
+        command: 'POSIX path of (choose folder)',
+      );
+      if (path != null) {
+        setState(() => _backgroundFolderPath = path);
+        return;
+      }
+    }
+
+    // Essai natif macOS si dispo
+    if (Platform.isMacOS) {
+      try {
+        final picker = MacosFilePicker();
+        final result = await picker.pick(
+          MacosFilePickerMode.folder,
+          allowsMultiple: false,
+        );
+        if (result != null && result.isNotEmpty) {
+          setState(() => _backgroundFolderPath = result.first.path);
+          return;
+        }
+      } catch (e) {
+        debugPrint('macos_file_picker dir error: $e');
+      }
+    }
+
+    // Essai avec file_selector
+    try {
+      final String? directoryPath = await getDirectoryPath();
+      if (directoryPath != null && directoryPath.isNotEmpty) {
+        setState(() {
+          _backgroundFolderPath = directoryPath;
+        });
+        return;
+      }
+    } on PlatformException catch (e) {
+      debugPrint('file_selector dir error: $e');
+    } on MissingPluginException catch (_) {
+      // ignore, fallback below
+    } catch (e) {
+      debugPrint('Erreur file_selector dossier: $e');
+    }
+
+    // Fallback avec file_picker
     try {
       final result = await FilePicker.platform.getDirectoryPath();
-
       if (result != null) {
         setState(() {
           _backgroundFolderPath = result;
         });
+        return;
       }
     } catch (e) {
-      debugPrint('Erreur lors de la sélection du dossier: $e');
+      debugPrint('Erreur file_picker dossier: $e');
     }
+
+    _showSnack('Impossible d’ouvrir le sélecteur de dossier sur cette plateforme.');
+  }
+
+  Future<String?> _pickMacOsPath({required String command}) async {
+    try {
+      final result = await Process.run(
+        'osascript',
+        ['-e', command],
+      );
+      if (result.exitCode == 0) {
+        final path = (result.stdout as String).trim();
+        if (path.isNotEmpty) return path;
+      }
+    } catch (e) {
+      debugPrint('AppleScript picker error: $e');
+    }
+    return null;
   }
 
   Future<void> _applySettings() async {
@@ -954,6 +1074,16 @@ class _AppearanceSettingsDialogV2State
 
     if (!mounted) return;
     Navigator.of(context).pop();
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    } else {
+      debugPrint('SnackBar not shown (no ScaffoldMessenger): $message');
+    }
   }
 }
 
