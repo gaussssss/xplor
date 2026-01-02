@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/special_locations.dart';
 import '../../../../core/theme/design_tokens.dart';
 
 /// Breadcrumb bar compact (32px hauteur - Windows 11 style)
@@ -17,6 +18,25 @@ class BreadcrumbBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Si c'est un emplacement spécial, afficher seulement le nom
+    if (SpecialLocations.isSpecialLocation(path)) {
+      return SizedBox(
+        height: DesignTokens.breadcrumbHeight,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _BreadcrumbChip(
+                label: SpecialLocations.getDisplayName(path),
+                onTap: () => onNavigate(path),
+                isFirst: true,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final segments = _segmentsForPath(path);
     return SizedBox(
       height: DesignTokens.breadcrumbHeight,
@@ -30,7 +50,7 @@ class BreadcrumbBar extends StatelessWidget {
               isFirst: true,
             ),
             for (int i = 0; i < segments.length; i++) ...[
-              _BreadcrumbSeparator(),
+              const _BreadcrumbSeparator(),
               _BreadcrumbChip(
                 label: segments[i].label,
                 onTap: () => onNavigate(segments[i].path),

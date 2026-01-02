@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
-import 'package:shadcn_ui/shadcn_ui.dart' hide LucideIcons;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/special_locations.dart';
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';
@@ -50,7 +50,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
   @override
   void initState() {
     super.initState();
-    final initialPath = Directory.current.path;
+    // Utiliser le vrai HOME de l'utilisateur au lieu du chemin sandbox
+    final initialPath = Platform.environment['HOME'] ?? SpecialLocations.desktop;
     final repository = FileSystemRepositoryImpl(LocalFileSystemDataSource());
     _viewModel = ExplorerViewModel(
       listDirectoryEntries: ListDirectoryEntries(repository),
@@ -286,36 +287,47 @@ class _ExplorerPageState extends State<ExplorerPage> {
   Widget _buildToolbar(ExplorerViewState state) {
     return Row(
       children: [
-        ToolbarButton(
-          icon: lucide.LucideIcons.arrowUp,
-          tooltip: 'Remonter au dossier parent',
-          onPressed: state.currentPath == '/' || state.currentPath.isEmpty
-              ? null
-              : _viewModel.goToParent,
-        ),
-        
-        const SizedBox(width: 12),
+        // Groupe 1: Navigation historique (back/forward)
         ToolbarButton(
           icon: lucide.LucideIcons.arrowLeft,
-          tooltip: 'Arriere',
+          tooltip: 'Précédent',
           onPressed: state.isLoading || !_viewModel.canGoBack
               ? null
               : _viewModel.goBack,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         ToolbarButton(
           icon: lucide.LucideIcons.arrowRight,
-          tooltip: 'Avant',
+          tooltip: 'Suivant',
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
               : _viewModel.goForward,
-        ),const SizedBox(width: 8),
+        ),
+        const SizedBox(width: 4),
+        ToolbarButton(
+          icon: lucide.LucideIcons.arrowUp,
+          tooltip: 'Dossier parent',
+          onPressed: state.currentPath == '/' || state.currentPath.isEmpty
+              ? null
+              : _viewModel.goToParent,
+        ),
+
+        const SizedBox(width: 12),
+        // Séparateur vertical
+        Container(
+          width: 1,
+          height: 24,
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+        const SizedBox(width: 12),
+
+        // Groupe 2: Actions (refresh/history)
         ToolbarButton(
           icon: lucide.LucideIcons.refreshCw,
-          tooltip: 'Rafraichir',
+          tooltip: 'Rafraîchir',
           onPressed: state.isLoading ? null : _viewModel.refresh,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         ToolbarButton(
           icon: lucide.LucideIcons.history,
           tooltip: 'Dernier emplacement',
@@ -441,80 +453,118 @@ class _ExplorerPageState extends State<ExplorerPage> {
     final selectionCount = state.selectedPaths.length;
 
     return SizedBox(
-      height: 52,
+      height: 44,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: Row(
           children: [
-            ShadButton(
-              size: ShadButtonSize.sm,
-              leading: const Icon(lucide.LucideIcons.folderPlus, size: 16),
-              child: const Text('Nouveau'),
+            // Groupe 1: Création
+            ToolbarButton(
+              icon: lucide.LucideIcons.folderPlus,
+              tooltip: 'Nouveau dossier',
+              isActive: !state.isLoading,
               onPressed: state.isLoading ? null : _promptCreateFolder,
             ),
-            const SizedBox(width: 8),
-            ShadButton.raw(
-              variant: ShadButtonVariant.secondary,
-              size: ShadButtonSize.sm,
-              leading: const Icon(lucide.LucideIcons.copy, size: 16),
-              child: const Text('Copier'),
+            const SizedBox(width: 12),
+
+            // Séparateur
+            Container(
+              width: 1,
+              height: 24,
+              color: Colors.white.withValues(alpha: 0.1),
+            ),
+            const SizedBox(width: 12),
+
+            // Groupe 2: Presse-papier
+            ToolbarButton(
+              icon: lucide.LucideIcons.copy,
+              tooltip: 'Copier',
+              isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _viewModel.copySelectionToClipboard,
             ),
-            const SizedBox(width: 8),
-            ShadButton.raw(
-              variant: ShadButtonVariant.outline,
-              size: ShadButtonSize.sm,
-              leading: const Icon(lucide.LucideIcons.clipboard, size: 16),
-              child: const Text('Coller'),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.scissors,
+              tooltip: 'Couper',
+              isActive: !state.isLoading && selectionCount > 0,
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _viewModel.cutSelectionToClipboard,
+            ),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.clipboard,
+              tooltip: 'Coller',
+              isActive: !state.isLoading && _viewModel.canPaste,
               onPressed: state.isLoading || !_viewModel.canPaste
                   ? null
                   : _viewModel.pasteClipboard,
             ),
-            const SizedBox(width: 8),
-            ShadButton.raw(
-              variant: ShadButtonVariant.secondary,
-              size: ShadButtonSize.sm,
-              leading: const Icon(lucide.LucideIcons.edit3, size: 16),
-              child: const Text('Renommer'),
+            const SizedBox(width: 12),
+
+            // Séparateur
+            Container(
+              width: 1,
+              height: 24,
+              color: Colors.white.withValues(alpha: 0.1),
+            ),
+            const SizedBox(width: 12),
+
+            // Groupe 3: Actions sur fichiers
+            ToolbarButton(
+              icon: lucide.LucideIcons.edit3,
+              tooltip: 'Renommer',
+              isActive: !state.isLoading && selectionCount == 1,
               onPressed: state.isLoading || selectionCount != 1
                   ? null
                   : _promptRename,
             ),
-            const SizedBox(width: 8),
-            ShadButton.raw(
-              variant: ShadButtonVariant.ghost,
-              size: ShadButtonSize.sm,
-              leading: const Icon(lucide.LucideIcons.move, size: 16),
-              child: const Text('Deplacer'),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.move,
+              tooltip: 'Déplacer',
+              isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _promptMove,
             ),
-            const SizedBox(width: 8),
-            ShadButton.raw(
-              variant: ShadButtonVariant.destructive,
-              size: ShadButtonSize.sm,
-              leading: const Icon(lucide.LucideIcons.trash2, size: 16),
-              child: const Text('Supprimer'),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.trash2,
+              tooltip: 'Supprimer',
+              isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
                   : _confirmDeletion,
             ),
+
             const SizedBox(width: 16),
             if (selectionCount > 0) ...[
               Text(
-                '$selectionCount selectionne(s)',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: Colors.white70),
+                '$selectionCount sélectionné(s)',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
               ),
-              IconButton(
-                tooltip: 'Vider la selection',
-                onPressed: state.isLoading ? null : _viewModel.clearSelection,
-                icon: const Icon(lucide.LucideIcons.x),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: state.isLoading ? null : _viewModel.clearSelection,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      lucide.LucideIcons.x,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],
@@ -964,19 +1014,24 @@ class _ExplorerPageState extends State<ExplorerPage> {
   List<_NavItem> _buildSystemItems(String initialPath) {
     return [
       _NavItem(
-        label: 'Racine',
-        icon: lucide.LucideIcons.hardDrive,
-        path: Platform.pathSeparator,
+        label: 'Bureau',
+        icon: lucide.LucideIcons.monitor,
+        path: SpecialLocations.desktop,
       ),
       _NavItem(
-        label: 'Applications',
-        icon: lucide.LucideIcons.box,
-        path: Platform.isWindows ? 'C:\\Program Files' : '/Applications',
+        label: 'Documents',
+        icon: lucide.LucideIcons.fileText,
+        path: SpecialLocations.documents,
       ),
       _NavItem(
-        label: 'Projet courant',
-        icon: lucide.LucideIcons.folder,
-        path: initialPath,
+        label: 'Téléchargements',
+        icon: lucide.LucideIcons.download,
+        path: SpecialLocations.downloads,
+      ),
+      _NavItem(
+        label: 'Images',
+        icon: lucide.LucideIcons.image,
+        path: SpecialLocations.pictures,
       ),
     ];
   }
@@ -1309,18 +1364,26 @@ class _Sidebar extends StatelessWidget {
 
             const SizedBox(height: 4),
 
-            // Emplacements
+            // Emplacements (incluant Fichiers récents)
             SidebarSection(
               title: 'Emplacements',
-              items: systemItems
-                  .map(
-                    (item) => SidebarItem(
-                      label: item.label,
-                      icon: item.icon,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
+              items: [
+                // Fichiers récents en premier si disponibles
+                if (recentPaths.isNotEmpty)
+                  SidebarItem(
+                    label: 'Fichiers récents',
+                    icon: lucide.LucideIcons.clock,
+                    onTap: () => onNavigate(SpecialLocations.recentFiles),
+                  ),
+                // Puis les emplacements système
+                ...systemItems.map(
+                  (item) => SidebarItem(
+                    label: item.label,
+                    icon: item.icon,
+                    onTap: () => onNavigate(item.path),
+                  ),
+                ),
+              ],
             ),
 
             // Disques (maximum 2 affichés)

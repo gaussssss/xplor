@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/special_locations.dart';
 import '../../domain/entities/file_entry.dart';
 import '../../domain/usecases/copy_entries.dart';
 import '../../domain/usecases/create_directory.dart';
@@ -152,6 +153,12 @@ class ExplorerViewModel extends ChangeNotifier {
   }) async {
     final targetPath = path.trim().isEmpty ? _state.currentPath : path.trim();
     if (pushHistory && targetPath == _state.currentPath) return;
+
+    // Gérer les emplacements spéciaux
+    if (SpecialLocations.isSpecialLocation(targetPath)) {
+      return _loadSpecialLocation(targetPath, pushHistory: pushHistory);
+    }
+
     if (pushHistory && _state.currentPath != targetPath) {
       _backStack.add(_state.currentPath);
       _forwardStack.clear();
@@ -186,6 +193,75 @@ class ExplorerViewModel extends ChangeNotifier {
       _state = _state.copyWith(
         isLoading: false,
         error: 'Impossible de charger ce dossier.',
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadSpecialLocation(
+    String locationCode, {
+    bool pushHistory = true,
+  }) async {
+    if (pushHistory && _state.currentPath != locationCode) {
+      _backStack.add(_state.currentPath);
+      _forwardStack.clear();
+    }
+
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+      selectedPaths: <String>{},
+    );
+    notifyListeners();
+
+    try {
+      List<FileEntry> entries = [];
+
+      // Charger les fichiers récents
+      if (locationCode == SpecialLocations.recentFiles) {
+        // Créer des entrées virtuelles pour chaque chemin récent
+        for (final recentPath in _recentPaths) {
+          try {
+            final entity = FileSystemEntity.isDirectorySync(recentPath)
+                ? Directory(recentPath)
+                : File(recentPath);
+
+            if (await entity.exists()) {
+              final stat = await entity.stat();
+              final segments = recentPath
+                  .split(Platform.pathSeparator)
+                  .where((s) => s.isNotEmpty)
+                  .toList();
+              final name = segments.isNotEmpty ? segments.last : recentPath;
+
+              entries.add(FileEntry(
+                name: name,
+                path: recentPath,
+                isDirectory: entity is Directory,
+                size: stat.size,
+                lastModified: stat.modified,
+              ));
+            }
+          } catch (_) {
+            // Ignorer les fichiers qui n'existent plus
+          }
+        }
+      }
+
+      _state = _state.copyWith(
+        currentPath: locationCode,
+        entries: entries,
+        isLoading: false,
+        searchQuery: '',
+        clearError: true,
+        clearStatus: true,
+      );
+    } catch (error) {
+      _state = _state.copyWith(
+        isLoading: false,
+        error: 'Impossible de charger cet emplacement spécial.',
       );
     } finally {
       notifyListeners();
