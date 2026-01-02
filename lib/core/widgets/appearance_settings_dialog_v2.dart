@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:macos_file_picker/macos_file_picker.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 
 import '../providers/theme_provider.dart';
 import '../theme/color_palettes.dart';
@@ -45,6 +46,7 @@ class _AppearanceSettingsDialogV2State
   late bool _useGlassmorphism;
   late double _blurIntensity;
   late bool _showAnimations;
+  bool _hoverChangeImage = false;
 
   @override
   void initState() {
@@ -71,47 +73,53 @@ class _AppearanceSettingsDialogV2State
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 900,
-          maxHeight: 700,
-        ),
-        decoration: BoxDecoration(
-          color: isLight
-            ? const Color(0xFFF5F5F5) // Fond clair opaque en mode clair
-            : const Color(0xFF1A1A1A).withValues(alpha: 0.95), // Fond sombre semi-transparent en mode sombre
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isLight
-              ? Colors.black.withValues(alpha: 0.1)
-              : Colors.white.withValues(alpha: 0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxWidth: 900,
+              maxHeight: 700,
             ),
-          ],
-        ),
-        child: Column(
-          children: [
-            _buildHeader(isLight, textColor),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isMobile = constraints.maxWidth < 600;
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: isMobile
-                        ? _buildSingleColumn(isLight, textColor, subtleTextColor)
-                        : _buildTwoColumns(isLight, textColor, subtleTextColor),
-                  );
-                },
+            decoration: BoxDecoration(
+              color: isLight
+                  ? Colors.white.withValues(alpha: 0.78)
+                  : Colors.black.withValues(alpha: 0.80),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isLight
+                    ? Colors.black.withValues(alpha: 0.08)
+                    : Colors.white.withValues(alpha: 0.12),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
-            _buildFooter(isLight),
-          ],
+            child: Column(
+              children: [
+                _buildHeader(isLight, textColor),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 600;
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: isMobile
+                            ? _buildSingleColumn(isLight, textColor, subtleTextColor)
+                            : _buildTwoColumns(isLight, textColor, subtleTextColor),
+                      );
+                    },
+                  ),
+                ),
+                _buildFooter(isLight),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -652,16 +660,27 @@ class _AppearanceSettingsDialogV2State
           ),
           const SizedBox(height: 8),
         ],
-        ElevatedButton.icon(
-          onPressed: _pickBackgroundImage,
-          icon: const Icon(LucideIcons.upload, size: 16),
-          label: Text(_backgroundImagePath == null
-              ? 'Choisir une image'
-              : 'Changer l\'image'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-            foregroundColor: Theme.of(context).colorScheme.primary,
+        MouseRegion(
+          onEnter: (_) => setState(() => _hoverChangeImage = true),
+          onExit: (_) => setState(() => _hoverChangeImage = false),
+          child: AnimatedScale(
+            scale: _hoverChangeImage ? 1.02 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            child: ElevatedButton.icon(
+              onPressed: _pickBackgroundImage,
+              icon: const Icon(LucideIcons.upload, size: 16),
+              label: Text(_backgroundImagePath == null
+                  ? 'Choisir une image'
+                  : 'Changer l\'image'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                backgroundColor:
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                foregroundColor: Theme.of(context).colorScheme.primary,
+                overlayColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+              ),
+            ),
           ),
         ),
       ],
