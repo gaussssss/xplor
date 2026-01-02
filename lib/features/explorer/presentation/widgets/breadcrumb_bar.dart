@@ -99,12 +99,13 @@ class _BreadcrumbSeparator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: DesignTokens.spacingXS),
       child: Text(
         '/',
         style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.3),
+          color: onSurface.withValues(alpha: 0.35),
           fontSize: 13,
         ),
       ),
@@ -140,7 +141,8 @@ class _BreadcrumbChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color:
+                        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
                   ),

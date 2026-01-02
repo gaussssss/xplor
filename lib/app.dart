@@ -43,16 +43,17 @@ class _XplorAppContent extends StatelessWidget {
       );
     }
 
+    // Résoudre un bundle cohérent (Material + Shad) à partir de la palette courante
+    final themeBundle = AppTheme.current(themeProvider);
+
     return ShadApp(
       title: 'Xplor',
       debugShowCheckedModeBanner: false,
-      theme: ShadThemeData(
-        brightness: Brightness.dark,
-        colorScheme: const ShadSlateColorScheme.dark(),
-      ),
+      theme: themeBundle.shad,
       // Utiliser le thème avec palette ou le thème classique selon feature flag
-      materialThemeBuilder: (context, _) => AppTheme.darkWithPalette(themeProvider),
+      materialThemeBuilder: (context, _) => themeBundle.material,
       home: const ExplorerPage(),
+      backgroundColor: themeBundle.background,
     );
   }
 }

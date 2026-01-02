@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../config/feature_flags.dart';
 import '../providers/theme_provider.dart';
+import 'color_palettes.dart';
 import 'design_tokens.dart';
 
 class AppTheme {
@@ -219,6 +221,273 @@ class AppTheme {
           application: colors.application,
         ),
       ],
+    );
+  }
+
+  /// Bundle prêt à l'emploi pour un thème (Material + Shad)
+  /// Il suffit de fournir un nom clé (ex: "neon", "ocean", "sunset", "modern").
+  static ThemeBundle resolve(String name) {
+    switch (name.toLowerCase()) {
+      case 'neon':
+      case 'neoncyberpunk':
+        return ThemeBundle.fromPalette(ColorPalette.neonCyberpunk);
+      case 'ocean':
+      case 'deep':
+      case 'deepocean':
+        return ThemeBundle.fromPalette(ColorPalette.deepOcean);
+      case 'sunset':
+      case 'warm':
+      case 'warmsunset':
+        return ThemeBundle.fromPalette(ColorPalette.warmSunset);
+      case 'glass':
+      case 'glassios':
+      case 'glassios26':
+        return ThemeBundle.fromPalette(ColorPalette.glassIos26);
+      case 'modern':
+      case 'moderntech':
+        return ThemeBundle.fromPalette(ColorPalette.modernTech);
+      default:
+        return ThemeBundle.fromPalette(ColorPalette.neonCyberpunk);
+    }
+  }
+
+  /// Génère le ThemeData Material basé sur la palette
+  static ThemeData materialFromPalette(
+    ColorPaletteData colors, {
+    Color? backgroundOverride,
+    bool isLight = false,
+  }) {
+    final bg = backgroundOverride ??
+        (isLight ? const Color(0xFFF7F8FA) : DesignTokens.background);
+    final base =
+        isLight ? ThemeData.light(useMaterial3: true) : ThemeData.dark(useMaterial3: true);
+    return base.copyWith(
+      colorScheme: (isLight
+          ? ColorScheme.light(
+              primary: colors.primary,
+              secondary: colors.navigation,
+              tertiary: colors.info,
+              surface: Colors.white,
+              background: bg,
+              error: colors.error,
+              onPrimary: Colors.white,
+              onSecondary: Colors.white,
+              onSurface: Colors.black,
+              onError: Colors.white,
+              surfaceContainerHighest: Colors.white,
+              onSurfaceVariant: Colors.black87,
+            )
+          : ColorScheme.dark(
+              primary: colors.primary,
+              secondary: colors.navigation,
+              tertiary: colors.info,
+              surface: DesignTokens.surface,
+              background: bg,
+              error: colors.error,
+              onPrimary: Colors.white,
+              onSecondary: Colors.white,
+              onSurface: Colors.white,
+              onError: Colors.white,
+              surfaceContainerHighest: DesignTokens.surface,
+              onSurfaceVariant: Colors.white70,
+            )),
+      scaffoldBackgroundColor: bg,
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: Colors.white,
+      ),
+      cardColor: isLight ? Colors.white : DesignTokens.surface,
+      dividerColor: isLight ? Colors.black12 : Colors.white12,
+      splashFactory: NoSplash.splashFactory,
+      listTileTheme: const ListTileThemeData(
+        iconColor: null,
+        textColor: null,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isLight
+            ? Colors.black.withValues(alpha: DesignTokens.opacityVeryLow)
+            : Colors.white.withValues(alpha: DesignTokens.opacityVeryLow),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: DesignTokens.paddingMD,
+          vertical: DesignTokens.paddingSM + 2,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: DesignTokens.borderRadiusPill,
+          borderSide: BorderSide.none,
+        ),
+        hintStyle: TextStyle(
+          color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.6),
+        ),
+        labelStyle: TextStyle(
+          color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.7),
+        ),
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        backgroundColor: colors.primary.withValues(alpha: isLight ? 0.18 : 0.12),
+        side: BorderSide.none,
+        labelStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: DesignTokens.paddingMD,
+          vertical: DesignTokens.paddingSM,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: DesignTokens.borderRadiusPill,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colors.primary,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.paddingLG,
+            vertical: DesignTokens.paddingMD,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: DesignTokens.borderRadiusMedium,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: colors.primary,
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.paddingMD,
+            vertical: DesignTokens.paddingSM,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: colors.primary,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.paddingLG,
+            vertical: DesignTokens.paddingMD,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: DesignTokens.borderRadiusMedium,
+          ),
+        ),
+      ),
+      iconTheme: IconThemeData(
+        color: (isLight ? Colors.black : Colors.white)
+            .withValues(alpha: DesignTokens.opacityHigh),
+        size: DesignTokens.iconSizeNormal,
+      ),
+      textTheme: base.textTheme.apply(
+        bodyColor: isLight ? Colors.black : Colors.white,
+        displayColor: isLight ? Colors.black : Colors.white,
+      ),
+    );
+  }
+
+  /// Génère le ShadThemeData pour shadcn_ui avec la même palette
+  static ShadThemeData shadFromPalette(
+    ColorPaletteData colors, {
+    Color? backgroundOverride,
+    bool isLight = false,
+  }) {
+    final bg = backgroundOverride ??
+        (isLight ? const Color(0xFFF7F8FA) : DesignTokens.background);
+    return ShadThemeData(
+      brightness: isLight ? Brightness.light : Brightness.dark,
+      colorScheme: ShadColorScheme(
+        background: bg,
+        foreground: isLight ? Colors.black : Colors.white,
+        card: (isLight ? Colors.white : DesignTokens.surface)
+            .withValues(alpha: 0.9),
+        cardForeground: isLight ? Colors.black : Colors.white,
+        popover: (isLight ? Colors.white : DesignTokens.surface)
+            .withValues(alpha: 0.95),
+        popoverForeground: isLight ? Colors.black : Colors.white,
+        primary: colors.primary,
+        primaryForeground: isLight ? Colors.white : Colors.black,
+        secondary: colors.navigation,
+        secondaryForeground: isLight ? Colors.black : Colors.white,
+        muted: (isLight ? Colors.black : Colors.white)
+            .withValues(alpha: 0.08),
+        mutedForeground: isLight ? Colors.black87 : Colors.white70,
+        accent: colors.info,
+        accentForeground: isLight ? Colors.black : Colors.black,
+        destructive: colors.error,
+        destructiveForeground: Colors.white,
+        border: (isLight ? Colors.black : Colors.white)
+            .withValues(alpha: 0.1),
+        input: (isLight ? Colors.black : Colors.white)
+            .withValues(alpha: 0.06),
+        ring: colors.primary,
+        selection: colors.info.withValues(alpha: 0.4),
+      ),
+    );
+  }
+
+  /// Helper pour récupérer la palette courante en fonction des flags/provider
+  static ThemeBundle current(ThemeProvider provider) {
+    if (!FeatureFlags.useColorPalettes) {
+      return ThemeBundle(
+        material: dark(),
+        shad: null,
+        background: DesignTokens.background,
+        backgroundImagePath: provider.backgroundImagePath,
+        isLight: false,
+      );
+    }
+    return ThemeBundle.fromPalette(
+      provider.currentPalette,
+      backgroundOverride: provider.backgroundColor,
+      backgroundImage: provider.backgroundImagePath,
+      isLight: provider.isLight,
+    );
+  }
+}
+
+/// Paquet de thème combinant Material et Shad
+class ThemeBundle {
+  const ThemeBundle({
+    required this.material,
+    required this.shad,
+    required this.background,
+    this.backgroundImagePath,
+    this.isLight = false,
+  });
+
+  final ThemeData material;
+  final ShadThemeData? shad;
+  final Color background;
+  final String? backgroundImagePath;
+  final bool isLight;
+
+  factory ThemeBundle.fromPalette(
+    ColorPalette palette, {
+    Color? backgroundOverride,
+    String? backgroundImage,
+    bool isLight = false,
+  }) {
+    final data = ColorPalettes.getData(palette);
+    final bg =
+        backgroundOverride ?? (isLight ? const Color(0xFFF7F8FA) : DesignTokens.background);
+    return ThemeBundle(
+      material: AppTheme.materialFromPalette(
+        data,
+        backgroundOverride: bg,
+        isLight: isLight,
+      ),
+      shad: AppTheme.shadFromPalette(
+        data,
+        backgroundOverride: bg,
+        isLight: isLight,
+      ),
+      background: bg,
+      backgroundImagePath: backgroundImage,
+      isLight: isLight,
     );
   }
 }

@@ -434,10 +434,18 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setViewMode(ExplorerViewMode mode) {
+  void setViewMode(ExplorerViewMode mode) async {
     if (_state.viewMode == mode) return;
     _state = _state.copyWith(viewMode: mode);
     notifyListeners();
+
+    // Sauvegarder le mode de vue
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('view_mode', mode == ExplorerViewMode.list ? 'list' : 'grid');
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
   }
 
   void copySelectionToClipboard() {
@@ -662,7 +670,17 @@ class ExplorerViewModel extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _recentPaths = prefs.getStringList(_recentKey) ?? [];
-      _state = _state.copyWith(recentPaths: List.unmodifiable(_recentPaths));
+
+      // Charger le mode de vue sauvegardé
+      final savedViewMode = prefs.getString('view_mode');
+      final viewMode = savedViewMode == 'list'
+          ? ExplorerViewMode.list
+          : ExplorerViewMode.grid;
+
+      _state = _state.copyWith(
+        recentPaths: List.unmodifiable(_recentPaths),
+        viewMode: viewMode,
+      );
       notifyListeners();
     } catch (_) {
       // ignore prefs errors

@@ -3,9 +3,13 @@ import 'dart:io';
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/special_locations.dart';
+import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/theme/color_palettes.dart';
+import '../../../../core/theme/design_tokens.dart';
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';
@@ -23,6 +27,7 @@ import '../widgets/glass_panel_v2.dart';
 import '../widgets/list_view_table.dart';
 import '../widgets/sidebar_section.dart';
 import '../widgets/toolbar_button.dart';
+import '../../../../core/widgets/theme_controls_v2.dart';
 
 class ExplorerPage extends StatefulWidget {
   const ExplorerPage({super.key});
@@ -144,6 +149,42 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, _) {
+        final themeProvider = context.watch<ThemeProvider>();
+        final bgImagePath = themeProvider.backgroundImagePath;
+        final hasBgImage =
+            bgImagePath != null && File(bgImagePath).existsSync();
+        final isLight = themeProvider.isLight;
+        final theme = Theme.of(context);
+        final bgColor = hasBgImage
+            ? (isLight
+                ? Colors.white.withOpacity(0.7)
+                : Colors.black.withOpacity(0.5))
+            : theme.colorScheme.background;
+        final adjustedSurface = hasBgImage
+            ? (isLight
+                ? Colors.white.withOpacity(0.98)
+                : Colors.black.withOpacity(0.75))
+            : theme.colorScheme.surface;
+        final adjustedOnSurface =
+            hasBgImage ? Colors.white : theme.colorScheme.onSurface;
+        final overlayLight = hasBgImage && isLight
+            ? Colors.white.withOpacity(0.85)
+            : null;
+        final overlayPrimary = hasBgImage && isLight
+            ? Colors.white.withOpacity(0.9)
+            : null;
+        final themed = theme.copyWith(
+          colorScheme: theme.colorScheme.copyWith(
+            surface: adjustedSurface,
+            onSurface: adjustedOnSurface,
+            onPrimary: hasBgImage ? Colors.white : theme.colorScheme.onPrimary,
+            onSecondary:
+                hasBgImage ? Colors.white : theme.colorScheme.onSecondary,
+            onTertiary:
+                hasBgImage ? Colors.white : theme.colorScheme.onTertiary,
+          ),
+        );
+
         final state = _viewModel.state;
         if (_pathController.text != state.currentPath) {
           _pathController.text = state.currentPath;
@@ -165,90 +206,105 @@ class _ExplorerPageState extends State<ExplorerPage> {
           _lastStatusMessage = null;
         }
 
-        return Scaffold(
-          body: Container(
-            color: Theme.of(context).colorScheme.background,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sidebar avec resize handle
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: _isSidebarCollapsed ? 70 : _sidebarWidth,
-                          child: _Sidebar(
-                            favoriteItems: _favoriteItems,
-                            systemItems: _systemItems,
-                            quickItems: _quickItems,
-                            tags: _tagItems,
-                    volumes: _volumes,
-                    recentPaths: state.recentPaths,
-                    selectedTags: _viewModel.selectedTags,
-                    selectedTypes: _viewModel.selectedTypes,
-                    onNavigate: _viewModel.loadDirectory,
-                    onTagToggle: _viewModel.toggleTag,
-                    onTypeToggle: _viewModel.toggleType,
-                    onToggleCollapse: () {
-                      setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
-                    },
-                    collapsed: _isSidebarCollapsed,
-                  ),
-                ),
-                        // Resize handle - seulement visible quand sidebar n'est pas collapsed
-                        if (!_isSidebarCollapsed)
-                          MouseRegion(
-                            cursor: SystemMouseCursors.resizeColumn,
-                            child: GestureDetector(
-                              onPanUpdate: (details) {
-                                setState(() {
-                                  _sidebarWidth = (_sidebarWidth + details.delta.dx)
-                                      .clamp(180.0, 400.0); // Min 180px, Max 400px
-                                });
+        return Theme(
+          data: themed,
+          child: Scaffold(
+            body: Container(
+              decoration: BoxDecoration(
+                color: bgColor,
+                image: hasBgImage
+                    ? DecorationImage(
+                        image: FileImage(File(bgImagePath)),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sidebar avec resize handle
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: _isSidebarCollapsed ? 70 : _sidebarWidth,
+                            child: _Sidebar(
+                              favoriteItems: _favoriteItems,
+                              systemItems: _systemItems,
+                              quickItems: _quickItems,
+                              tags: _tagItems,
+                              volumes: _volumes,
+                              recentPaths: state.recentPaths,
+                              selectedTags: _viewModel.selectedTags,
+                              selectedTypes: _viewModel.selectedTypes,
+                              onNavigate: _viewModel.loadDirectory,
+                              onTagToggle: _viewModel.toggleTag,
+                              onTypeToggle: _viewModel.toggleType,
+                              onToggleCollapse: () {
+                                setState(
+                                    () => _isSidebarCollapsed = !_isSidebarCollapsed);
                               },
-                              onPanEnd: (_) {
-                                // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
-                                _saveSidebarWidth(_sidebarWidth);
-                              },
-                              child: Container(
-                                width: 8,
-                                color: Colors.transparent,
-                                child: Center(
-                                  child: Container(
-                                    width: 2,
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                  ),
-                                ),
-                              ),
+                              isLight: themeProvider.isLight,
+                              currentPalette: themeProvider.currentPalette,
+                              onToggleLight: themeProvider.setLightMode,
+                              onPaletteSelected: themeProvider.setPalette,
+                              collapsed: _isSidebarCollapsed,
                             ),
-                          )
-                        else
-                          const SizedBox(width: 8),
-                      ],
-                    ),
+                          ),
+                          // Resize handle - seulement visible quand sidebar n'est pas collapsed
+                          if (!_isSidebarCollapsed)
+                           MouseRegion(
+                              cursor: SystemMouseCursors.resizeColumn,
+                              child: GestureDetector(
+                                onPanUpdate: (details) {
+                                  setState(() {
+                                    _sidebarWidth = (_sidebarWidth + details.delta.dx)
+                                        .clamp(180.0, 400.0); // Min 180px, Max 400px
+                                  });
+                                },
+                                onPanEnd: (_) {
+                                  // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
+                                   _saveSidebarWidth(_sidebarWidth);
+                                 },
+                                 child: Container(
+                                   width: 8,
+                                   color: Colors.transparent,
+                                   child: Center(
+                                     child: Container(
+                                       width: 2,
+                                       color: Colors.white.withValues(alpha: 0.1),
+                                     ),
+                                   ),
+                                 ),
+                             ),
+                           )
+                         else
+                            const SizedBox(width: 8),
+                       ],
+                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          GlassPanelV2(
-                            level: GlassPanelLevel.secondary,
-                            child: _buildToolbar(state),
-                          ),
-                          const SizedBox(height: 8),
-                          GlassPanelV2(
-                            level: GlassPanelLevel.secondary,
-                            child: _buildActionBar(state),
-                          ),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: GlassPanelV2(
-                              level: GlassPanelLevel.primary,
-                              padding: const EdgeInsets.all(0),
-                              child: _buildContent(state, entries),
+                          children: [
+                            GlassPanelV2(
+                              level: GlassPanelLevel.secondary,
+                              child: _buildToolbar(state),
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            GlassPanelV2(
+                              level: GlassPanelLevel.secondary,
+                              child: _buildActionBar(state),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: GlassPanelV2(
+                                level: GlassPanelLevel.primary,
+                                padding: const EdgeInsets.all(0),
+                                child: _buildContent(state, entries),
+                              ),
+                            ),
                           const SizedBox(height: 8),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -278,6 +334,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   ],
                 ),
               ),
+            ),
             ),
           ),
         );
@@ -647,107 +704,61 @@ class _ExplorerPageState extends State<ExplorerPage> {
       _viewModel.selectSingle(entry);
     }
 
-    final menuItems = <PopupMenuEntry<String>>[];
+    final items = <_MenuItem>[];
     if (entry != null) {
-      menuItems.add(
-        const PopupMenuItem<String>(value: 'open', child: Text('Ouvrir')),
-      );
+      items.add(const _MenuItem('open', 'Ouvrir'));
       if (entry.isApplication) {
-        menuItems.addAll([
-          const PopupMenuItem<String>(
-            value: 'launchApp',
-            child: Text('Lancer l application'),
-          ),
-          const PopupMenuItem<String>(
-            value: 'openPackage',
-            child: Text('Ouvrir comme dossier'),
-          ),
+        items.addAll(const [
+          _MenuItem('launchApp', 'Lancer l application'),
+          _MenuItem('openPackage', 'Ouvrir comme dossier'),
         ]);
       }
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'reveal',
-          child: Text('Afficher dans Finder'),
-        ),
-      );
-      menuItems.add(
-        const PopupMenuItem<String>(value: 'copy', child: Text('Copier')),
-      );
-      menuItems.add(
-        const PopupMenuItem<String>(value: 'cut', child: Text('Couper')),
-      );
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'copyPath',
-          child: Text('Copier le chemin'),
-        ),
-      );
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'openTerminal',
-          child: Text('Ouvrir le terminal ici'),
-        ),
-      );
+      items.addAll(const [
+        _MenuItem('reveal', 'Afficher dans Finder'),
+        _MenuItem('copy', 'Copier'),
+        _MenuItem('cut', 'Couper'),
+        _MenuItem('copyPath', 'Copier le chemin'),
+        _MenuItem('openTerminal', 'Ouvrir le terminal ici'),
+      ]);
     }
 
     final pasteDestination = entry != null && entry.isDirectory
         ? entry.path
         : null;
     if (_viewModel.canPaste) {
-      menuItems.add(
-        PopupMenuItem<String>(
-          value: 'paste',
-          child: Text(
-            pasteDestination != null ? 'Coller dans ce dossier' : 'Coller ici',
-          ),
+      items.add(
+        _MenuItem(
+          'paste',
+          pasteDestination != null ? 'Coller dans ce dossier' : 'Coller ici',
         ),
       );
     }
 
     if (entry != null) {
-      menuItems.addAll([
-        const PopupMenuItem<String>(
-          value: 'duplicate',
-          child: Text('Dupliquer'),
-        ),
-        const PopupMenuItem<String>(
-          value: 'move',
-          child: Text('Deplacer vers...'),
-        ),
-        const PopupMenuItem<String>(value: 'rename', child: Text('Renommer')),
-        const PopupMenuItem<String>(value: 'delete', child: Text('Supprimer')),
+      items.addAll(const [
+        _MenuItem('duplicate', 'Dupliquer'),
+        _MenuItem('move', 'Deplacer vers...'),
+        _MenuItem('rename', 'Renommer'),
+        _MenuItem('delete', 'Supprimer'),
       ]);
     } else {
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'newFolder',
-          child: Text('Nouveau dossier'),
-        ),
-      );
+      items.add(const _MenuItem('newFolder', 'Nouveau dossier'));
     }
     if (_viewModel.state.selectedPaths.isNotEmpty) {
-      menuItems.add(
-        const PopupMenuItem<String>(
-          value: 'compress',
-          child: Text('Compresser en .zip'),
-        ),
-      );
+      items.add(const _MenuItem('compress', 'Compresser en .zip'));
     }
     if (entry == null) {
-      menuItems.addAll([
-        const PopupMenuItem<String>(
-          value: 'copyPath',
-          child: Text('Copier le chemin courant'),
-        ),
-        const PopupMenuItem<String>(
-          value: 'openTerminal',
-          child: Text('Ouvrir le terminal ici'),
-        ),
+      items.addAll(const [
+        _MenuItem('copyPath', 'Copier le chemin courant'),
+        _MenuItem('openTerminal', 'Ouvrir le terminal ici'),
       ]);
     }
 
     String? selected;
     try {
+      final brightness = Theme.of(context).brightness;
+      final menuBg = DesignTokens.selectionMenuBackground(brightness);
+      final menuText = Theme.of(context).colorScheme.onSurface;
       selected = await showMenu<String>(
         context: context,
         position: RelativeRect.fromLTRB(
@@ -756,7 +767,19 @@ class _ExplorerPageState extends State<ExplorerPage> {
           globalPosition.dx,
           globalPosition.dy,
         ),
-        items: menuItems,
+        items: items
+            .map(
+              (item) => PopupMenuItem<String>(
+                value: item.value,
+                enabled: item.enabled,
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: menuText),
+                  child: Text(item.label),
+                ),
+              ),
+            )
+            .toList(),
+        color: menuBg,
       );
     } finally {
       _contextMenuOpen = false;
@@ -1165,6 +1188,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 }
 
+class _MenuItem {
+  const _MenuItem(this.value, this.label, {this.enabled = true});
+  final String value;
+  final String label;
+  final bool enabled;
+}
+
 class _DragFeedback extends StatelessWidget {
   const _DragFeedback({required this.entry});
 
@@ -1216,6 +1246,10 @@ class _Sidebar extends StatelessWidget {
     this.onTagToggle,
     this.onTypeToggle,
     this.onToggleCollapse,
+    required this.isLight,
+    required this.currentPalette,
+    required this.onToggleLight,
+    required this.onPaletteSelected,
     this.collapsed = false,
   });
 
@@ -1232,6 +1266,10 @@ class _Sidebar extends StatelessWidget {
   final void Function(String type)? onTypeToggle;
   final VoidCallback? onToggleCollapse;
   final bool collapsed;
+  final bool isLight;
+  final ColorPalette currentPalette;
+  final Future<void> Function(bool) onToggleLight;
+  final Future<void> Function(ColorPalette) onPaletteSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -1329,6 +1367,13 @@ class _Sidebar extends StatelessWidget {
                   onTap: onToggleCollapse,
                 ),
               ],
+              const SizedBox(height: 12),
+              ThemeRailControlsV2(
+                isLight: isLight,
+                currentPalette: currentPalette,
+                onToggleLight: onToggleLight,
+                onPaletteSelected: onPaletteSelected,
+              ),
             ],
           ),
         ),
@@ -1361,14 +1406,20 @@ class _Sidebar extends StatelessWidget {
                           Icon(
                             lucide.LucideIcons.panelLeftClose,
                             size: 16,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: isLight ? 0.75 : 0.6),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Replier',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: isLight ? 0.75 : 0.6),
                             ),
                           ),
                         ],
@@ -1432,7 +1483,10 @@ class _Sidebar extends StatelessWidget {
                               letterSpacing: 1.2,
                               fontWeight: FontWeight.w600,
                               fontSize: 10,
-                              color: Colors.white.withValues(alpha: 0.4),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
                             ),
                       ),
                     ),
@@ -1445,9 +1499,12 @@ class _Sidebar extends StatelessWidget {
                     if (volumes.length > 2)
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
+                      child: TextButton.icon(
                           style: TextButton.styleFrom(
-                            foregroundColor: Colors.white70,
+                            foregroundColor: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.7),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 4,
@@ -1488,7 +1545,10 @@ class _Sidebar extends StatelessWidget {
                             letterSpacing: 1.2,
                             fontWeight: FontWeight.w600,
                             fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
                           ),
                     ),
                     const SizedBox(height: 6),
@@ -1512,6 +1572,15 @@ class _Sidebar extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+              child: ThemeControlsV2(
+                isLight: isLight,
+                currentPalette: currentPalette,
+                onToggleLight: onToggleLight,
+                onPaletteSelected: onPaletteSelected,
+              ),
+            ),
           ],
         ),
         ),
@@ -1565,6 +1634,7 @@ class _TagDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -1581,7 +1651,7 @@ class _TagDot extends StatelessWidget {
             ],
           ),
           border: Border.all(
-            color: active ? Colors.white : Colors.white24,
+            color: active ? onSurface.withValues(alpha: 0.8) : onSurface.withValues(alpha: 0.2),
             width: active ? 1.4 : 1,
           ),
         ),
@@ -1615,7 +1685,9 @@ class _TagChipSimple extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             color: isActive
                 ? tag.color.withValues(alpha: 0.2)
-                : Colors.white.withValues(alpha: 0.03),
+                : Theme.of(context).colorScheme.onSurface.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.light ? 0.08 : 0.04,
+                    ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1636,8 +1708,14 @@ class _TagChipSimple extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                       color: isActive
-                          ? Colors.white.withValues(alpha: 0.9)
-                          : Colors.white.withValues(alpha: 0.6),
+                          ? Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.9)
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.65),
                     ),
               ),
             ],
@@ -1656,6 +1734,8 @@ class _VolumeItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     final percent = (volume.usage * 100).clamp(0, 100).round();
     return Material(
       color: Colors.transparent,
@@ -1663,14 +1743,20 @@ class _VolumeItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          margin: const EdgeInsets.only(bottom: 6),
+          decoration: BoxDecoration(
+            color: isLight
+                ? Colors.black.withValues(alpha: 0.05)
+                : Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Row(
             children: [
               Icon(
                 lucide.LucideIcons.hardDrive,
                 size: 16,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: colorScheme.onSurface.withValues(alpha: 0.75),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1680,7 +1766,7 @@ class _VolumeItem extends StatelessWidget {
                     Text(
                       volume.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: colorScheme.onSurface.withValues(alpha: 0.9),
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1693,9 +1779,10 @@ class _VolumeItem extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: volume.usage.clamp(0, 1),
                         minHeight: 3,
-                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        backgroundColor:
+                            colorScheme.onSurface.withValues(alpha: 0.12),
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                          colorScheme.primary.withValues(alpha: 0.8),
                         ),
                       ),
                     ),
@@ -1706,7 +1793,7 @@ class _VolumeItem extends StatelessWidget {
               Text(
                 '$percent%',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: colorScheme.onSurface.withValues(alpha: 0.65),
                       fontSize: 11,
                     ),
               ),
@@ -1732,6 +1819,8 @@ class _StatsFooter extends StatelessWidget {
     final folderCount = state.entries.where((e) => e.isDirectory).length;
     final fileCount = state.entries.where((e) => !e.isDirectory).length;
     final totalSize = selected.fold<int>(0, (sum, e) => sum + (e.size ?? 0));
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
 
     return Opacity(
       opacity: 0.7,
@@ -1739,13 +1828,33 @@ class _StatsFooter extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _StatChip(label: 'Selectionés', value: '$selectionCount'),
+            _StatChip(
+              label: 'Selectionés',
+              value: '$selectionCount',
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
             const SizedBox(width: 8),
-            _StatChip(label: 'Dossiers', value: '$folderCount'),
+            _StatChip(
+              label: 'Dossiers',
+              value: '$folderCount',
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
             const SizedBox(width: 8),
-            _StatChip(label: 'Fichiers', value: '$fileCount'),
+            _StatChip(
+              label: 'Fichiers',
+              value: '$fileCount',
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
             const SizedBox(width: 8),
-            _StatChip(label: 'Taille', value: _formatBytes(totalSize)),
+            _StatChip(
+              label: 'Taille',
+              value: _formatBytes(totalSize),
+              colorScheme: colorScheme,
+              isLight: isLight,
+            ),
           ],
         ),
       ),
@@ -1767,17 +1876,28 @@ class _StatsFooter extends StatelessWidget {
 }
 
 class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value});
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.colorScheme,
+    required this.isLight,
+  });
 
   final String label;
   final String value;
+  final ColorScheme colorScheme;
+  final bool isLight;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: isLight
+            ? Colors.black.withValues(alpha: 0.06)
+            : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1787,7 +1907,7 @@ class _StatChip extends StatelessWidget {
             label.toUpperCase(),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               letterSpacing: 0.4,
-              color: Colors.white70,
+              color: colorScheme.onSurface.withValues(alpha: isLight ? 0.7 : 0.75),
               fontSize: 10,
             ),
           ),
@@ -1797,6 +1917,7 @@ class _StatChip extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
               fontSize: 13,
+              color: colorScheme.onSurface.withValues(alpha: isLight ? 0.9 : 0.85),
             ),
           ),
         ],
@@ -1813,15 +1934,29 @@ class _PathInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textColor = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
+    final labelColor = onSurface.withValues(alpha: isLight ? 0.7 : 0.75);
+    final iconColor = onSurface.withValues(alpha: isLight ? 0.75 : 0.8);
+
     return TextField(
       controller: controller,
       onSubmitted: onSubmit,
-      style: const TextStyle(fontSize: 14),
+      style: TextStyle(fontSize: 14, color: textColor),
       decoration: InputDecoration(
         labelText: 'Chemin du dossier',
-        prefixIcon: const Icon(lucide.LucideIcons.folderOpen),
+        labelStyle: TextStyle(color: labelColor),
+        prefixIcon: Icon(
+          lucide.LucideIcons.folderOpen,
+          color: iconColor,
+        ),
         suffixIcon: IconButton(
-          icon: const Icon(lucide.LucideIcons.arrowRight, size: 16),
+          icon: Icon(
+            lucide.LucideIcons.arrowRight,
+            size: 16,
+            color: iconColor,
+          ),
           onPressed: () => onSubmit(controller.text),
         ),
       ),

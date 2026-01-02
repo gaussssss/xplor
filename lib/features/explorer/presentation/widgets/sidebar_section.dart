@@ -17,6 +17,7 @@ class SidebarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -27,16 +28,18 @@ class SidebarSection extends StatelessWidget {
             left: DesignTokens.spacingMD,
             top: DesignTokens.spacingMD,
           ),
-          child: Text(
-            title.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
+            child: Text(
+              title.toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(
+                          alpha: isLight ? 0.7 : 0.4,
+                        ),
+                  ),
+            ),
           ),
-        ),
         ...items.map((item) => _SidebarTile(item: item)),
       ],
     );
@@ -66,7 +69,9 @@ class _SidebarTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = Theme.of(context).colorScheme.primary;
+    final colorScheme = Theme.of(context).colorScheme;
+    final activeColor = colorScheme.primary;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     final isActive = item.isActive;
 
     return Material(
@@ -91,16 +96,16 @@ class _SidebarTile extends StatelessWidget {
                 : null,
             // Background ultra-subtle
             color: isActive
-                ? Colors.white.withValues(alpha: 0.04)
+                ? colorScheme.primary.withValues(alpha: 0.08)
                 : Colors.transparent,
           ),
           child: Row(
             children: [
               Icon(
                 item.icon,
-                color: isActive
-                    ? activeColor
-                    : Colors.white.withValues(alpha: 0.6),
+            color: isActive
+                ? activeColor
+                : colorScheme.onSurface.withValues(alpha: isLight ? 0.85 : 0.7),
                 size: DesignTokens.iconSizeSmall,
               ),
               SizedBox(width: DesignTokens.spacingMD),
@@ -114,8 +119,10 @@ class _SidebarTile extends StatelessWidget {
                         fontSize: 13,
                         letterSpacing: 0,
                         color: isActive
-                            ? Colors.white.withValues(alpha: 0.95)
-                            : Colors.white.withValues(alpha: 0.65),
+                            ? colorScheme.onSurface.withValues(alpha: 0.95)
+                            : colorScheme.onSurface.withValues(
+                                alpha: isLight ? 0.9 : 0.75,
+                              ),
                       ),
                 ),
               ),

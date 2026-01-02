@@ -70,8 +70,8 @@ class _ListEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final iconColor = entry.isDirectory
-        ? Colors.amberAccent.shade200
-        : (entry.isApplication ? Colors.greenAccent.shade200 : Colors.blueGrey.shade200);
+        ? colorScheme.primary
+        : (entry.isApplication ? colorScheme.secondary : colorScheme.primary.withValues(alpha: 0.8));
     final iconData = entry.isDirectory
         ? LucideIcons.folder
         : (entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
@@ -122,7 +122,7 @@ class _ListEntry extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: colorScheme.onSurface.withValues(alpha: 0.9),
                       fontSize: 13,
                     ),
               ),
@@ -135,7 +135,7 @@ class _ListEntry extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: colorScheme.onSurface.withValues(alpha: 0.65),
                       fontSize: 12,
                     ),
               ),
@@ -147,7 +147,7 @@ class _ListEntry extends StatelessWidget {
                 _formatSize(entry.size),
                 textAlign: TextAlign.right,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: colorScheme.onSurface.withValues(alpha: 0.65),
                       fontSize: 12,
                     ),
               ),
@@ -181,7 +181,9 @@ class _GridEntry extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final iconColor = entry.isDirectory
         ? colorScheme.primary
-        : (entry.isApplication ? Colors.greenAccent.shade200 : Colors.white70);
+        : (entry.isApplication
+            ? colorScheme.secondary
+            : colorScheme.onSurface.withValues(alpha: 0.7));
     final iconData = entry.isDirectory
         ? LucideIcons.folder
         : (entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
@@ -211,12 +213,12 @@ class _GridEntry extends StatelessWidget {
                     color: iconColor.withValues(alpha: 0.1),
                     borderRadius: DesignTokens.borderRadiusXS,
                   ),
-                  child: _EntryIcon(
-                    entry: entry,
-                    icon: iconData,
-                    color: iconColor,
-                    size: DesignTokens.iconSizeXLarge,
-                  ),
+                child: _EntryIcon(
+                  entry: entry,
+                  icon: iconData,
+                  color: iconColor,
+                  size: DesignTokens.iconSizeXLarge,
+                ),
                 ),
                 const Spacer(),
                 if (selectionMode)
@@ -228,7 +230,7 @@ class _GridEntry extends StatelessWidget {
                   Text(
                     _formatSize(entry.size),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: colorScheme.onSurface.withValues(alpha: 0.65),
                           fontSize: 11,
                         ),
                   ),
@@ -240,7 +242,7 @@ class _GridEntry extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: colorScheme.onSurface.withValues(alpha: 0.9),
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -253,7 +255,7 @@ class _GridEntry extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
             ),

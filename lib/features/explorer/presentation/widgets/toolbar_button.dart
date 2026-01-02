@@ -43,7 +43,7 @@ class ToolbarButton extends StatelessWidget {
                 icon,
                 color: isActive
                     ? colorScheme.primary
-                    : Colors.white.withValues(alpha: 0.7),
+                    : colorScheme.onSurface.withValues(alpha: 0.7),
                 size: DesignTokens.iconSizeNormal,
               ),
             ),

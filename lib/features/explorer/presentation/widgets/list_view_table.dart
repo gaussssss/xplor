@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/file_entry.dart';
 
@@ -92,6 +93,75 @@ class _ListViewTableState extends State<ListViewTable> {
 
   SortConfig? _sortConfig;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadColumnPreferences();
+  }
+
+  Future<void> _loadColumnPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final columnsData = prefs.getStringList('list_view_columns');
+      final widthsData = prefs.getStringList('list_view_column_widths');
+
+      if (columnsData != null && widthsData != null && columnsData.length == widthsData.length) {
+        final loadedColumns = <ColumnConfig>[];
+        for (int i = 0; i < columnsData.length; i++) {
+          final columnName = columnsData[i];
+          final width = double.tryParse(widthsData[i]) ?? 100.0;
+          final column = FileColumn.values.firstWhere(
+            (c) => c.name == columnName,
+            orElse: () => FileColumn.name,
+          );
+          final config = _getColumnConfig(column, width);
+          if (config != null) loadedColumns.add(config);
+        }
+
+        if (loadedColumns.isNotEmpty && mounted) {
+          setState(() {
+            _columns = loadedColumns;
+          });
+        }
+      }
+    } catch (_) {
+      // Ignorer les erreurs de chargement, utiliser les colonnes par défaut
+    }
+  }
+
+  ColumnConfig? _getColumnConfig(FileColumn column, double width) {
+    switch (column) {
+      case FileColumn.name:
+        return ColumnConfig(column: column, label: 'Nom', width: width);
+      case FileColumn.size:
+        return ColumnConfig(column: column, label: 'Taille', width: width);
+      case FileColumn.dateModified:
+        return ColumnConfig(column: column, label: 'Date de modification', width: width);
+      case FileColumn.kind:
+        return ColumnConfig(column: column, label: 'Type', width: width);
+      case FileColumn.dateCreated:
+        return ColumnConfig(column: column, label: 'Date de création', width: width);
+      case FileColumn.dateAccessed:
+        return ColumnConfig(column: column, label: 'Dernier accès', width: width);
+      case FileColumn.permissions:
+        return ColumnConfig(column: column, label: 'Permissions', width: width);
+      case FileColumn.tags:
+        return ColumnConfig(column: column, label: 'Tags', width: width);
+    }
+  }
+
+  Future<void> _saveColumnPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final columnNames = _columns.map((c) => c.column.name).toList();
+      final columnWidths = _columns.map((c) => c.width.toString()).toList();
+      await prefs.setStringList('list_view_columns', columnNames);
+      await prefs.setStringList('list_view_column_widths', columnWidths);
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
+  }
+
   // Colonnes disponibles mais non affichées
   static const _availableColumns = [
     ColumnConfig(column: FileColumn.dateCreated, label: 'Date de création', width: 180),
@@ -160,6 +230,7 @@ class _ListViewTableState extends State<ListViewTable> {
         maxWidth: column.maxWidth,
       );
     });
+    _saveColumnPreferences();
   }
 
   void _showColumnSelector(BuildContext context) {
@@ -172,6 +243,7 @@ class _ListViewTableState extends State<ListViewTable> {
           setState(() {
             _columns = newColumns;
           });
+          _saveColumnPreferences();
         },
       ),
     );

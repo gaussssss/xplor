@@ -25,6 +25,7 @@ class GlassPanelV2 extends StatelessWidget {
     this.showGradient = true,
     this.height,
     this.width,
+    this.overrideColor,
   });
 
   final Widget child;
@@ -36,6 +37,7 @@ class GlassPanelV2 extends StatelessWidget {
   final bool showGradient;
   final double? height;
   final double? width;
+  final Color? overrideColor;
 
   @override
   Widget build(BuildContext context) {
@@ -58,12 +60,36 @@ class GlassPanelV2 extends StatelessWidget {
     // Padding par défaut selon niveau
     final effectivePadding = padding ?? _getDefaultPadding(level);
 
+    final theme = Theme.of(context);
+    final baseSurface = theme.colorScheme.surface;
+    final isLight = theme.brightness == Brightness.light;
+
+    Color panelColor() {
+      if (overrideColor != null) return overrideColor!;
+      if (!isLight) {
+        return baseSurface.withValues(alpha: opacity);
+      }
+      // En mode clair, voile blanc uniforme pour tous les niveaux
+      return Colors.white.withValues(alpha: 0.30);
+    }
+
+    Color? borderColor() {
+      if (!showBorder) return null;
+      if (isLight) {
+        return Colors.black.withValues(alpha: 0.06);
+      }
+      return Colors.white.withValues(alpha: level.borderOpacity);
+    }
+
     return RepaintBoundary(
       child: Container(
         height: height,
         width: width,
         decoration: BoxDecoration(
           borderRadius: effectiveRadius,
+          border: borderColor() != null
+              ? Border.all(color: borderColor()!, width: 1)
+              : null,
         ),
         child: ClipRRect(
           borderRadius: effectiveRadius,
@@ -77,7 +103,7 @@ class GlassPanelV2 extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 // Background ultra-simple
-                color: DesignTokens.surface.withValues(alpha: opacity),
+                color: panelColor(),
 
                 // PAS de gradient - trop chargé
                 // PAS de border - trop lourd visuellement

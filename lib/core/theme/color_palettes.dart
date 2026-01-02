@@ -13,6 +13,9 @@ enum ColorPalette {
 
   /// Palette sophistiquée et premium (ocean blue/indigo) 🌊
   deepOcean,
+
+  /// Palette verre inspirée d'iOS 16/17/18 (glass)
+  glassIos26,
 }
 
 /// Extension pour obtenir les métadonnées d'une palette
@@ -23,6 +26,8 @@ extension ColorPaletteExtension on ColorPalette {
         return 'Modern Tech';
       case ColorPalette.neonCyberpunk:
         return 'Neon Cyberpunk';
+      case ColorPalette.glassIos26:
+        return 'Glass iOS 26';
       case ColorPalette.warmSunset:
         return 'Warm Sunset';
       case ColorPalette.deepOcean:
@@ -36,6 +41,8 @@ extension ColorPaletteExtension on ColorPalette {
         return 'Professionnel, moderne, propre';
       case ColorPalette.neonCyberpunk:
         return 'Futuriste, énergique, électrique';
+      case ColorPalette.glassIos26:
+        return 'Verre translucide, lumineux, iOS 26';
       case ColorPalette.warmSunset:
         return 'Chaleureux, accueillant, créatif';
       case ColorPalette.deepOcean:
@@ -49,6 +56,8 @@ extension ColorPaletteExtension on ColorPalette {
         return '💼';
       case ColorPalette.neonCyberpunk:
         return '⚡';
+      case ColorPalette.glassIos26:
+        return '🧊';
       case ColorPalette.warmSunset:
         return '🌅';
       case ColorPalette.deepOcean:
@@ -129,6 +138,19 @@ class ColorPalettes {
     application: Color(0xFF39FF14), // Green néon
   );
 
+  /// Palette Glass iOS 26 - Verre translucide et bleus iOS
+  static const glassIos26 = ColorPaletteData(
+    primary: Color(0xFF5AC8FA), // iOS blue clair
+    navigation: Color(0xFF0A84FF), // iOS accent
+    info: Color(0xFF64D2FF), // Aqua clair
+    success: Color(0xFF34C759), // iOS green
+    warning: Color(0xFFFFD60A), // iOS yellow
+    error: Color(0xFFFF3B30), // iOS red
+    folder: Color(0xFFE5F1FF), // Bleu pastel pour dossiers
+    file: Color(0xFF0A84FF), // Accent pour fichiers
+    application: Color(0xFF5856D6), // Purple iOS apps
+  );
+
   /// Palette Warm Sunset - Chaleureux et créatif 🌅
   static const warmSunset = ColorPaletteData(
     primary: Color(0xFFFF6B6B), // Coral chaleureux
@@ -162,6 +184,8 @@ class ColorPalettes {
         return modernTech;
       case ColorPalette.neonCyberpunk:
         return neonCyberpunk;
+      case ColorPalette.glassIos26:
+        return glassIos26;
       case ColorPalette.warmSunset:
         return warmSunset;
       case ColorPalette.deepOcean:
@@ -178,6 +202,7 @@ class ColorPalettes {
       case ColorPalette.modernTech:
       case ColorPalette.warmSunset:
       case ColorPalette.deepOcean:
+      case ColorPalette.glassIos26:
         return 0.3; // Glow subtil
     }
   }
@@ -190,7 +215,8 @@ class ColorPalettes {
       case ColorPalette.modernTech:
       case ColorPalette.warmSunset:
       case ColorPalette.deepOcean:
-        return 10.0; // Ombres standard
+      case ColorPalette.glassIos26:
+        return 14.0; // Légèrement plus doux pour effet glass
     }
   }
 
@@ -202,7 +228,8 @@ class ColorPalettes {
       case ColorPalette.modernTech:
       case ColorPalette.warmSunset:
       case ColorPalette.deepOcean:
-        return 0.5; // Spread minimal
+      case ColorPalette.glassIos26:
+        return 0.7; // Légèrement plus large pour glass
     }
   }
 }

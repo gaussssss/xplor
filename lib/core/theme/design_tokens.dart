@@ -22,6 +22,20 @@ class DesignTokens {
   static const secondary = Color(0xFF9E9E9E);
 
   // ============================================================================
+  // FONDS DE MENUS / DROPDOWNS
+  // ============================================================================
+
+  /// Fond pour les menus de sélection (context menu, dropdown) en mode clair
+  static const selectionMenuLight = Color(0xFFF4F6F9);
+
+  /// Fond pour les menus de sélection (context menu, dropdown) en mode sombre
+  static const selectionMenuDark = Color(0xFF0F1115);
+
+  /// Renvoie la couleur de fond du menu selon le mode
+  static Color selectionMenuBackground(Brightness brightness) =>
+      brightness == Brightness.light ? selectionMenuLight : selectionMenuDark;
+
+  // ============================================================================
   // INTENSITÉS GLASSMORPHISM
   // ============================================================================
 
