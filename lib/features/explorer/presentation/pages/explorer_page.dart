@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
@@ -2042,41 +2043,84 @@ void _showAllDisksDialog(
     context: context,
     builder: (context) => Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
-        child: GlassPanelV2(
-          level: GlassPanelLevel.overlay,
+      child: _AllDisksDialogContent(
+        volumes: volumes,
+        onNavigate: onNavigate,
+      ),
+    ),
+  );
+}
+
+class _AllDisksDialogContent extends StatelessWidget {
+  const _AllDisksDialogContent({
+    required this.volumes,
+    required this.onNavigate,
+  });
+
+  final List<_VolumeInfo> volumes;
+  final void Function(String) onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+    final onSurface = theme.colorScheme.onSurface;
+    final bgColor =
+        isLight ? Colors.white.withValues(alpha: 0.82) : Colors.black.withValues(alpha: 0.85);
+    final borderColor =
+        isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12);
+    final headerText = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
+    final subtitleText = onSurface.withValues(alpha: isLight ? 0.6 : 0.7);
+    final tileBg =
+        isLight ? onSurface.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.06);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 520),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // En-tête
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Icon(
                       lucide.LucideIcons.hardDrive,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: theme.colorScheme.primary,
                     ),
                     const SizedBox(width: 12),
                     Text(
                       'Tous les disques',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: headerText,
                           ),
                     ),
                     const Spacer(),
                     IconButton(
                       icon: const Icon(lucide.LucideIcons.x),
                       onPressed: () => Navigator.of(context).pop(),
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: onSurface.withValues(alpha: 0.5),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1),
-              // Liste des disques
+              Divider(height: 1, color: borderColor),
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -2091,13 +2135,13 @@ void _showAllDisksDialog(
                           Navigator.of(context).pop();
                           onNavigate(volume.path);
                         },
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.all(16),
-                          margin: const EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: 10),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(10),
+                            color: tileBg,
                           ),
                           child: Row(
                             children: [
@@ -2105,15 +2149,12 @@ void _showAllDisksDialog(
                                 width: 48,
                                 height: 48,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
                                   lucide.LucideIcons.hardDrive,
-                                  color: Theme.of(context).colorScheme.primary,
+                                  color: theme.colorScheme.primary,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -2123,23 +2164,16 @@ void _showAllDisksDialog(
                                   children: [
                                     Text(
                                       volume.label,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            color: Colors.white,
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                            color: headerText,
                                             fontWeight: FontWeight.w600,
                                           ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       volume.path,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color:
-                                                Colors.white.withValues(alpha: 0.5),
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                            color: subtitleText,
                                           ),
                                     ),
                                     const SizedBox(height: 8),
@@ -2149,9 +2183,9 @@ void _showAllDisksDialog(
                                         value: volume.usage.clamp(0, 1),
                                         minHeight: 6,
                                         backgroundColor:
-                                            Colors.white.withValues(alpha: 0.1),
+                                            onSurface.withValues(alpha: 0.08),
                                         valueColor: AlwaysStoppedAnimation<Color>(
-                                          Theme.of(context).colorScheme.primary,
+                                          theme.colorScheme.primary,
                                         ),
                                       ),
                                     ),
@@ -2164,23 +2198,16 @@ void _showAllDisksDialog(
                                 children: [
                                   Text(
                                     '$percent%',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color: Colors.white,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                          color: headerText,
                                           fontWeight: FontWeight.w600,
                                         ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     _formatBytes(volume.totalBytes),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color:
-                                              Colors.white.withValues(alpha: 0.5),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                          color: subtitleText,
                                         ),
                                   ),
                                 ],
@@ -2197,8 +2224,8 @@ void _showAllDisksDialog(
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 String _formatBytes(int bytes) {

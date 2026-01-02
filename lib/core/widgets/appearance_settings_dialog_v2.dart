@@ -84,8 +84,8 @@ class _AppearanceSettingsDialogV2State
             ),
             decoration: BoxDecoration(
               color: isLight
-                  ? Colors.white.withValues(alpha: 0.78)
-                  : Colors.black.withValues(alpha: 0.80),
+                  ? Colors.white.withValues(alpha: 0.72)
+                  : Colors.black.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isLight
