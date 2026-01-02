@@ -1335,15 +1335,19 @@ class _Sidebar extends StatelessWidget {
                                   color: Colors.white.withValues(alpha: 0.5),
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'Voir tous les disques (${volumes.length})',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.6),
-                                        fontSize: 12,
-                                      ),
+                                Expanded(
+                                  child: Text(
+                                    'Voir tous les disques (${volumes.length})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Colors.white.withValues(alpha: 0.6),
+                                          fontSize: 12,
+                                        ),
+                                  ),
                                 ),
                               ],
                             ),
