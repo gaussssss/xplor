@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/file_entry.dart';
 import '../../domain/usecases/copy_entries.dart';
@@ -23,6 +24,8 @@ class ExplorerViewState {
     required this.selectedPaths,
     required this.clipboardCount,
     required this.isCutOperation,
+    required this.selectedTag,
+    required this.recentPaths,
     this.error,
     this.statusMessage,
   });
@@ -35,6 +38,8 @@ class ExplorerViewState {
   final Set<String> selectedPaths;
   final int clipboardCount;
   final bool isCutOperation;
+  final String? selectedTag;
+  final List<String> recentPaths;
   final String? error;
   final String? statusMessage;
 
@@ -48,6 +53,8 @@ class ExplorerViewState {
       selectedPaths: <String>{},
       clipboardCount: 0,
       isCutOperation: false,
+      selectedTag: null,
+      recentPaths: const [],
     );
   }
 
@@ -60,6 +67,8 @@ class ExplorerViewState {
     Set<String>? selectedPaths,
     int? clipboardCount,
     bool? isCutOperation,
+    String? selectedTag,
+    List<String>? recentPaths,
     String? error,
     String? statusMessage,
     bool clearError = false,
@@ -74,6 +83,8 @@ class ExplorerViewState {
       selectedPaths: selectedPaths ?? this.selectedPaths,
       clipboardCount: clipboardCount ?? this.clipboardCount,
       isCutOperation: isCutOperation ?? this.isCutOperation,
+      selectedTag: selectedTag ?? this.selectedTag,
+      recentPaths: recentPaths ?? this.recentPaths,
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
     );
@@ -110,16 +121,20 @@ class ExplorerViewModel extends ChangeNotifier {
   List<FileEntry> _clipboard = [];
   final List<String> _backStack = [];
   final List<String> _forwardStack = [];
+  List<String> _recentPaths = [];
 
   ExplorerViewState get state => _state;
 
   List<FileEntry> get visibleEntries {
     final query = _state.searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return _state.entries;
-
-    return _state.entries
-        .where((entry) => entry.name.toLowerCase().contains(query))
-        .toList();
+    Iterable<FileEntry> filtered = _state.entries;
+    if (query.isNotEmpty) {
+      filtered = filtered.where((entry) => entry.name.toLowerCase().contains(query));
+    }
+    if (_state.selectedTag != null) {
+      filtered = filtered.where(_matchesTag);
+    }
+    return filtered.toList();
   }
 
   Future<void> loadDirectory(
@@ -150,6 +165,7 @@ class ExplorerViewModel extends ChangeNotifier {
         clearError: true,
         clearStatus: true,
       );
+      await _recordRecent(targetPath);
     } on FileSystemException catch (error) {
       _state = _state.copyWith(
         isLoading: false,
@@ -172,6 +188,9 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   Future<void> open(FileEntry entry) {
+    if (entry.isApplication) {
+      return launchApplication(entry);
+    }
     if (!entry.isDirectory) return Future.value();
     return loadDirectory(entry.path);
   }
@@ -218,7 +237,7 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _createDirectory(_state.currentPath, name);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: 'Dossier cree',
         clearError: true,
@@ -240,7 +259,7 @@ class ExplorerViewModel extends ChangeNotifier {
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
       await _deleteEntries(toDelete);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toDelete.length} element(s) supprime(s)',
         isLoading: false,
@@ -261,7 +280,7 @@ class ExplorerViewModel extends ChangeNotifier {
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
       await _moveEntries(toMove, destinationPath);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toMove.length} element(s) deplace(s)',
         isLoading: false,
@@ -281,7 +300,7 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _renameEntry(entry, newName);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: 'Renomme avec succes',
         isLoading: false,
@@ -295,6 +314,11 @@ class ExplorerViewModel extends ChangeNotifier {
 
   void updateSearch(String query) {
     _state = _state.copyWith(searchQuery: query);
+    notifyListeners();
+  }
+
+  void setTagFilter(String? tag) {
+    _state = _state.copyWith(selectedTag: tag);
     notifyListeners();
   }
 
@@ -343,7 +367,7 @@ class ExplorerViewModel extends ChangeNotifier {
       } else {
         await _copyEntries(_clipboard, targetPath);
       }
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage:
             '${_clipboard.length} element(s) ${_state.isCutOperation ? 'deplaces' : 'colles'}',
@@ -365,7 +389,7 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _moveEntries(entries, destinationPath);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${entries.length} element(s) deplace(s)',
         isLoading: false,
@@ -391,6 +415,10 @@ class ExplorerViewModel extends ChangeNotifier {
   bool get canPaste => _clipboard.isNotEmpty;
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
+  String? get selectedTag => _state.selectedTag;
+  List<String> get recentPaths => _state.recentPaths;
+  Future<void> openPackageAsFolder(FileEntry entry) =>
+      loadDirectory(entry.path);
 
   Future<void> goBack() async {
     if (_backStack.isEmpty) return;
@@ -406,6 +434,33 @@ class ExplorerViewModel extends ChangeNotifier {
     await loadDirectory(target, pushHistory: false);
   }
 
+  Future<void> goToLastVisited() async {
+    final target = _recentPaths.firstWhere(
+      (p) => p != _state.currentPath,
+      orElse: () => '',
+    );
+    if (target.isEmpty) return;
+    await loadDirectory(target);
+  }
+
+  Future<void> launchApplication(FileEntry entry) async {
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', [entry.path]);
+      } else if (Platform.isWindows) {
+        await Process.run(entry.path, []);
+      } else {
+        await Process.run('xdg-open', [entry.path]);
+      }
+      _state = _state.copyWith(statusMessage: 'Application lancee');
+    } catch (_) {
+      _state =
+          _state.copyWith(statusMessage: 'Impossible de lancer l application');
+    } finally {
+      notifyListeners();
+    }
+  }
+
   Future<void> duplicateSelected() async {
     if (_state.selectedPaths.isEmpty) return;
     _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
@@ -415,7 +470,7 @@ class ExplorerViewModel extends ChangeNotifier {
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
       await _duplicateEntries(toDuplicate);
-      await loadDirectory(_state.currentPath);
+      await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toDuplicate.length} element(s) dupliques',
         isLoading: false,
@@ -440,5 +495,58 @@ class ExplorerViewModel extends ChangeNotifier {
       _state = _state.copyWith(statusMessage: 'Impossible d ouvrir dans Finder');
       notifyListeners();
     }
+  }
+
+  bool _matchesTag(FileEntry entry) {
+    final tag = _state.selectedTag;
+    if (tag == null) return true;
+    final extensions = _tagExtensions[tag] ?? [];
+    if (extensions.contains('*')) return true;
+    final lower = entry.name.toLowerCase();
+    return extensions.any((ext) => lower.endsWith(ext));
+  }
+
+  static const Map<String, List<String>> _tagExtensions = {
+    'Rouge': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+    'Orange': ['.mp4', '.mov', '.mkv', '.avi'],
+    'Jaune': ['.pdf'],
+    'Vert': ['.txt', '.md', '.rtf'],
+    'Bleu': ['.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'],
+    'Violet': ['.zip', '.tar', '.gz', '.rar', '.7z'],
+    'Gris': ['*'],
+  };
+
+  static const _recentKey = 'recent_paths';
+
+  Future<void> bootstrap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _recentPaths = prefs.getStringList(_recentKey) ?? [];
+      _state = _state.copyWith(recentPaths: List.unmodifiable(_recentPaths));
+      notifyListeners();
+    } catch (_) {
+      // ignore prefs errors
+    }
+  }
+
+  Future<void> _recordRecent(String path) async {
+    if (path.isEmpty) return;
+    _recentPaths.remove(path);
+    _recentPaths.insert(0, path);
+    if (_recentPaths.length > 15) {
+      _recentPaths = _recentPaths.sublist(0, 15);
+    }
+    _state = _state.copyWith(recentPaths: List.unmodifiable(_recentPaths));
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_recentKey, _recentPaths);
+    } catch (_) {
+      // ignore persistence errors
+    }
+  }
+
+  Future<void> _reloadCurrent() {
+    return loadDirectory(_state.currentPath, pushHistory: false);
   }
 }

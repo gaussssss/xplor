@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -34,9 +35,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
   late final FocusNode _searchFocusNode;
   late final List<_NavItem> _favoriteItems;
   late final List<_NavItem> _systemItems;
+  late final List<_NavItem> _quickItems;
+  late final List<_TagItem> _tagItems;
+  late final List<_VolumeInfo> _volumes;
   String? _lastStatusMessage;
   bool _contextMenuOpen = false;
   bool _isSearchExpanded = false;
+  bool _isToastShowing = false;
 
   @override
   void initState() {
@@ -58,7 +63,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _searchFocusNode = FocusNode();
     _favoriteItems = _buildFavoriteItems();
     _systemItems = _buildSystemItems(initialPath);
+    _quickItems = _buildQuickItems();
+    _tagItems = _buildTags();
+    _volumes = _readVolumes();
     _viewModel.loadDirectory(initialPath, pushHistory: false);
+    _viewModel.bootstrap();
   }
 
   Widget _buildSearchToggle() {
@@ -125,15 +134,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
           _lastStatusMessage = state.statusMessage;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.statusMessage!),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            _showToast(state.statusMessage!);
             _viewModel.clearStatus();
-            _lastStatusMessage = null;
           });
+        } else if (state.statusMessage == null && _lastStatusMessage != null) {
+          _lastStatusMessage = null;
         }
 
         return Scaffold(
@@ -143,13 +148,22 @@ class _ExplorerPageState extends State<ExplorerPage> {
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
                       width: 240,
                       child: _Sidebar(
                         favoriteItems: _favoriteItems,
                         systemItems: _systemItems,
+                        quickItems: _quickItems,
+                        tags: _tagItems,
+                        volumes: _volumes,
+                        recentPaths: state.recentPaths,
+                        selectedTag: _viewModel.selectedTag,
                         onNavigate: _viewModel.loadDirectory,
+                        onTagSelected: (tag) => _viewModel.setTagFilter(
+                          tag == _viewModel.selectedTag ? null : tag,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -219,6 +233,14 @@ class _ExplorerPageState extends State<ExplorerPage> {
           onPressed: state.isLoading || !_viewModel.canGoForward
               ? null
               : _viewModel.goForward,
+        ),
+        const SizedBox(width: 8),
+        ToolbarButton(
+          icon: LucideIcons.history,
+          tooltip: 'Dernier emplacement',
+          onPressed: state.isLoading || state.recentPaths.length < 2
+              ? null
+              : _viewModel.goToLastVisited,
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -356,7 +378,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
     return SizedBox(
       height: 64,
-      child: Padding(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: [
@@ -411,7 +434,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   : _confirmDeletion,
               style: outlinedStyle,
             ),
-            const Spacer(),
+            const SizedBox(width: 16),
             if (selectionCount > 0) ...[
               Text(
                 '$selectionCount selectionne(s)',
@@ -432,7 +455,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   void _handleEntryTap(FileEntry entry) {
-    _viewModel.open(entry);
+    if (entry.isApplication) {
+      _viewModel.launchApplication(entry);
+    } else {
+      _viewModel.open(entry);
+    }
   }
 
   Future<void> _promptCreateFolder() async {
@@ -515,6 +542,18 @@ class _ExplorerPageState extends State<ExplorerPage> {
       menuItems.add(
         const PopupMenuItem<String>(value: 'open', child: Text('Ouvrir')),
       );
+      if (entry.isApplication) {
+        menuItems.addAll([
+          const PopupMenuItem<String>(
+            value: 'launchApp',
+            child: Text('Lancer l application'),
+          ),
+          const PopupMenuItem<String>(
+            value: 'openPackage',
+            child: Text('Ouvrir comme dossier'),
+          ),
+        ]);
+      }
       menuItems.add(
         const PopupMenuItem<String>(
           value: 'reveal',
@@ -587,6 +626,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
         break;
       case 'reveal':
         if (entry != null) await _viewModel.openInFinder(entry);
+        break;
+      case 'launchApp':
+        if (entry != null) await _viewModel.launchApplication(entry);
+        break;
+      case 'openPackage':
+        if (entry != null) await _viewModel.openPackageAsFolder(entry);
         break;
       case 'copy':
         _viewModel.copySelectionToClipboard();
@@ -820,9 +865,136 @@ class _ExplorerPageState extends State<ExplorerPage> {
     ];
   }
 
+  List<_NavItem> _buildQuickItems() {
+    final home = Platform.environment['HOME'] ?? Directory.current.parent.path;
+    return [
+      _NavItem(label: 'Recents', icon: LucideIcons.clock3, path: home),
+      _NavItem(label: 'Partage', icon: LucideIcons.share2, path: home),
+    ];
+  }
+
+  List<_TagItem> _buildTags() {
+    return const [
+      _TagItem(label: 'Rouge', color: Colors.redAccent),
+      _TagItem(label: 'Orange', color: Colors.orangeAccent),
+      _TagItem(label: 'Jaune', color: Colors.amberAccent),
+      _TagItem(label: 'Vert', color: Colors.lightGreenAccent),
+      _TagItem(label: 'Bleu', color: Colors.lightBlueAccent),
+      _TagItem(label: 'Violet', color: Colors.purpleAccent),
+      _TagItem(label: 'Gris', color: Colors.grey),
+    ];
+  }
+
+  List<_VolumeInfo> _readVolumes() {
+    final paths = <String>{};
+    final volumesDir = Directory('/Volumes');
+    if (volumesDir.existsSync()) {
+      for (final entity in volumesDir.listSync()) {
+        paths.add(entity.path);
+      }
+    }
+
+    final volumes = <_VolumeInfo>[];
+    for (final path in paths) {
+      final info = _getVolumeInfo(path);
+      if (info != null) {
+        volumes.add(info);
+      }
+    }
+    return volumes;
+  }
+
+  _VolumeInfo? _getVolumeInfo(String path) {
+    try {
+      final result = Process.runSync('df', ['-Pk', path]);
+      if (result.exitCode != 0) return null;
+      final lines = (result.stdout as String)
+          .trim()
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .toList();
+
+      if (lines.length < 2) return null;
+
+      // Parse the last line (actual data, skipping header)
+      final line = lines.last;
+      final parts = line.split(RegExp(r'\s+'));
+
+      // Format: Filesystem | 1024-blocks | Used | Available | Capacity% | Mounted on
+      if (parts.length < 6) return null;
+
+      final totalKilobytes = double.tryParse(parts[1]);
+      if (totalKilobytes == null || totalKilobytes <= 0) return null;
+
+      // Extract capacity percentage (remove % and parse as double)
+      final capacityStr = parts[4];
+      final capacityPercent =
+          double.tryParse(capacityStr.replaceAll('%', '')) ?? 0;
+      final usage = capacityPercent / 100.0; // Convert to 0.0-1.0 range
+
+      // Mount point can have spaces, so join remaining parts
+      final mountPoint = parts.sublist(5).join(' ');
+
+      // Extract label from mount point
+      final label = mountPoint
+          .split(Platform.pathSeparator)
+          .where((p) => p.isNotEmpty)
+          .lastWhere((p) => p.isNotEmpty, orElse: () => mountPoint);
+
+      // totalKilobytes is in 1024-byte blocks (from df -Pk), so multiply by 1024 for bytes
+      final totalBytes = (totalKilobytes * 1024).toInt();
+
+      return _VolumeInfo(
+        label: label,
+        path: mountPoint,
+        usage: usage,
+        totalBytes: totalBytes,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   String _join(String base, String child) {
     if (base.endsWith(Platform.pathSeparator)) return '$base$child';
     return '$base${Platform.pathSeparator}$child';
+  }
+
+  void _showToast(String message) {
+    if (_isToastShowing) return;
+    try {
+      _isToastShowing = true;
+      final theme = Theme.of(context);
+      Flushbar(
+        message: message,
+        maxWidth: 360,
+        margin: const EdgeInsets.only(left: 12, bottom: 8, right: 300),
+        borderRadius: BorderRadius.circular(14),
+        backgroundColor: theme.colorScheme.surface.withOpacity(0.9),
+        duration: const Duration(milliseconds: 1700),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        icon: Icon(
+          LucideIcons.info,
+          size: 22,
+          color: theme.colorScheme.primary,
+        ),
+        leftBarIndicatorColor: theme.colorScheme.primary,
+        shouldIconPulse: false,
+        flushbarPosition: FlushbarPosition.BOTTOM,
+        onStatusChanged: (status) {
+          if (status == FlushbarStatus.DISMISSED ||
+              status == FlushbarStatus.IS_HIDING) {
+            _isToastShowing = false;
+          }
+        },
+      ).show(context);
+    } catch (_) {
+      _isToastShowing = false;
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 }
 
@@ -868,88 +1040,253 @@ class _Sidebar extends StatelessWidget {
     required this.favoriteItems,
     required this.systemItems,
     required this.onNavigate,
+    required this.quickItems,
+    required this.tags,
+    required this.volumes,
+    this.recentPaths = const [],
+    this.selectedTag,
+    this.onTagSelected,
   });
 
   final List<_NavItem> favoriteItems;
   final List<_NavItem> systemItems;
+  final List<_NavItem> quickItems;
+  final List<_TagItem> tags;
+  final List<_VolumeInfo> volumes;
+  final List<String> recentPaths;
+  final String? selectedTag;
   final void Function(String path) onNavigate;
+  final void Function(String tag)? onTagSelected;
 
   @override
   Widget build(BuildContext context) {
     return GlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  LucideIcons.star,
-                  color: Theme.of(context).colorScheme.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SidebarSection(
+              title: 'Navigation',
+              compact: true,
+              items: quickItems
+                  .map(
+                    (item) => SidebarItem(
+                      label: item.label,
+                      icon: item.icon,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  )
+                  .toList(),
+            ),
+            if (recentPaths.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SidebarSection(
+                title: 'Recents',
+                compact: true,
+                items: recentPaths
+                    .take(6)
+                    .map(
+                      (path) => SidebarItem(
+                            label: path
+                              .split(Platform.pathSeparator)
+                              .where((p) => p.isNotEmpty)
+                              .lastWhere((_) => true, orElse: () => path),
+                        icon: LucideIcons.history,
+                        onTap: () => onNavigate(path),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SidebarSection(
+              title: 'Favoris',
+              items: favoriteItems
+                  .map(
+                    (item) => SidebarItem(
+                      label: item.label,
+                      icon: item.icon,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 12),
+            SidebarSection(
+              title: 'Emplacements',
+              items: systemItems
+                  .map(
+                    (item) => SidebarItem(
+                      label: item.label,
+                      icon: item.icon,
+                      onTap: () => onNavigate(item.path),
+                    ),
+                  )
+                  .toList(),
+            ),
+            if (volumes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Disques',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  letterSpacing: 0.8,
+                  color: Colors.white60,
                 ),
               ),
-              const SizedBox(width: 10),
-              Column(
+              const SizedBox(height: 6),
+              ...volumes.map(
+                (volume) => _VolumeTile(
+                  volume: volume,
+                  onTap: () => onNavigate(volume.path),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              'Tags',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                letterSpacing: 0.8,
+                color: Colors.white60,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...tags.map((tag) {
+              final isActive = selectedTag == tag.label;
+              return InkWell(
+                onTap: onTagSelected == null
+                    ? null
+                    : () => onTagSelected!(tag.label),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.white.withOpacity(0.08) : null,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: tag.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          tag.label,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: isActive ? Colors.white : Colors.white70,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VolumeTile extends StatelessWidget {
+  const _VolumeTile({required this.volume, required this.onTap});
+
+  final _VolumeInfo volume;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (volume.usage * 100).clamp(0, 100).round();
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            const Icon(LucideIcons.hardDrive, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Xplor',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Explorateur futuriste',
+                    volume.label,
                     style: Theme.of(
                       context,
-                    ).textTheme.labelSmall?.copyWith(color: Colors.white70),
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: 0,
+                        end: volume.usage.clamp(0, 1),
+                      ),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return LinearProgressIndicator(
+                          value: value,
+                          minHeight: 6,
+                          backgroundColor: Colors.white.withOpacity(0.06),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SidebarSection(
-            title: 'Favoris',
-            items: favoriteItems
-                .map(
-                  (item) => SidebarItem(
-                    label: item.label,
-                    icon: item.icon,
-                    onTap: () => onNavigate(item.path),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$percent%',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: Colors.white70),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatBytes(volume.totalBytes),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white54,
+                    fontSize: 10,
                   ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 16),
-          SidebarSection(
-            title: 'Systeme',
-            items: systemItems
-                .map(
-                  (item) => SidebarItem(
-                    label: item.label,
-                    icon: item.icon,
-                    onTap: () => onNavigate(item.path),
-                  ),
-                )
-                .toList(),
-          ),
-          const Spacer(),
-          const Divider(height: 12),
-          Text(
-            'Navigation inspiree de Windows Explorer avec une touche macOS.',
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: Colors.white70),
-          ),
-        ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '—';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    double value = bytes.toDouble();
+    var unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex++;
+    }
+    final precision = value >= 10 ? 0 : 1;
+    return '${value.toStringAsFixed(precision)} ${units[unitIndex]}';
   }
 }
 
@@ -1090,4 +1427,25 @@ class _NavItem {
   final String label;
   final IconData icon;
   final String path;
+}
+
+class _TagItem {
+  const _TagItem({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+}
+
+class _VolumeInfo {
+  const _VolumeInfo({
+    required this.label,
+    required this.path,
+    required this.usage,
+    required this.totalBytes,
+  });
+
+  final String label;
+  final String path;
+  final double usage;
+  final int totalBytes;
 }
