@@ -46,6 +46,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isSearchExpanded = false;
   bool _isToastShowing = false;
   bool _isSidebarCollapsed = false;
+  bool _showAllVolumes = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
 
   @override
@@ -165,19 +166,23 @@ class _ExplorerPageState extends State<ExplorerPage> {
                             systemItems: _systemItems,
                             quickItems: _quickItems,
                             tags: _tagItems,
-                            volumes: _volumes,
-                            recentPaths: state.recentPaths,
-                            selectedTags: _viewModel.selectedTags,
-                            selectedTypes: _viewModel.selectedTypes,
-                            onNavigate: _viewModel.loadDirectory,
-                            onTagToggle: _viewModel.toggleTag,
-                            onTypeToggle: _viewModel.toggleType,
-                            onToggleCollapse: () {
-                              setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
-                            },
-                            collapsed: _isSidebarCollapsed,
-                          ),
-                        ),
+                    volumes: _volumes,
+                    recentPaths: state.recentPaths,
+                    selectedTags: _viewModel.selectedTags,
+                    selectedTypes: _viewModel.selectedTypes,
+                    showAllVolumes: _showAllVolumes,
+                    onNavigate: _viewModel.loadDirectory,
+                    onTagToggle: _viewModel.toggleTag,
+                    onTypeToggle: _viewModel.toggleType,
+                    onToggleCollapse: () {
+                      setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
+                    },
+                    onToggleVolumes: () {
+                      setState(() => _showAllVolumes = !_showAllVolumes);
+                    },
+                    collapsed: _isSidebarCollapsed,
+                  ),
+                ),
                         // Resize handle - seulement visible quand sidebar n'est pas collapsed
                         if (!_isSidebarCollapsed)
                           MouseRegion(
@@ -1141,9 +1146,11 @@ class _Sidebar extends StatelessWidget {
     this.recentPaths = const [],
     this.selectedTags = const <String>{},
     this.selectedTypes = const <String>{},
+    this.showAllVolumes = false,
     this.onTagToggle,
     this.onTypeToggle,
     this.onToggleCollapse,
+    this.onToggleVolumes,
     this.collapsed = false,
   });
 
@@ -1155,10 +1162,12 @@ class _Sidebar extends StatelessWidget {
   final List<String> recentPaths;
   final Set<String> selectedTags;
   final Set<String> selectedTypes;
+  final bool showAllVolumes;
   final void Function(String path) onNavigate;
   final void Function(String tag)? onTagToggle;
   final void Function(String type)? onTypeToggle;
   final VoidCallback? onToggleCollapse;
+  final VoidCallback? onToggleVolumes;
   final bool collapsed;
 
   @override
@@ -1208,13 +1217,26 @@ class _Sidebar extends StatelessWidget {
                   .toList(),
               if (volumes.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                ...volumes.map(
-                  (volume) => _RailButton(
-                    icon: lucide.LucideIcons.hardDrive,
-                    tooltip: volume.label,
-                    onTap: () => onNavigate(volume.path),
+                ...volumes
+                    .take(showAllVolumes ? volumes.length : 2)
+                    .map(
+                      (volume) => _RailButton(
+                        icon: lucide.LucideIcons.hardDrive,
+                        tooltip: volume.label,
+                        onTap: () => onNavigate(volume.path),
+                      ),
+                    ),
+                if (volumes.length > 2)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: _RailButton(
+                      icon: showAllVolumes
+                          ? lucide.LucideIcons.chevronUp
+                          : lucide.LucideIcons.chevronDown,
+                      tooltip: showAllVolumes ? 'Moins' : 'Plus',
+                      onTap: onToggleVolumes,
+                    ),
                   ),
-                ),
               ],
               if (tags.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -1308,49 +1330,38 @@ class _Sidebar extends StatelessWidget {
                             ),
                       ),
                     ),
-                    // Afficher maximum 2 disques
-                    ...volumes.take(2).map(
-                      (volume) => _VolumeItem(
-                        volume: volume,
-                        onTap: () => onNavigate(volume.path),
-                      ),
-                    ),
-                    // Bouton "Voir plus" si plus de 2 disques
+                    ...volumes
+                        .take(showAllVolumes ? volumes.length : 2)
+                        .map(
+                          (volume) => _VolumeItem(
+                            volume: volume,
+                            onTap: () => onNavigate(volume.path),
+                          ),
+                        ),
                     if (volumes.length > 2)
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _showAllDisksDialog(context, volumes, onNavigate),
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white70,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
-                              vertical: 6,
+                              vertical: 4,
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  lucide.LucideIcons.chevronRight,
-                                  size: 14,
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Voir tous les disques (${volumes.length})',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: Colors.white.withValues(alpha: 0.6),
-                                          fontSize: 12,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            minimumSize: const Size(0, 32),
+                          ),
+                          onPressed: onToggleVolumes,
+                          icon: Icon(
+                            showAllVolumes
+                                ? lucide.LucideIcons.chevronUp
+                                : lucide.LucideIcons.chevronDown,
+                            size: 14,
+                          ),
+                          label: Text(
+                            showAllVolumes
+                                ? 'Voir moins'
+                                : 'Voir tous (${volumes.length})',
+                            style: const TextStyle(fontSize: 12),
                           ),
                         ),
                       ),

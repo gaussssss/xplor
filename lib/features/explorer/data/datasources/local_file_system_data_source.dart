@@ -13,16 +13,34 @@ class LocalFileSystemDataSource implements FileSystemDataSource {
 
     final entries = <FileEntryModel>[];
     try {
-      await for (final entity in directory
-          .list(recursive: false, followLinks: false)
-          .handleError((_) {}, test: (error) => error is FileSystemException)) {
+      await for (final entity in directory.list(recursive: false, followLinks: false)) {
         try {
           final stat = await entity.stat();
           if (stat.type == FileSystemEntityType.notFound) continue;
           entries.add(FileEntryModel.fromEntity(entity, stat));
         } on FileSystemException {
-          // Ignore entries we cannot stat (permissions or broken links)
-          continue;
+          // Si on ne peut pas lire les stats (permissions), créer une entrée par défaut
+          try {
+            final exists = await entity.exists();
+            if (!exists) continue;
+          } on FileSystemException {
+            // Même entity.exists() échoue (SIP, permissions strictes)
+            // On affiche quand même le fichier
+          }
+
+          final isDir = entity is Directory;
+
+          // Créer une entrée avec des métadonnées par défaut
+          final name = _entityName(entity);
+          entries.add(FileEntryModel(
+            name: name,
+            path: entity.path,
+            isDirectory: isDir,
+            size: null, // Taille inconnue
+            lastModified: null, // Date inconnue
+            isApplication: false,
+            iconPath: null,
+          ));
         }
       }
     } on FileSystemException catch (error) {
