@@ -238,11 +238,18 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 Container(
                   color: hasBgImage ? Colors.transparent : bgColor,
                   child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          // Toolbar
+                          _buildToolbar(state),
+                          const SizedBox(height: 8),
+                          // Main content area
+                          Expanded(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                       // Sidebar avec resize handle
                       Row(
                         children: [
@@ -350,13 +357,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
                       ),
                     ),
                   ],
-                ),
-              ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                ), // Row (sidebar + content)
+              ), // Expanded (wraps Row)
+            ], // Column children
+          ), // Column
+        ), // Padding
+      ), // SafeArea
+    ), // Container
+              ], // Stack children
+            ), // Stack
+          ), // Scaffold body
         );
       },
     );

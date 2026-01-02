@@ -31,7 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
   lucide_icons: ^0.257.0
-  bitsdojo_window: ^0.1.6
   another_flushbar: ^1.12.30
   shared_preferences: ^2.2.2
   path_provider: ^2.1.5
@@ -48,6 +47,7 @@ dependencies:
   file_selector: ^1.1.0
   file_selector_macos: ^0.9.5
   macos_file_picker: ^0.7.2
+  macos_window_utils: ^1.9.0
 
 dev_dependencies:
   flutter_test:
