@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,11 @@ import '../../domain/usecases/duplicate_entries.dart';
 import '../../domain/usecases/list_directory_entries.dart';
 import '../../domain/usecases/move_entries.dart';
 import '../../domain/usecases/rename_entry.dart';
+import '../../../search/domain/usecases/search_files.dart';
+import '../../../search/domain/usecases/build_index.dart';
+import '../../../search/domain/usecases/update_index.dart';
+import '../../../search/domain/usecases/get_index_status.dart';
+import '../../../search/domain/entities/search_result.dart';
 
 enum ExplorerViewMode { list, grid }
 
@@ -108,14 +114,21 @@ class ExplorerViewModel extends ChangeNotifier {
     required DuplicateEntries duplicateEntries,
     required RenameEntry renameEntry,
     required String initialPath,
-  })  : _listDirectoryEntries = listDirectoryEntries,
-        _createDirectory = createDirectory,
-        _deleteEntries = deleteEntries,
-        _moveEntries = moveEntries,
-        _copyEntries = copyEntries,
-        _duplicateEntries = duplicateEntries,
-        _renameEntry = renameEntry,
-        _state = ExplorerViewState.initial(initialPath);
+    required SearchFiles searchFiles,
+    required BuildIndex buildIndex,
+    required UpdateIndex updateIndex,
+    required GetIndexStatus getIndexStatus,
+  }) : _listDirectoryEntries = listDirectoryEntries,
+       _createDirectory = createDirectory,
+       _deleteEntries = deleteEntries,
+       _moveEntries = moveEntries,
+       _copyEntries = copyEntries,
+       _duplicateEntries = duplicateEntries,
+       _renameEntry = renameEntry,
+       _searchFiles = searchFiles,
+       _buildIndex = buildIndex,
+       _updateIndex = updateIndex,
+       _state = ExplorerViewState.initial(initialPath);
 
   final ListDirectoryEntries _listDirectoryEntries;
   final CreateDirectory _createDirectory;
@@ -124,19 +137,42 @@ class ExplorerViewModel extends ChangeNotifier {
   final CopyEntries _copyEntries;
   final DuplicateEntries _duplicateEntries;
   final RenameEntry _renameEntry;
+  final SearchFiles _searchFiles;
+  final BuildIndex _buildIndex;
+  final UpdateIndex _updateIndex;
   ExplorerViewState _state;
   List<FileEntry> _clipboard = [];
   final List<String> _backStack = [];
   final List<String> _forwardStack = [];
   List<String> _recentPaths = [];
+  List<SearchResult> _globalSearchResults = [];
+  Timer? _searchDebounceTimer;
 
   ExplorerViewState get state => _state;
 
   List<FileEntry> get visibleEntries {
     final query = _state.searchQuery.trim().toLowerCase();
     Iterable<FileEntry> filtered = _state.entries;
+    // Si une recherche globale est en cours, afficher les résultats globaux
+    if (query.isNotEmpty && _globalSearchResults.isNotEmpty) {
+      return _globalSearchResults
+          .map(
+            (result) => FileEntry(
+              name: result.name,
+              path: result.path,
+              isDirectory: result.isDirectory,
+              size: result.size,
+              lastModified: result.lastModified,
+              isApplication: false,
+            ),
+          )
+          .toList();
+    }
+    // Sinon filtrer les fichiers locaux
     if (query.isNotEmpty) {
-      filtered = filtered.where((entry) => entry.name.toLowerCase().contains(query));
+      filtered = filtered.where(
+        (entry) => entry.name.toLowerCase().contains(query),
+      );
     }
     if (_state.selectedTags.isNotEmpty) {
       filtered = filtered.where(_matchesTag);
@@ -147,10 +183,54 @@ class ExplorerViewModel extends ChangeNotifier {
     return filtered.toList();
   }
 
-  Future<void> loadDirectory(
-    String path, {
-    bool pushHistory = true,
-  }) async {
+  /// Retourne les résultats de recherche globale
+  List<SearchResult> get globalSearchResults => _globalSearchResults;
+
+  /// Effectue une recherche globale dans les sous-répertoires
+  Future<void> globalSearch(String query) async {
+    if (query.trim().isEmpty) {
+      _globalSearchResults = [];
+      _state = _state.copyWith(isLoading: false);
+      notifyListeners();
+      return;
+    }
+
+    _state = _state.copyWith(isLoading: true);
+    notifyListeners();
+
+    try {
+      _globalSearchResults = await _searchFiles(
+        query,
+        rootPath: _state.currentPath,
+        maxResults: 100,
+      );
+    } catch (_) {
+      _globalSearchResults = [];
+    } finally {
+      _state = _state.copyWith(isLoading: false);
+      notifyListeners();
+    }
+  }
+
+  /// Construit l'index du répertoire courant
+  Future<void> buildSearchIndex() async {
+    try {
+      await _buildIndex(_state.currentPath);
+    } catch (_) {
+      // Ignorer les erreurs
+    }
+  }
+
+  /// Met à jour l'index si nécessaire
+  Future<void> updateSearchIndex() async {
+    try {
+      await _updateIndex(_state.currentPath);
+    } catch (_) {
+      // Ignorer les erreurs
+    }
+  }
+
+  Future<void> loadDirectory(String path, {bool pushHistory = true}) async {
     final targetPath = path.trim().isEmpty ? _state.currentPath : path.trim();
     if (pushHistory && targetPath == _state.currentPath) return;
 
@@ -236,13 +316,15 @@ class ExplorerViewModel extends ChangeNotifier {
                   .toList();
               final name = segments.isNotEmpty ? segments.last : recentPath;
 
-              entries.add(FileEntry(
-                name: name,
-                path: recentPath,
-                isDirectory: entity is Directory,
-                size: stat.size,
-                lastModified: stat.modified,
-              ));
+              entries.add(
+                FileEntry(
+                  name: name,
+                  path: recentPath,
+                  isDirectory: entity is Directory,
+                  size: stat.size,
+                  lastModified: stat.modified,
+                ),
+              );
             }
           } catch (_) {
             // Ignorer les fichiers qui n'existent plus
@@ -308,17 +390,18 @@ class ExplorerViewModel extends ChangeNotifier {
         _state.selectedPaths.contains(entry.path)) {
       return;
     }
-    _state = _state.copyWith(
-      selectedPaths: {entry.path},
-      clearStatus: true,
-    );
+    _state = _state.copyWith(selectedPaths: {entry.path}, clearStatus: true);
     notifyListeners();
   }
 
   bool isSelected(FileEntry entry) => _state.selectedPaths.contains(entry.path);
 
   Future<void> createFolder(String name) async {
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       await _createDirectory(_state.currentPath, name);
@@ -337,7 +420,11 @@ class ExplorerViewModel extends ChangeNotifier {
 
   Future<void> deleteSelected() async {
     if (_state.selectedPaths.isEmpty) return;
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       final toDelete = _state.entries
@@ -358,7 +445,11 @@ class ExplorerViewModel extends ChangeNotifier {
 
   Future<void> moveSelected(String destinationPath) async {
     if (_state.selectedPaths.isEmpty) return;
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       final toMove = _state.entries
@@ -379,9 +470,14 @@ class ExplorerViewModel extends ChangeNotifier {
 
   Future<void> renameSelected(String newName) async {
     if (_state.selectedPaths.length != 1) return;
-    final entry = _state.entries
-        .firstWhere((e) => _state.selectedPaths.contains(e.path));
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    final entry = _state.entries.firstWhere(
+      (e) => _state.selectedPaths.contains(e.path),
+    );
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       await _renameEntry(entry, newName);
@@ -399,7 +495,19 @@ class ExplorerViewModel extends ChangeNotifier {
 
   void updateSearch(String query) {
     _state = _state.copyWith(searchQuery: query);
-    notifyListeners();
+    // Annuler le timer précédent
+    _searchDebounceTimer?.cancel();
+
+    // Déclencher la recherche globale si la requête n'est pas vide
+    if (query.trim().isNotEmpty) {
+      // Attendre 500ms avant de lancer la recherche
+      _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+        globalSearch(query);
+      });
+    } else {
+      _globalSearchResults = [];
+      notifyListeners();
+    }
   }
 
   void setTagFilter(String? tag) {
@@ -430,7 +538,10 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   void clearFilters() {
-    _state = _state.copyWith(selectedTags: <String>{}, selectedTypes: <String>{});
+    _state = _state.copyWith(
+      selectedTags: <String>{},
+      selectedTypes: <String>{},
+    );
     notifyListeners();
   }
 
@@ -442,7 +553,10 @@ class ExplorerViewModel extends ChangeNotifier {
     // Sauvegarder le mode de vue
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('view_mode', mode == ExplorerViewMode.list ? 'list' : 'grid');
+      await prefs.setString(
+        'view_mode',
+        mode == ExplorerViewMode.list ? 'list' : 'grid',
+      );
     } catch (_) {
       // Ignorer les erreurs de sauvegarde
     }
@@ -479,7 +593,11 @@ class ExplorerViewModel extends ChangeNotifier {
   Future<void> pasteClipboard([String? destinationPath]) async {
     if (_clipboard.isEmpty) return;
     final targetPath = destinationPath ?? _state.currentPath;
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       if (_state.isCutOperation) {
@@ -503,9 +621,16 @@ class ExplorerViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> moveEntriesTo(List<FileEntry> entries, String destinationPath) async {
+  Future<void> moveEntriesTo(
+    List<FileEntry> entries,
+    String destinationPath,
+  ) async {
     if (entries.isEmpty) return;
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       await _moveEntries(entries, destinationPath);
@@ -575,8 +700,9 @@ class ExplorerViewModel extends ChangeNotifier {
       }
       _state = _state.copyWith(statusMessage: 'Application lancee');
     } catch (_) {
-      _state =
-          _state.copyWith(statusMessage: 'Impossible de lancer l application');
+      _state = _state.copyWith(
+        statusMessage: 'Impossible de lancer l application',
+      );
     } finally {
       notifyListeners();
     }
@@ -584,7 +710,11 @@ class ExplorerViewModel extends ChangeNotifier {
 
   Future<void> duplicateSelected() async {
     if (_state.selectedPaths.isEmpty) return;
-    _state = _state.copyWith(isLoading: true, clearError: true, clearStatus: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
     notifyListeners();
     try {
       final toDuplicate = _state.entries
@@ -613,7 +743,9 @@ class ExplorerViewModel extends ChangeNotifier {
         await Process.run('xdg-open', [Directory(entry.path).parent.path]);
       }
     } catch (_) {
-      _state = _state.copyWith(statusMessage: 'Impossible d ouvrir dans Finder');
+      _state = _state.copyWith(
+        statusMessage: 'Impossible d ouvrir dans Finder',
+      );
       notifyListeners();
     }
   }
@@ -657,10 +789,48 @@ class ExplorerViewModel extends ChangeNotifier {
   };
 
   static const Map<String, List<String>> _typeExtensions = {
-    'Docs': ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.md'],
-    'Media': ['.mp4', '.mov', '.mkv', '.avi', '.mp3', '.wav', '.flac', '.jpg', '.jpeg', '.png', '.gif', '.webp'],
+    'Docs': [
+      '.pdf',
+      '.doc',
+      '.docx',
+      '.ppt',
+      '.pptx',
+      '.xls',
+      '.xlsx',
+      '.txt',
+      '.md',
+    ],
+    'Media': [
+      '.mp4',
+      '.mov',
+      '.mkv',
+      '.avi',
+      '.mp3',
+      '.wav',
+      '.flac',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.webp',
+    ],
     'Archives': ['.zip', '.tar', '.gz', '.rar', '.7z'],
-    'Code': ['.dart', '.js', '.ts', '.jsx', '.tsx', '.java', '.kt', '.swift', '.py', '.rb', '.go', '.c', '.cpp', '.rs'],
+    'Code': [
+      '.dart',
+      '.js',
+      '.ts',
+      '.jsx',
+      '.tsx',
+      '.java',
+      '.kt',
+      '.swift',
+      '.py',
+      '.rb',
+      '.go',
+      '.c',
+      '.cpp',
+      '.rs',
+    ],
     'Apps': ['.app', '.exe', '.pkg', '.dmg'],
   };
 
@@ -682,8 +852,20 @@ class ExplorerViewModel extends ChangeNotifier {
         viewMode: viewMode,
       );
       notifyListeners();
+
+      // Initialiser l'index de recherche de manière asynchrone
+      _initializeSearchIndex();
     } catch (_) {
       // ignore prefs errors
+    }
+  }
+
+  Future<void> _initializeSearchIndex() async {
+    try {
+      // Mettre à jour l'index en arrière-plan
+      await updateSearchIndex();
+    } catch (_) {
+      // Ignorer les erreurs d'indexation
     }
   }
 
@@ -714,16 +896,21 @@ class ExplorerViewModel extends ChangeNotifier {
       if (Platform.isMacOS) {
         await Process.run('open', ['-a', 'Terminal', target]);
       } else if (Platform.isWindows) {
-        await Process.run(
+        await Process.run('cmd', [
+          '/C',
+          'start',
           'cmd',
-          ['/C', 'start', 'cmd', '/K', 'cd /d "$target"'],
-        );
+          '/K',
+          'cd /d "$target"',
+        ]);
       } else {
         await Process.run('xdg-open', [target]);
       }
       _state = _state.copyWith(statusMessage: 'Terminal ouvert');
     } catch (_) {
-      _state = _state.copyWith(statusMessage: 'Impossible d ouvrir le terminal');
+      _state = _state.copyWith(
+        statusMessage: 'Impossible d ouvrir le terminal',
+      );
     } finally {
       notifyListeners();
     }
@@ -749,7 +936,11 @@ class ExplorerViewModel extends ChangeNotifier {
     if (entries.isEmpty) return;
 
     final archiveName = _uniqueArchiveName();
-    _state = _state.copyWith(isLoading: true, clearStatus: true, clearError: true);
+    _state = _state.copyWith(
+      isLoading: true,
+      clearStatus: true,
+      clearError: true,
+    );
     notifyListeners();
     try {
       final args = [
@@ -757,7 +948,11 @@ class ExplorerViewModel extends ChangeNotifier {
         archiveName,
         ...entries.map((e) => e.path.split(Platform.pathSeparator).last),
       ];
-      final result = await Process.run('zip', args, workingDirectory: _state.currentPath);
+      final result = await Process.run(
+        'zip',
+        args,
+        workingDirectory: _state.currentPath,
+      );
       if (result.exitCode != 0) {
         throw Exception(result.stderr);
       }
@@ -779,7 +974,9 @@ class ExplorerViewModel extends ChangeNotifier {
   String _uniqueArchiveName() {
     var base = 'Archive.zip';
     var counter = 1;
-    while (File('${_state.currentPath}${Platform.pathSeparator}$base').existsSync()) {
+    while (File(
+      '${_state.currentPath}${Platform.pathSeparator}$base',
+    ).existsSync()) {
       base = 'Archive_$counter.zip';
       counter++;
     }
