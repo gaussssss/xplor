@@ -301,6 +301,47 @@ class _GridEntryState extends State<_GridEntry> {
       ),
     );
 
+    // Wrapper avec Draggable pour drag vers Finder
+    final draggableWidget = Draggable<FileEntry>(
+      data: widget.entry,
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 120,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colorScheme.primary, width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.entry.isDirectory ? LucideIcons.folder : LucideIcons.file,
+                size: 32,
+                color: iconColor,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.entry.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.5,
+        child: baseWidget,
+      ),
+      child: baseWidget,
+    );
+
     // Wrapper avec DropTarget si c'est un dossier
     if (widget.entry.isDirectory) {
       return DropTarget(
@@ -331,11 +372,11 @@ class _GridEntryState extends State<_GridEntry> {
             debugPrint('Erreur lors de la copie: $e');
           }
         },
-        child: baseWidget,
+        child: draggableWidget,
       );
     }
 
-    return baseWidget;
+    return draggableWidget;
   }
 
   // Helper pour copier un dossier récursivement
