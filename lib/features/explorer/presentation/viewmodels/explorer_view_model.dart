@@ -520,6 +520,12 @@ class ExplorerViewModel extends ChangeNotifier {
     if (query.trim().isNotEmpty) {
       // Attendre 1000ms (1 seconde) avant de lancer la recherche
       _searchDebounceTimer = Timer(const Duration(milliseconds: 1000), () {
+        globalSearch(query);
+      });
+    }
+  }
+
+  void toggleTag(String tag) {
     final updated = <String>{..._state.selectedTags};
     if (updated.contains(tag)) {
       updated.remove(tag);
