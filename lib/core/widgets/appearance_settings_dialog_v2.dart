@@ -83,6 +83,11 @@ class _AppearanceSettingsDialogV2State
 
     return Dialog(
       backgroundColor: Colors.transparent,
+      alignment: Alignment.center,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Platform.isMacOS ? 80 : 40,
+        vertical: 40,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: BackdropFilter(
@@ -230,26 +235,26 @@ class _AppearanceSettingsDialogV2State
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Colonne gauche
+        // Colonne gauche - Apparence générale
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildThemeModeSection(isLight, textColor, subtleTextColor),
               const SizedBox(height: 24),
-              _buildPaletteSection(isLight, textColor),
+              _buildAdvancedSection(isLight, textColor, subtleTextColor),
             ],
           ),
         ),
         const SizedBox(width: 32),
-        // Colonne droite
+        // Colonne droite - Personnalisation visuelle
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBackgroundSection(isLight, textColor, subtleTextColor),
+              _buildPaletteSection(isLight, textColor),
               const SizedBox(height: 24),
-              _buildAdvancedSection(isLight, textColor, subtleTextColor),
+              _buildBackgroundSection(isLight, textColor, subtleTextColor),
             ],
           ),
         ),

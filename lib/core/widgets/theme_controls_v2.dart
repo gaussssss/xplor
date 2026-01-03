@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -98,51 +100,47 @@ class _LightDarkToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final activeColor = colorScheme.primary;
-    final inactiveColor =
-        colorScheme.onSurface.withValues(alpha: isLight ? 0.25 : 0.3);
+    final activeColor = colorScheme.onSurface.withValues(alpha: isLight ? 0.85 : 0.9);
+    final inactiveColor = colorScheme.onSurface.withValues(alpha: isLight ? 0.35 : 0.4);
+    final bgActive = isLight
+        ? Colors.black.withValues(alpha: 0.06)
+        : Colors.white.withValues(alpha: 0.08);
 
     return Container(
-      height: 40,
+      height: 34,
       decoration: BoxDecoration(
         color: isLight
-            ? Colors.black.withValues(alpha: 0.04)
-            : Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
+            ? Colors.black.withValues(alpha: 0.03)
+            : Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(
-          color:
-              colorScheme.onSurface.withValues(alpha: isLight ? 0.08 : 0.12),
-          width: 1,
+          color: colorScheme.onSurface.withValues(alpha: isLight ? 0.06 : 0.08),
+          width: 0.5,
         ),
       ),
+      padding: const EdgeInsets.all(2.5),
       child: Row(
         children: [
           // Bouton Soleil (mode clair)
           Expanded(
             child: _ToggleOption(
               icon: LucideIcons.sun,
-              label: 'Clair',
               isActive: isLight,
               activeColor: activeColor,
               inactiveColor: inactiveColor,
+              bgActive: bgActive,
               onTap: () => onToggle(true),
             ),
           ),
-          // Séparateur vertical
-          Container(
-            width: 1,
-            height: 24,
-            color:
-                colorScheme.onSurface.withValues(alpha: isLight ? 0.1 : 0.15),
-          ),
+          const SizedBox(width: 2.5),
           // Bouton Lune (mode sombre)
           Expanded(
             child: _ToggleOption(
               icon: LucideIcons.moon,
-              label: 'Sombre',
               isActive: !isLight,
               activeColor: activeColor,
               inactiveColor: inactiveColor,
+              bgActive: bgActive,
               onTap: () => onToggle(false),
             ),
           ),
@@ -156,18 +154,18 @@ class _LightDarkToggle extends StatelessWidget {
 class _ToggleOption extends StatelessWidget {
   const _ToggleOption({
     required this.icon,
-    required this.label,
     required this.isActive,
     required this.activeColor,
     required this.inactiveColor,
+    required this.bgActive,
     required this.onTap,
   });
 
   final IconData icon;
-  final String label;
   final bool isActive;
   final Color activeColor;
   final Color inactiveColor;
+  final Color bgActive;
   final VoidCallback onTap;
 
   @override
@@ -176,34 +174,19 @@ class _ToggleOption extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+        borderRadius: BorderRadius.circular(7),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
-            color: isActive
-                ? activeColor.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+            color: isActive ? bgActive : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isActive ? activeColor : inactiveColor,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: isActive ? activeColor : inactiveColor,
-                ),
-              ),
-            ],
+          child: Icon(
+            icon,
+            size: 15,
+            color: isActive ? activeColor : inactiveColor,
           ),
         ),
       ),
@@ -365,6 +348,11 @@ class _PaletteSelectionDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
+      alignment: Alignment.center,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Platform.isMacOS ? 80 : 40,
+        vertical: 40,
+      ),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 420),
         child: GlassPanelV2(

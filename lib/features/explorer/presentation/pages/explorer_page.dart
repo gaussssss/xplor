@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../../../core/constants/assets.dart';
 import '../../../../core/constants/special_locations.dart';
@@ -242,7 +243,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   color: hasBgImage ? Colors.transparent : bgColor,
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.all(10),
+                      padding: EdgeInsets.only(
+                        left: 10,
+                        top: Platform.isMacOS ? 26 : 10,
+                        right: 10,
+                        bottom: 10,
+                      ),
                       child: Column(
                         children: [
                           // Main content area
@@ -708,24 +714,31 @@ class _ExplorerPageState extends State<ExplorerPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Supprimer'),
-          content: Text(
-            'Supprimer $count element(s) ? Cette action est definitive.',
+        return Dialog(
+          alignment: Alignment.center,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: Platform.isMacOS ? 80 : 40,
+            vertical: 40,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Annuler'),
+          child: AlertDialog(
+            title: const Text('Supprimer'),
+            content: Text(
+              'Supprimer $count element(s) ? Cette action est definitive.',
             ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.redAccent.shade200,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuler'),
               ),
-              child: const Text('Supprimer'),
-            ),
-          ],
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.redAccent.shade200,
+                ),
+                child: const Text('Supprimer'),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -888,24 +901,31 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(labelText: label),
-            autofocus: true,
-            onSubmitted: (value) => Navigator.of(context).pop(value),
+        return Dialog(
+          alignment: Alignment.center,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: Platform.isMacOS ? 80 : 40,
+            vertical: 40,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Annuler'),
+          child: AlertDialog(
+            title: Text(title),
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(labelText: label),
+              autofocus: true,
+              onSubmitted: (value) => Navigator.of(context).pop(value),
             ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text),
-              child: const Text('Valider'),
-            ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(controller.text),
+                child: const Text('Valider'),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -2119,27 +2139,43 @@ class _PathInput extends StatelessWidget {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     final isLight = Theme.of(context).brightness == Brightness.light;
     final textColor = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
-    final labelColor = onSurface.withValues(alpha: isLight ? 0.7 : 0.75);
+    final hintColor = onSurface.withValues(alpha: isLight ? 0.5 : 0.6);
     final iconColor = onSurface.withValues(alpha: isLight ? 0.75 : 0.8);
+    final bgColor = isLight
+        ? Colors.white.withValues(alpha: 0.9)
+        : Colors.black.withValues(alpha: 0.4);
 
-    return TextField(
-      controller: controller,
-      onSubmitted: onSubmit,
-      style: TextStyle(fontSize: 14, color: textColor),
-      decoration: InputDecoration(
-        labelText: 'Chemin du dossier',
-        labelStyle: TextStyle(color: labelColor),
-        prefixIcon: Icon(
-          lucide.LucideIcons.folderOpen,
-          color: iconColor,
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: onSurface.withValues(alpha: 0.15),
+          width: 1,
         ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            lucide.LucideIcons.arrowRight,
-            size: 16,
+      ),
+      child: TextField(
+        controller: controller,
+        onSubmitted: onSubmit,
+        style: TextStyle(fontSize: 14, color: textColor),
+        decoration: InputDecoration(
+          hintText: 'Chemin du dossier',
+          hintStyle: TextStyle(color: hintColor, fontSize: 13),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          prefixIcon: Icon(
+            lucide.LucideIcons.folderOpen,
             color: iconColor,
+            size: 18,
           ),
-          onPressed: () => onSubmit(controller.text),
+          suffixIcon: IconButton(
+            icon: Icon(
+              lucide.LucideIcons.arrowRight,
+              size: 16,
+              color: iconColor,
+            ),
+            onPressed: () => onSubmit(controller.text),
+          ),
         ),
       ),
     );
@@ -2207,6 +2243,11 @@ void _showAllDisksDialog(
     context: context,
     builder: (context) => Dialog(
       backgroundColor: Colors.transparent,
+      alignment: Alignment.center,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Platform.isMacOS ? 80 : 40,
+        vertical: 40,
+      ),
       child: _AllDisksDialogContent(
         volumes: volumes,
         onNavigate: onNavigate,

@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 import 'dart:ui';
+
+import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -599,6 +601,11 @@ class _ColumnSelectorDialogState extends State<_ColumnSelectorDialog> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
+      alignment: Alignment.center,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Platform.isMacOS ? 80 : 40,
+        vertical: 40,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
