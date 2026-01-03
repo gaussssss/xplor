@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:file_selector/file_selector.dart';
@@ -7,25 +8,16 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:macos_file_picker/macos_file_picker.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/theme_provider.dart';
 import '../theme/color_palettes.dart';
 
 /// Mode de thème (clair, sombre, adaptatif)
-enum ThemeMode {
-  light,
-  dark,
-  adaptive,
-}
+enum ThemeMode { light, dark, adaptive }
 
 /// Type de fond (aucun, couleur, image, dossier d'images)
-enum BackgroundType {
-  none,
-  color,
-  singleImage,
-  imageFolder,
-}
+enum BackgroundType { none, color, singleImage, imageFolder }
 
 /// Dialog moderne et responsive pour configurer l'apparence
 class AppearanceSettingsDialogV2 extends StatefulWidget {
@@ -46,6 +38,8 @@ class _AppearanceSettingsDialogV2State
   late bool _useGlassmorphism;
   late double _blurIntensity;
   late bool _showAnimations;
+  late BackgroundRefreshPeriod _backgroundRefreshPeriod;
+  bool _isMultiSelectionMode = false;
   bool _hoverChangeImage = false;
 
   @override
@@ -61,6 +55,21 @@ class _AppearanceSettingsDialogV2State
     _useGlassmorphism = themeProvider.useGlassmorphism;
     _blurIntensity = themeProvider.blurIntensity;
     _showAnimations = themeProvider.showAnimations;
+    _backgroundRefreshPeriod = themeProvider.backgroundRefreshPeriod;
+
+    // Charger le mode de sélection depuis SharedPreferences
+    _loadSelectionMode();
+  }
+
+  Future<void> _loadSelectionMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _isMultiSelectionMode = prefs.getBool('multi_selection_mode') ?? false;
+      });
+    } catch (_) {
+      _isMultiSelectionMode = false;
+    }
   }
 
   @override
@@ -68,8 +77,9 @@ class _AppearanceSettingsDialogV2State
     final brightness = Theme.of(context).brightness;
     final isLight = brightness == Brightness.light;
     final textColor = isLight ? Colors.black87 : Colors.white;
-    final subtleTextColor =
-        isLight ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.7);
+    final subtleTextColor = isLight
+        ? Colors.black.withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.7);
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -78,10 +88,7 @@ class _AppearanceSettingsDialogV2State
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Container(
-            constraints: const BoxConstraints(
-              maxWidth: 900,
-              maxHeight: 700,
-            ),
+            constraints: const BoxConstraints(maxWidth: 900, maxHeight: 700),
             decoration: BoxDecoration(
               color: isLight
                   ? Colors.white.withValues(alpha: 0.72)
@@ -110,8 +117,16 @@ class _AppearanceSettingsDialogV2State
                       return SingleChildScrollView(
                         padding: const EdgeInsets.all(24),
                         child: isMobile
-                            ? _buildSingleColumn(isLight, textColor, subtleTextColor)
-                            : _buildTwoColumns(isLight, textColor, subtleTextColor),
+                            ? _buildSingleColumn(
+                                isLight,
+                                textColor,
+                                subtleTextColor,
+                              )
+                            : _buildTwoColumns(
+                                isLight,
+                                textColor,
+                                subtleTextColor,
+                              ),
                       );
                     },
                   ),
@@ -142,7 +157,9 @@ class _AppearanceSettingsDialogV2State
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -289,7 +306,11 @@ class _AppearanceSettingsDialogV2State
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Palette de couleurs', LucideIcons.palette, textColor),
+        _buildSectionTitle(
+          'Palette de couleurs',
+          LucideIcons.palette,
+          textColor,
+        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 10,
@@ -302,20 +323,29 @@ class _AppearanceSettingsDialogV2State
               onTap: () => themeProvider.setPalette(palette),
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15)
                       : (isLight
-                          ? Colors.white.withValues(alpha: 0.7) // Fond blanc semi-opaque en mode clair
-                          : Colors.white.withValues(alpha: 0.05)),
+                            ? Colors.white.withValues(
+                                alpha: 0.7,
+                              ) // Fond blanc semi-opaque en mode clair
+                            : Colors.white.withValues(alpha: 0.05)),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? Theme.of(context).colorScheme.primary
                         : (isLight
-                            ? Colors.black.withValues(alpha: 0.15) // Border plus visible en mode clair
-                            : Colors.white.withValues(alpha: 0.15)),
+                              ? Colors.black.withValues(
+                                  alpha: 0.15,
+                                ) // Border plus visible en mode clair
+                              : Colors.white.withValues(alpha: 0.15)),
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -337,7 +367,9 @@ class _AppearanceSettingsDialogV2State
                       palette.displayName,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: isLight ? Colors.black87 : Colors.white,
                       ),
                     ),
@@ -397,6 +429,8 @@ class _AppearanceSettingsDialogV2State
         if (_backgroundType == BackgroundType.imageFolder) ...[
           const SizedBox(height: 12),
           _buildFolderPicker(isLight, textColor),
+          const SizedBox(height: 12),
+          _buildRefreshPeriodPicker(isLight, textColor, subtleTextColor),
         ],
       ],
     );
@@ -444,65 +478,78 @@ class _AppearanceSettingsDialogV2State
           subtleTextColor,
         ),
         const SizedBox(height: 24),
-        _buildSectionTitle('Comportement', LucideIcons.mousePointer2, textColor),
+        _buildSectionTitle(
+          'Comportement',
+          LucideIcons.mousePointer2,
+          textColor,
+        ),
         const SizedBox(height: 12),
-        _buildSelectionModeInfo(isLight, textColor, subtleTextColor),
+        _buildToggleOption(
+          'Mode sélection multiple',
+          'Activer les checkboxes et la sélection multiple',
+          _isMultiSelectionMode,
+          (value) => setState(() => _isMultiSelectionMode = value),
+          isLight,
+          textColor,
+          subtleTextColor,
+        ),
       ],
     );
   }
 
-  Widget _buildSelectionModeInfo(
+  Widget _buildRefreshPeriodPicker(
     bool isLight,
     Color textColor,
     Color subtleTextColor,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isLight
-            ? Colors.blue.withValues(alpha: 0.08)
-            : Colors.blue.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isLight
-              ? Colors.blue.withValues(alpha: 0.2)
-              : Colors.blue.withValues(alpha: 0.3),
+    final options = <BackgroundRefreshPeriod, String>{
+      BackgroundRefreshPeriod.none: 'Ne pas changer automatiquement',
+      BackgroundRefreshPeriod.tenMinutes: 'Toutes les 10 minutes',
+      BackgroundRefreshPeriod.oneHour: 'Chaque heure',
+      BackgroundRefreshPeriod.oneDay: 'Chaque jour',
+      BackgroundRefreshPeriod.oneWeek: 'Chaque semaine',
+      BackgroundRefreshPeriod.oneMonth: 'Chaque mois',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Rotation automatique',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            LucideIcons.info,
-            size: 18,
-            color: Colors.blue.shade400,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mode de sélection',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Utilisez le bouton □ dans la barre d\'outils pour basculer entre sélection simple et multiple',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: subtleTextColor,
-                    height: 1.4,
-                  ),
-                ),
-              ],
+        const SizedBox(height: 6),
+        DropdownButtonFormField<BackgroundRefreshPeriod>(
+          value: _backgroundRefreshPeriod,
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => _backgroundRefreshPeriod = value);
+          },
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
             ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
-        ],
-      ),
+          items: options.entries
+              .map(
+                (e) => DropdownMenuItem<BackgroundRefreshPeriod>(
+                  value: e.key,
+                  child: Text(
+                    e.value,
+                    style: TextStyle(color: subtleTextColor, fontSize: 13),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
     );
   }
 
@@ -544,15 +591,19 @@ class _AppearanceSettingsDialogV2State
           color: isSelected
               ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
               : (isLight
-                  ? Colors.white.withValues(alpha: 0.8) // Fond blanc semi-opaque en mode clair
-                  : Colors.white.withValues(alpha: 0.04)),
+                    ? Colors.white.withValues(
+                        alpha: 0.8,
+                      ) // Fond blanc semi-opaque en mode clair
+                    : Colors.white.withValues(alpha: 0.04)),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
                 : (isLight
-                    ? Colors.black.withValues(alpha: 0.15) // Border plus visible en mode clair
-                    : Colors.white.withValues(alpha: 0.12)),
+                      ? Colors.black.withValues(
+                          alpha: 0.15,
+                        ) // Border plus visible en mode clair
+                      : Colors.white.withValues(alpha: 0.12)),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -561,7 +612,9 @@ class _AppearanceSettingsDialogV2State
             Icon(
               icon,
               size: 20,
-              color: isSelected ? Theme.of(context).colorScheme.primary : textColor.withValues(alpha: 0.7),
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : textColor.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -572,16 +625,15 @@ class _AppearanceSettingsDialogV2State
                     title,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                       color: textColor,
                     ),
                   ),
                   Text(
                     description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: subtleTextColor,
-                    ),
+                    style: TextStyle(fontSize: 12, color: subtleTextColor),
                   ),
                 ],
               ),
@@ -618,15 +670,19 @@ class _AppearanceSettingsDialogV2State
           color: isSelected
               ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
               : (isLight
-                  ? Colors.white.withValues(alpha: 0.8) // Fond blanc semi-opaque en mode clair
-                  : Colors.white.withValues(alpha: 0.04)),
+                    ? Colors.white.withValues(
+                        alpha: 0.8,
+                      ) // Fond blanc semi-opaque en mode clair
+                    : Colors.white.withValues(alpha: 0.04)),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
                 : (isLight
-                    ? Colors.black.withValues(alpha: 0.15) // Border plus visible en mode clair
-                    : Colors.white.withValues(alpha: 0.12)),
+                      ? Colors.black.withValues(
+                          alpha: 0.15,
+                        ) // Border plus visible en mode clair
+                      : Colors.white.withValues(alpha: 0.12)),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -635,7 +691,9 @@ class _AppearanceSettingsDialogV2State
             Icon(
               icon,
               size: 18,
-              color: isSelected ? Theme.of(context).colorScheme.primary : textColor.withValues(alpha: 0.7),
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : textColor.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -646,16 +704,15 @@ class _AppearanceSettingsDialogV2State
                     title,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                       color: textColor,
                     ),
                   ),
                   Text(
                     description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: subtleTextColor,
-                    ),
+                    style: TextStyle(fontSize: 11, color: subtleTextColor),
                   ),
                 ],
               ),
@@ -681,7 +738,9 @@ class _AppearanceSettingsDialogV2State
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isLight
-                  ? Colors.white.withValues(alpha: 0.7) // Fond blanc semi-opaque en mode clair
+                  ? Colors.white.withValues(
+                      alpha: 0.7,
+                    ) // Fond blanc semi-opaque en mode clair
                   : Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -696,10 +755,7 @@ class _AppearanceSettingsDialogV2State
                 Expanded(
                   child: Text(
                     _backgroundImagePath!.split('/').last,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textColor,
-                    ),
+                    style: TextStyle(fontSize: 12, color: textColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -728,13 +784,19 @@ class _AppearanceSettingsDialogV2State
             child: ElevatedButton.icon(
               onPressed: _pickBackgroundImage,
               icon: const Icon(LucideIcons.upload, size: 16),
-              label: Text(_backgroundImagePath == null
-                  ? 'Choisir une image'
-                  : 'Changer l\'image'),
+              label: Text(
+                _backgroundImagePath == null
+                    ? 'Choisir une image'
+                    : 'Changer l\'image',
+              ),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                backgroundColor:
-                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.15),
                 foregroundColor: Theme.of(context).colorScheme.primary,
                 overlayColor: Colors.transparent,
                 shadowColor: Colors.transparent,
@@ -755,7 +817,9 @@ class _AppearanceSettingsDialogV2State
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isLight
-                  ? Colors.white.withValues(alpha: 0.7) // Fond blanc semi-opaque en mode clair
+                  ? Colors.white.withValues(
+                      alpha: 0.7,
+                    ) // Fond blanc semi-opaque en mode clair
                   : Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -770,10 +834,7 @@ class _AppearanceSettingsDialogV2State
                 Expanded(
                   child: Text(
                     _backgroundFolderPath!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textColor,
-                    ),
+                    style: TextStyle(fontSize: 12, color: textColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -796,12 +857,16 @@ class _AppearanceSettingsDialogV2State
         ElevatedButton.icon(
           onPressed: _pickBackgroundFolder,
           icon: const Icon(LucideIcons.folderOpen, size: 16),
-          label: Text(_backgroundFolderPath == null
-              ? 'Choisir un dossier'
-              : 'Changer le dossier'),
+          label: Text(
+            _backgroundFolderPath == null
+                ? 'Choisir un dossier'
+                : 'Changer le dossier',
+          ),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.15),
             foregroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
@@ -847,10 +912,7 @@ class _AppearanceSettingsDialogV2State
                 ),
                 Text(
                   description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: subtleTextColor,
-                  ),
+                  style: TextStyle(fontSize: 12, color: subtleTextColor),
                 ),
               ],
             ),
@@ -902,9 +964,14 @@ class _AppearanceSettingsDialogV2State
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -922,11 +989,13 @@ class _AppearanceSettingsDialogV2State
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: Theme.of(context).colorScheme.primary,
-              inactiveTrackColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              inactiveTrackColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
               thumbColor: Theme.of(context).colorScheme.primary,
-              overlayColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              overlayColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
             ),
             child: Slider(
               value: value,
@@ -962,9 +1031,7 @@ class _AppearanceSettingsDialogV2State
             ),
             child: Text(
               'Annuler',
-              style: TextStyle(
-                color: isLight ? Colors.black87 : Colors.white,
-              ),
+              style: TextStyle(color: isLight ? Colors.black87 : Colors.white),
             ),
           ),
           const SizedBox(width: 12),
@@ -985,9 +1052,7 @@ class _AppearanceSettingsDialogV2State
   Future<void> _pickBackgroundImage() async {
     // Fallback AppleScript natif macOS (aucun plugin requis)
     if (Platform.isMacOS) {
-      final path = await _pickMacOsPath(
-        command: 'POSIX path of (choose file)',
-      );
+      final path = await _pickMacOsPath(command: 'POSIX path of (choose file)');
       if (path != null) {
         setState(() => _backgroundImagePath = path);
         return;
@@ -1057,7 +1122,9 @@ class _AppearanceSettingsDialogV2State
       debugPrint('Erreur file_picker image: $e');
     }
 
-    _showSnack('Impossible d’ouvrir le sélecteur d’image sur cette plateforme.');
+    _showSnack(
+      'Impossible d’ouvrir le sélecteur d’image sur cette plateforme.',
+    );
   }
 
   Future<void> _pickBackgroundFolder() async {
@@ -1127,15 +1194,14 @@ class _AppearanceSettingsDialogV2State
       debugPrint('Erreur file_picker dossier: $e');
     }
 
-    _showSnack('Impossible d’ouvrir le sélecteur de dossier sur cette plateforme.');
+    _showSnack(
+      'Impossible d’ouvrir le sélecteur de dossier sur cette plateforme.',
+    );
   }
 
   Future<String?> _pickMacOsPath({required String command}) async {
     try {
-      final result = await Process.run(
-        'osascript',
-        ['-e', command],
-      );
+      final result = await Process.run('osascript', ['-e', command]);
       if (result.exitCode == 0) {
         final path = (result.stdout as String).trim();
         if (path.isNotEmpty) return path;
@@ -1151,6 +1217,7 @@ class _AppearanceSettingsDialogV2State
 
     await themeProvider.setThemeMode(_themeMode);
     await themeProvider.setBackgroundType(_backgroundType);
+    await themeProvider.setBackgroundRefreshPeriod(_backgroundRefreshPeriod);
 
     if (_backgroundType == BackgroundType.singleImage &&
         _backgroundImagePath != null) {
@@ -1165,6 +1232,14 @@ class _AppearanceSettingsDialogV2State
     await themeProvider.setUseGlassmorphism(_useGlassmorphism);
     await themeProvider.setBlurIntensity(_blurIntensity);
     await themeProvider.setShowAnimations(_showAnimations);
+
+    // Sauvegarder le mode de sélection
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('multi_selection_mode', _isMultiSelectionMode);
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
 
     if (!mounted) return;
     Navigator.of(context).pop();

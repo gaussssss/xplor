@@ -15,12 +15,14 @@ class ThemeControlsV2 extends StatelessWidget {
     required this.currentPalette,
     required this.onToggleLight,
     required this.onPaletteSelected,
+    this.onSettingsChanged,
   });
 
   final bool isLight;
   final ColorPalette currentPalette;
   final Future<void> Function(bool) onToggleLight;
   final Future<void> Function(ColorPalette) onPaletteSelected;
+  final VoidCallback? onSettingsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -52,11 +54,13 @@ class ThemeControlsV2 extends StatelessWidget {
                     .withValues(alpha: isLight ? 0.6 : 0.7),
               ),
               tooltip: 'Paramètres d\'apparence',
-              onPressed: () {
-                showDialog(
+              onPressed: () async {
+                await showDialog(
                   context: context,
                   builder: (context) => const AppearanceSettingsDialogV2(),
                 );
+                // Appeler le callback après la fermeture du dialogue
+                onSettingsChanged?.call();
               },
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),

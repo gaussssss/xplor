@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +10,16 @@ import '../../core/widgets/appearance_settings_dialog_v2.dart' as settings;
 import '../config/feature_flags.dart';
 import '../theme/color_palettes.dart';
 import '../theme/design_tokens.dart';
+
+/// Période de rotation automatique du fond
+enum BackgroundRefreshPeriod {
+  none,
+  tenMinutes,
+  oneHour,
+  oneDay,
+  oneWeek,
+  oneMonth,
+}
 
 /// Provider pour gérer le thème de l'application (palette de couleurs)
 /// Utilise ChangeNotifier pour notifier les widgets des changements
@@ -20,6 +31,8 @@ class ThemeProvider extends ChangeNotifier {
   static const String _backgroundImageKey = 'selected_background_image';
   static const String _backgroundFolderKey = 'selected_background_folder';
   static const String _backgroundTypeKey = 'background_type';
+  static const String _backgroundRefreshPeriodKey = 'background_refresh_period';
+  static const String _lastBackgroundChangeKey = 'last_background_change';
   static const String _themeModeKey = 'theme_mode';
   static const String _lightModeKey = 'use_light_theme';
   static const String _useGlassmorphismKey = 'use_glassmorphism';
@@ -33,6 +46,9 @@ class ThemeProvider extends ChangeNotifier {
   String? _backgroundImagePath;
   String? _backgroundFolderPath;
   bool _isLight = false;
+  BackgroundRefreshPeriod _backgroundRefreshPeriod =
+      BackgroundRefreshPeriod.none;
+  DateTime? _lastBackgroundChange;
 
   /// Nouveaux paramètres d'apparence
   settings.ThemeMode _themeModePreference = settings.ThemeMode.adaptive;
@@ -57,7 +73,8 @@ class ThemeProvider extends ChangeNotifier {
   ColorPalette get currentPalette => _currentPalette;
 
   /// Retourne les données de couleurs de la palette active (adaptées au mode clair/sombre)
-  ColorPaletteData get colors => ColorPalettes.getAdaptiveData(_currentPalette, _isLight);
+  ColorPaletteData get colors =>
+      ColorPalettes.getAdaptiveData(_currentPalette, _isLight);
 
   /// Couleur de fond courante
   Color get backgroundColor => _backgroundColor;
@@ -95,6 +112,9 @@ class ThemeProvider extends ChangeNotifier {
   bool get useGlassmorphism => _useGlassmorphism;
   double get blurIntensity => _blurIntensity;
   bool get showAnimations => _showAnimations;
+  BackgroundRefreshPeriod get backgroundRefreshPeriod =>
+      _backgroundRefreshPeriod;
+  DateTime? get lastBackgroundChange => _lastBackgroundChange;
 
   // ==========================================================================
   // MÉTHODES PUBLIQUES
@@ -105,13 +125,16 @@ class ThemeProvider extends ChangeNotifier {
     if (_currentPalette == palette) return;
 
     if (FeatureFlags.debugThemeChanges) {
-      debugPrint('🎨 ThemeProvider: Changing palette from '
-          '${_currentPalette.displayName} to ${palette.displayName}');
+      debugPrint(
+        '🎨 ThemeProvider: Changing palette from '
+        '${_currentPalette.displayName} to ${palette.displayName}',
+      );
     }
 
     _currentPalette = palette;
-    _backgroundColor =
-        _isLight ? _backgroundForLight(palette) : _backgroundFor(palette);
+    _backgroundColor = _isLight
+        ? _backgroundForLight(palette)
+        : _backgroundFor(palette);
     notifyListeners();
 
     await _savePalette(palette);
@@ -133,7 +156,8 @@ class ThemeProvider extends ChangeNotifier {
   Future<void> previousPalette() async {
     final palettes = ColorPalette.values;
     final currentIndex = palettes.indexOf(_currentPalette);
-    final previousIndex = (currentIndex - 1 + palettes.length) % palettes.length;
+    final previousIndex =
+        (currentIndex - 1 + palettes.length) % palettes.length;
     await setPalette(palettes[previousIndex]);
   }
 
@@ -162,16 +186,19 @@ class ThemeProvider extends ChangeNotifier {
       if (!bgDir.existsSync()) {
         bgDir.createSync(recursive: true);
       }
-      final name =
-          file.uri.pathSegments.isNotEmpty ? file.uri.pathSegments.last : 'bg';
+      final name = file.uri.pathSegments.isNotEmpty
+          ? file.uri.pathSegments.last
+          : 'bg';
       final dest = File(
         '${bgDir.path}/bg_${DateTime.now().millisecondsSinceEpoch}_$name',
       );
       await file.copy(dest.path);
       _backgroundImagePath = dest.path;
+      _lastBackgroundChange = DateTime.now();
       notifyListeners();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_backgroundImageKey, dest.path);
+      await _saveLastBackgroundChange();
     } catch (e) {
       debugPrint('❌ ThemeProvider: error copying background image: $e');
     }
@@ -186,8 +213,9 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> setLightMode(bool value) async {
     _isLight = value;
-    _backgroundColor =
-        value ? _backgroundForLight(_currentPalette) : _backgroundFor(_currentPalette);
+    _backgroundColor = value
+        ? _backgroundForLight(_currentPalette)
+        : _backgroundFor(_currentPalette);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_lightModeKey, value);
@@ -206,7 +234,8 @@ class ThemeProvider extends ChangeNotifier {
       await setLightMode(false);
     } else {
       // Adaptive: déterminer selon le système
-      final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      final brightness =
+          WidgetsBinding.instance.platformDispatcher.platformBrightness;
       await setLightMode(brightness == Brightness.light);
     }
 
@@ -233,6 +262,19 @@ class ThemeProvider extends ChangeNotifier {
     await _applyRandomBackgroundFromFolder(folderPath);
   }
 
+  /// Force un nouvel arrière-plan aléatoire.
+  /// - Si un dossier est configuré, on pioche dedans.
+  /// - Sinon on tente le dossier mock si présent.
+  Future<void> refreshRandomBackground() async {
+    if (_backgroundFolderPath != null) {
+      await _applyRandomBackgroundFromFolder(_backgroundFolderPath!);
+      _lastBackgroundChange = DateTime.now();
+      await _saveLastBackgroundChange();
+    } else {
+      await _applyRandomMockBackgroundIfPresent();
+    }
+  }
+
   Future<void> setUseGlassmorphism(bool value) async {
     if (_useGlassmorphism == value) return;
     _useGlassmorphism = value;
@@ -255,6 +297,33 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showAnimationsKey, value);
+  }
+
+  Future<void> setBackgroundRefreshPeriod(
+    BackgroundRefreshPeriod period,
+  ) async {
+    if (_backgroundRefreshPeriod == period) return;
+    _backgroundRefreshPeriod = period;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_backgroundRefreshPeriodKey, period.index);
+    await checkAndRefreshBackgroundIfDue();
+  }
+
+  /// Vérifie si la période est dépassée et relance un fond aléatoire si besoin.
+  Future<void> checkAndRefreshBackgroundIfDue() async {
+    if (_backgroundType != settings.BackgroundType.imageFolder ||
+        _backgroundFolderPath == null)
+      return;
+    if (_backgroundRefreshPeriod == BackgroundRefreshPeriod.none) return;
+
+    final now = DateTime.now();
+    final last = _lastBackgroundChange;
+    final duration = _periodToDuration(_backgroundRefreshPeriod);
+
+    if (last == null || now.difference(last) >= duration) {
+      await refreshRandomBackground();
+    }
   }
 
   Color _backgroundFor(ColorPalette palette) {
@@ -305,16 +374,19 @@ class ThemeProvider extends ChangeNotifier {
 
       if (savedIndex != null && savedIndex < ColorPalette.values.length) {
         _currentPalette = ColorPalette.values[savedIndex];
-        _backgroundColor =
-            _isLight ? _backgroundForLight(_currentPalette) : _backgroundFor(_currentPalette);
+        _backgroundColor = _isLight
+            ? _backgroundForLight(_currentPalette)
+            : _backgroundFor(_currentPalette);
         if (FeatureFlags.debugThemeChanges) {
           debugPrint(
-              '✅ ThemeProvider: Loaded palette ${_currentPalette.displayName}');
+            '✅ ThemeProvider: Loaded palette ${_currentPalette.displayName}',
+          );
         }
       } else {
         if (FeatureFlags.debugThemeChanges) {
           debugPrint(
-              'ℹ️  ThemeProvider: No saved palette, using default (Neon Cyberpunk)');
+            'ℹ️  ThemeProvider: No saved palette, using default (Neon Cyberpunk)',
+          );
         }
       }
       final savedBg = prefs.getInt(_backgroundColorKey);
@@ -332,24 +404,41 @@ class ThemeProvider extends ChangeNotifier {
         _backgroundColor = savedBg != null
             ? Color(savedBg)
             : (_isLight
-                ? _backgroundForLight(_currentPalette)
-                : _backgroundFor(_currentPalette));
+                  ? _backgroundForLight(_currentPalette)
+                  : _backgroundFor(_currentPalette));
       }
 
       // Charger les nouveaux paramètres d'apparence
       final savedThemeMode = prefs.getInt(_themeModeKey);
-      if (savedThemeMode != null && savedThemeMode < settings.ThemeMode.values.length) {
+      if (savedThemeMode != null &&
+          savedThemeMode < settings.ThemeMode.values.length) {
         _themeModePreference = settings.ThemeMode.values[savedThemeMode];
       }
 
       final savedBackgroundType = prefs.getInt(_backgroundTypeKey);
-      if (savedBackgroundType != null && savedBackgroundType < settings.BackgroundType.values.length) {
+      if (savedBackgroundType != null &&
+          savedBackgroundType < settings.BackgroundType.values.length) {
         _backgroundType = settings.BackgroundType.values[savedBackgroundType];
       }
 
       final savedBackgroundFolder = prefs.getString(_backgroundFolderKey);
       if (savedBackgroundFolder != null && savedBackgroundFolder.isNotEmpty) {
         _backgroundFolderPath = savedBackgroundFolder;
+      }
+
+      final savedRefreshPeriod = prefs.getInt(_backgroundRefreshPeriodKey);
+      if (savedRefreshPeriod != null &&
+          savedRefreshPeriod < BackgroundRefreshPeriod.values.length) {
+        _backgroundRefreshPeriod =
+            BackgroundRefreshPeriod.values[savedRefreshPeriod];
+      }
+
+      final savedLastChange = prefs.getInt(_lastBackgroundChangeKey);
+      if (savedLastChange != null) {
+        _lastBackgroundChange = DateTime.fromMillisecondsSinceEpoch(
+          savedLastChange,
+          isUtc: false,
+        );
       }
 
       final savedGlassmorphism = prefs.getBool(_useGlassmorphismKey);
@@ -368,9 +457,14 @@ class ThemeProvider extends ChangeNotifier {
       }
 
       // Appliquer le fond selon le type configuré
-      if (_backgroundType == settings.BackgroundType.imageFolder && _backgroundFolderPath != null) {
+      if (_backgroundType == settings.BackgroundType.imageFolder &&
+          _backgroundFolderPath != null) {
         await _applyRandomBackgroundFromFolder(_backgroundFolderPath!);
-      } else if (_backgroundType == settings.BackgroundType.none || _backgroundImagePath == null) {
+        _lastBackgroundChange ??= DateTime.now();
+        await _saveLastBackgroundChange();
+        await checkAndRefreshBackgroundIfDue();
+      } else if (_backgroundType == settings.BackgroundType.none ||
+          _backgroundImagePath == null) {
         // Si aucun fond configuré et aucune image, tenter le dossier mock (pour tests)
         if (_backgroundType == settings.BackgroundType.none) {
           await _applyRandomMockBackgroundIfPresent();
@@ -404,22 +498,20 @@ class ThemeProvider extends ChangeNotifier {
     try {
       final dir = Directory(_mockBackgroundFolder);
       if (!dir.existsSync()) return;
-      final images = dir
-          .listSync()
-          .whereType<File>()
-          .where((f) {
-            final lower = f.path.toLowerCase();
-            return lower.endsWith('.jpg') ||
-                lower.endsWith('.jpeg') ||
-                lower.endsWith('.png') ||
-                lower.endsWith('.webp');
-          })
-          .toList();
+      final images = dir.listSync().whereType<File>().where((f) {
+        final lower = f.path.toLowerCase();
+        return lower.endsWith('.jpg') ||
+            lower.endsWith('.jpeg') ||
+            lower.endsWith('.png') ||
+            lower.endsWith('.webp');
+      }).toList();
       if (images.isEmpty) return;
       final file = images[Random().nextInt(images.length)];
       await setBackgroundImage(file);
       if (FeatureFlags.debugThemeChanges) {
-        debugPrint('🖼️ ThemeProvider: mock background applied from ${file.path}');
+        debugPrint(
+          '🖼️ ThemeProvider: mock background applied from ${file.path}',
+        );
       }
     } catch (e) {
       debugPrint('❌ ThemeProvider: Error applying mock background: $e');
@@ -435,18 +527,14 @@ class ThemeProvider extends ChangeNotifier {
         return;
       }
 
-      final images = dir
-          .listSync()
-          .whereType<File>()
-          .where((f) {
-            final lower = f.path.toLowerCase();
-            return lower.endsWith('.jpg') ||
-                lower.endsWith('.jpeg') ||
-                lower.endsWith('.png') ||
-                lower.endsWith('.webp') ||
-                lower.endsWith('.gif');
-          })
-          .toList();
+      final images = dir.listSync().whereType<File>().where((f) {
+        final lower = f.path.toLowerCase();
+        return lower.endsWith('.jpg') ||
+            lower.endsWith('.jpeg') ||
+            lower.endsWith('.png') ||
+            lower.endsWith('.webp') ||
+            lower.endsWith('.gif');
+      }).toList();
 
       if (images.isEmpty) {
         debugPrint('❌ ThemeProvider: No images found in folder: $folderPath');
@@ -457,10 +545,38 @@ class ThemeProvider extends ChangeNotifier {
       await setBackgroundImage(file);
 
       if (FeatureFlags.debugThemeChanges) {
-        debugPrint('🖼️ ThemeProvider: Random background from folder: ${file.path}');
+        debugPrint(
+          '🖼️ ThemeProvider: Random background from folder: ${file.path}',
+        );
       }
     } catch (e) {
       debugPrint('❌ ThemeProvider: Error applying random background: $e');
+    }
+  }
+
+  Future<void> _saveLastBackgroundChange() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = _lastBackgroundChange?.millisecondsSinceEpoch;
+    if (timestamp != null) {
+      await prefs.setInt(_lastBackgroundChangeKey, timestamp);
+    }
+  }
+
+  Duration _periodToDuration(BackgroundRefreshPeriod period) {
+    switch (period) {
+      case BackgroundRefreshPeriod.tenMinutes:
+        return const Duration(minutes: 10);
+      case BackgroundRefreshPeriod.oneHour:
+        return const Duration(hours: 1);
+      case BackgroundRefreshPeriod.oneDay:
+        return const Duration(days: 1);
+      case BackgroundRefreshPeriod.oneWeek:
+        return const Duration(days: 7);
+      case BackgroundRefreshPeriod.oneMonth:
+        return const Duration(days: 30);
+      case BackgroundRefreshPeriod.none:
+      default:
+        return Duration.zero;
     }
   }
 }

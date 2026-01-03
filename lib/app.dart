@@ -34,11 +34,7 @@ class _XplorAppContent extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           backgroundColor: Color(0xFF0A0A0A),
-          body: Center(
-            child: CircularProgressIndicator(
-              color: Colors.white,
-            ),
-          ),
+          body: Center(child: CircularProgressIndicator(color: Colors.white)),
         ),
       );
     }

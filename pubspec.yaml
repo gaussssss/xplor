@@ -48,6 +48,7 @@ dependencies:
   file_selector_macos: ^0.9.5
   macos_file_picker: ^0.7.2
   macos_window_utils: ^1.9.0
+  window_manager: ^0.3.9
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,12 @@ flutter:
 
   assets:
     - assets/
+    - assets/images/png/Google_Drive_logo.png
+    - assets/images/png/ICloud_logo.png
+    - assets/images/png/OneDrive_logo.png
+    - assets/images/svg/Google_Drive_logo.svg
+    - assets/images/svg/ICloud_logo.svg
+    - assets/images/svg/OneDrive_logo.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

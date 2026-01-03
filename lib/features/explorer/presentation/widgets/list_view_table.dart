@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/providers/theme_provider.dart';
 import '../../domain/entities/file_entry.dart';
 
 /// Colonne disponible pour la vue liste
@@ -92,6 +95,7 @@ class _ListViewTableState extends State<ListViewTable> {
   ];
 
   SortConfig? _sortConfig;
+  final Set<String> _hoveredRows = {};
 
   @override
   void initState() {
@@ -306,6 +310,9 @@ class _ListViewTableState extends State<ListViewTable> {
   @override
   Widget build(BuildContext context) {
     final sortedEntries = _sortedEntries;
+    final themeProvider = context.watch<ThemeProvider>();
+    final isLight = themeProvider.isLight;
+
     // Calculer la largeur totale: checkbox (40) + colonnes + bouton sélecteur (40)
     final totalWidth = 40.0 + _columns.fold(0.0, (sum, col) => sum + col.width) + 40.0;
 
@@ -328,7 +335,7 @@ class _ListViewTableState extends State<ListViewTable> {
                     itemCount: sortedEntries.length,
                     itemBuilder: (context, index) {
                       final entry = sortedEntries[index];
-                      return _buildRow(entry);
+                      return _buildRow(entry, isLight);
                     },
                   ),
                 ),
@@ -378,7 +385,7 @@ class _ListViewTableState extends State<ListViewTable> {
               icon: Icon(
                 lucide.LucideIcons.layoutGrid,
                 size: 16,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               tooltip: 'Gérer les colonnes',
               onPressed: () => _showColumnSelector(context),
@@ -392,6 +399,7 @@ class _ListViewTableState extends State<ListViewTable> {
   Widget _buildHeaderCell(ColumnConfig column, int index) {
     final isSorted = _sortConfig?.column == column.column;
     final isAscending = _sortConfig?.order == SortOrder.ascending;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return SizedBox(
       width: column.width,
@@ -412,7 +420,7 @@ class _ListViewTableState extends State<ListViewTable> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: onSurface.withValues(alpha: 0.72),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -459,52 +467,62 @@ class _ListViewTableState extends State<ListViewTable> {
     );
   }
 
-  Widget _buildRow(FileEntry entry) {
+  Widget _buildRow(FileEntry entry, bool isLight) {
     final isSelected = widget.isSelected(entry);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final isHovering = _hoveredRows.contains(entry.path);
+    final hoverColor = isLight
+        ? Colors.black.withValues(alpha: 0.035)
+        : Colors.white.withValues(alpha: 0.05);
 
-    return InkWell(
-      onTap: () => widget.onEntryTap(entry),
-      onDoubleTap: () => widget.onEntryDoubleTap(entry),
-      onSecondaryTapDown: (details) {
-        widget.onEntrySecondaryTap(entry, details.globalPosition);
-      },
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
-              : Colors.transparent,
-          border: Border(
-            bottom: BorderSide(
-              color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredRows.add(entry.path)),
+      onExit: (_) => setState(() => _hoveredRows.remove(entry.path)),
+      child: InkWell(
+        onTap: () => widget.onEntryTap(entry),
+        onDoubleTap: () => widget.onEntryDoubleTap(entry),
+        onSecondaryTapDown: (details) {
+          widget.onEntrySecondaryTap(entry, details.globalPosition);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: 40,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
+                : (isHovering ? hoverColor : Colors.transparent),
+            border: Border(
+              bottom: BorderSide(
+                color: onSurface.withValues(alpha: 0.04),
+                width: 1,
+              ),
             ),
           ),
-        ),
-        child: Row(
-          children: [
-            // Selection checkbox
-            SizedBox(
-              width: 40,
-              child: widget.selectionMode && isSelected
-                  ? Icon(
-                      lucide.LucideIcons.check,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-            ),
-            // Data cells
-            ..._columns.map((column) => _buildCell(entry, column)),
-            // Spacer for column selector button
-            const SizedBox(width: 40),
-          ],
+          child: Row(
+            children: [
+              // Selection checkbox
+              SizedBox(
+                width: 40,
+                child: widget.selectionMode && isSelected
+                    ? Icon(
+                        lucide.LucideIcons.check,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
+                    : null,
+              ),
+              // Data cells
+              ..._columns.map((column) => _buildCell(entry, column, isLight)),
+              // Spacer for column selector button
+              const SizedBox(width: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCell(FileEntry entry, ColumnConfig column) {
+  Widget _buildCell(FileEntry entry, ColumnConfig column, bool isLight) {
     return SizedBox(
       width: column.width,
       child: Padding(
@@ -513,7 +531,7 @@ class _ListViewTableState extends State<ListViewTable> {
           _getCellValue(entry, column.column),
           style: TextStyle(
             fontSize: 13,
-            color: Colors.white.withValues(alpha: 0.85),
+            color: isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.85),
           ),
           overflow: TextOverflow.ellipsis,
         ),
@@ -569,91 +587,126 @@ class _ColumnSelectorDialogState extends State<_ColumnSelectorDialog> {
   @override
   Widget build(BuildContext context) {
     final allColumns = [..._selected, ..._available];
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+    final onSurface = theme.colorScheme.onSurface;
+    final bg = isLight
+        ? theme.colorScheme.surface.withValues(alpha: 0.75)
+        : theme.colorScheme.surface.withValues(alpha: 0.9);
+    final border = onSurface.withValues(alpha: 0.08);
+    final titleColor = onSurface.withValues(alpha: 0.9);
+    final subtitleColor = onSurface.withValues(alpha: 0.6);
 
     return Dialog(
-      backgroundColor: const Color(0xFF1A1A1A),
-      child: Container(
-        width: 400,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  lucide.LucideIcons.layoutGrid,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Gérer les colonnes',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+      backgroundColor: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Sélectionnez les colonnes à afficher',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white70,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...allColumns.map((column) {
-              final isSelected = _selected.any((c) => c.column == column.column);
-              final isName = column.column == FileColumn.name;
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      lucide.LucideIcons.layoutGrid,
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Gérer les colonnes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: titleColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Sélectionnez les colonnes à afficher',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: subtitleColor,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...allColumns.map((column) {
+                  final isSelected = _selected.any((c) => c.column == column.column);
+                  final isName = column.column == FileColumn.name;
 
-              return CheckboxListTile(
-                value: isSelected,
-                onChanged: isName ? null : (_) => _toggleColumn(column),
-                title: Text(
-                  column.label,
-                  style: TextStyle(
-                    color: isName
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : Colors.white.withValues(alpha: 0.85),
-                    fontSize: 14,
-                  ),
-                ),
-                subtitle: isName
-                    ? const Text(
-                        'Obligatoire',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white38,
-                        ),
-                      )
-                    : null,
-                controlAffinity: ListTileControlAffinity.leading,
-                activeColor: Theme.of(context).colorScheme.primary,
-              );
-            }),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Annuler'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    widget.onColumnsChanged(_selected);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Appliquer'),
+                  return CheckboxListTile(
+                    value: isSelected,
+                    onChanged: isName ? null : (_) => _toggleColumn(column),
+                    title: Text(
+                      column.label,
+                      style: TextStyle(
+                        color: isName
+                            ? onSurface.withValues(alpha: 0.55)
+                            : onSurface.withValues(alpha: 0.9),
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: isName
+                        ? Text(
+                            'Obligatoire',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: onSurface.withValues(alpha: 0.5),
+                            ),
+                          )
+                        : null,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: theme.colorScheme.primary,
+                    checkColor: isLight ? Colors.white : Colors.black,
+                  );
+                }),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: onSurface.withValues(alpha: 0.7),
+                      ),
+                      child: const Text('Annuler'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        widget.onColumnsChanged(_selected);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Appliquer'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../domain/entities/file_entry.dart';
 import '../viewmodels/explorer_view_model.dart';
@@ -49,7 +51,7 @@ class FileEntryTile extends StatelessWidget {
   }
 }
 
-class _ListEntry extends StatelessWidget {
+class _ListEntry extends StatefulWidget {
   const _ListEntry({
     required this.entry,
     this.onOpen,
@@ -67,105 +69,119 @@ class _ListEntry extends StatelessWidget {
   final bool selectionMode;
 
   @override
+  State<_ListEntry> createState() => _ListEntryState();
+}
+
+class _ListEntryState extends State<_ListEntry> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
-    final isLight = brightness == Brightness.light;
+    final themeProvider = context.watch<ThemeProvider>();
+    final isLight = themeProvider.isLight;
 
-    final iconColor = entry.isDirectory
+    final iconColor = widget.entry.isDirectory
         ? colorScheme.primary
-        : (entry.isApplication ? colorScheme.secondary : colorScheme.primary.withValues(alpha: 0.8));
-    final iconData = entry.isDirectory
+        : (widget.entry.isApplication ? colorScheme.secondary : colorScheme.primary.withValues(alpha: 0.8));
+    final iconData = widget.entry.isDirectory
         ? LucideIcons.folder
-        : (entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
+        : (widget.entry.isApplication ? LucideIcons.appWindow : LucideIcons.file);
     final modifiedLabel =
-        entry.lastModified != null ? _formatDate(entry.lastModified!) : '—';
+        widget.entry.lastModified != null ? _formatDate(widget.entry.lastModified!) : '—';
 
-    final leadingWidget = selectionMode
+    final leadingWidget = widget.selectionMode
         ? Checkbox(
-            value: isSelected,
-            onChanged: (_) => onToggleSelection?.call(),
+            value: widget.isSelected,
+            onChanged: (_) => widget.onToggleSelection?.call(),
           )
         : _EntryIcon(
-            entry: entry,
+            entry: widget.entry,
             icon: iconData,
             color: iconColor,
             size: DesignTokens.iconSizeSmall,
           );
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onToggleSelection,
-      onDoubleTap: onOpen,
-      onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
-      child: Container(
-        height: DesignTokens.fileEntryTileHeight,
-        padding: EdgeInsets.symmetric(
-          horizontal: DesignTokens.spacingMD,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.12)
-              : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: DesignTokens.iconSizeMedium,
-              child: IconTheme(
-                data: IconThemeData(size: DesignTokens.iconSizeSmall),
-                child: leadingWidget,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onToggleSelection,
+        onDoubleTap: widget.onOpen,
+        onSecondaryTapDown: (details) => widget.onContextMenu?.call(details.globalPosition),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: DesignTokens.fileEntryTileHeight,
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingMD,
+          ),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? colorScheme.primary.withValues(alpha: 0.12)
+                : (_isHovered
+                    ? (isLight
+                        ? Colors.black.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.06))
+                    : Colors.transparent),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: DesignTokens.iconSizeMedium,
+                child: IconTheme(
+                  data: IconThemeData(size: DesignTokens.iconSizeSmall),
+                  child: leadingWidget,
+                ),
               ),
-            ),
-            SizedBox(width: DesignTokens.spacingMD),
-            Expanded(
-              flex: 3,
-              child: Text(
-                entry.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      // Couleur adaptée au mode clair/sombre
-                      color: isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.9),
-                      fontSize: 13,
-                    ),
+              SizedBox(width: DesignTokens.spacingMD),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  widget.entry.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: 13,
+                  ),
+                ),
               ),
-            ),
-            SizedBox(width: DesignTokens.spacingLG),
-            Expanded(
-              flex: 2,
-              child: Text(
-                'Modifié le $modifiedLabel',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      // Couleur adaptée au mode clair/sombre
-                      color: isLight ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.65),
-                      fontSize: 12,
-                    ),
+              SizedBox(width: DesignTokens.spacingLG),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'Modifié le $modifiedLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
-            SizedBox(width: DesignTokens.spacingLG),
-            SizedBox(
-              width: 80,
-              child: Text(
-                _formatSize(entry.size),
-                textAlign: TextAlign.right,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      // Couleur adaptée au mode clair/sombre
-                      color: isLight ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.65),
-                      fontSize: 12,
-                    ),
+              SizedBox(width: DesignTokens.spacingLG),
+              SizedBox(
+                width: 80,
+                child: Text(
+                  _formatSize(widget.entry.size),
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _GridEntry extends StatelessWidget {
+class _GridEntry extends StatefulWidget {
   const _GridEntry({
     required this.entry,
     this.onOpen,
@@ -183,97 +199,117 @@ class _GridEntry extends StatelessWidget {
   final bool selectionMode;
 
   @override
+  State<_GridEntry> createState() => _GridEntryState();
+}
+
+class _GridEntryState extends State<_GridEntry> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
-    final isLight = brightness == Brightness.light;
+    final themeProvider = context.watch<ThemeProvider>();
+    final isLight = themeProvider.isLight;
 
-    final iconColor = entry.isDirectory
+    final iconColor = widget.entry.isDirectory
         ? colorScheme.primary
-        : (entry.isApplication
+        : (widget.entry.isApplication
             ? colorScheme.secondary
             : colorScheme.onSurface.withValues(alpha: 0.7));
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onToggleSelection,
-      onDoubleTap: onOpen,
-      onSecondaryTapDown: (details) => onContextMenu?.call(details.globalPosition),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          border: isSelected
-              ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1.5)
-              : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Preview/Icon - BEAUCOUP PLUS GRAND
-            Stack(
-              children: [
-                _buildPreview(context, iconColor),
-                // Checkbox en haut à droite si sélection mode
-                if (selectionMode)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Checkbox(
-                      value: isSelected,
-                      onChanged: (_) => onToggleSelection?.call(),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onToggleSelection,
+        onDoubleTap: widget.onOpen,
+        onSecondaryTapDown: (details) => widget.onContextMenu?.call(details.globalPosition),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: widget.isSelected
+                ? colorScheme.primary.withValues(alpha: 0.12)
+                : (_isHovered
+                    ? (isLight
+                        ? Colors.black.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.06))
+                    : Colors.transparent),
+            border: widget.isSelected
+                ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1.5)
+                : (_isHovered
+                    ? Border.all(
+                        color: isLight
+                            ? Colors.black.withValues(alpha: 0.1)
+                            : Colors.white.withValues(alpha: 0.15),
+                        width: 1)
+                    : null),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Preview/Icon - BEAUCOUP PLUS GRAND
+              Stack(
+                children: [
+                  _buildPreview(context, iconColor),
+                  // Checkbox en haut à droite si sélection mode
+                  if (widget.selectionMode)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Checkbox(
+                        value: widget.isSelected,
+                        onChanged: (_) => widget.onToggleSelection?.call(),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Nom du fichier
-            Text(
-              entry.name,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    // Couleur adaptée au mode clair/sombre
-                    color: isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            // Taille
-            Text(
-              _formatSize(entry.size),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    // Couleur adaptée au mode clair/sombre
-                    color: isLight ? Colors.black.withValues(alpha: 0.55) : Colors.white.withValues(alpha: 0.55),
-                    fontSize: 10,
-                  ),
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Nom du fichier
+              Text(
+                widget.entry.name,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+              const SizedBox(height: 2),
+              // Taille
+              Text(
+                _formatSize(widget.entry.size),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: isLight ? Colors.black.withValues(alpha: 0.55) : Colors.white.withValues(alpha: 0.55),
+                      fontSize: 10,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildPreview(BuildContext context, Color iconColor) {
-    final ext = entry.name.toLowerCase().split('.').last;
+    final ext = widget.entry.name.toLowerCase().split('.').last;
     final isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].contains(ext);
     final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'].contains(ext);
     final isAudio = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma'].contains(ext);
 
     // Preview d'image
-    if (isImage && entry.path.isNotEmpty) {
+    if (isImage && widget.entry.path.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.file(
-          File(entry.path),
-          width: 120,
-          height: 120,
+          File(widget.entry.path),
+          width: 96,
+          height: 96,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _buildDefaultIcon(context, iconColor),
         ),
@@ -283,8 +319,8 @@ class _GridEntry extends StatelessWidget {
     // Preview vidéo (icône play sur fond)
     if (isVideo) {
       return Container(
-        width: 120,
-        height: 120,
+        width: 96,
+        height: 96,
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
@@ -316,8 +352,8 @@ class _GridEntry extends StatelessWidget {
     // Preview audio (pochette)
     if (isAudio) {
       return Container(
-        width: 120,
-        height: 120,
+        width: 96,
+        height: 96,
         decoration: BoxDecoration(
           color: iconColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
@@ -353,22 +389,22 @@ class _GridEntry extends StatelessWidget {
   Widget _buildDefaultIcon(BuildContext context, Color iconColor) {
     IconData iconData;
 
-    if (entry.isDirectory) {
+    if (widget.entry.isDirectory) {
       iconData = LucideIcons.folder;
-    } else if (entry.isApplication) {
+    } else if (widget.entry.isApplication) {
       iconData = LucideIcons.appWindow;
     } else {
       iconData = LucideIcons.file;
     }
 
     // Si c'est une application avec un icône personnalisé
-    if (entry.iconPath != null && entry.iconPath!.toLowerCase().endsWith('.png')) {
+    if (widget.entry.iconPath != null && widget.entry.iconPath!.toLowerCase().endsWith('.png')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.file(
-          File(entry.iconPath!),
-          width: 120,
-          height: 120,
+          File(widget.entry.iconPath!),
+        width: 96,
+        height: 96,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(
             width: 120,
