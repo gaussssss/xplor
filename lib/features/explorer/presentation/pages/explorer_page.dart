@@ -371,6 +371,28 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ), // Padding
       ), // SafeArea
     ), // Container
+                // Zone de double-clic pour maximiser/restaurer la fenêtre (macOS/Windows)
+                // Placé à la fin du Stack pour être au-dessus du contenu
+                if (Platform.isMacOS || Platform.isWindows)
+                  Positioned(
+                    top: 0,
+                    left: Platform.isMacOS ? 80 : 0,
+                    right: Platform.isMacOS ? 0 : 140,
+                    height: Platform.isMacOS ? 28 : 32,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onDoubleTap: () async {
+                        if (await windowManager.isMaximized()) {
+                          await windowManager.unmaximize();
+                        } else {
+                          await windowManager.maximize();
+                        }
+                      },
+                      child: Container(
+                        color: Colors.transparent,
+                      ),
+                    ),
+                  ),
               ], // Stack children
             ), // Stack
           ), // Scaffold body
@@ -380,13 +402,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Widget _buildToolbar(ExplorerViewState state) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final pathWidth = (screenWidth - 420).clamp(320.0, 900.0);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           ToolbarButton(
             icon: lucide.LucideIcons.arrowLeft,
@@ -432,11 +450,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 : _viewModel.goToLastVisited,
           ),
           const SizedBox(width: 12),
-          SizedBox(
-            width: pathWidth,
-            child: _PathInput(
-              controller: _pathController,
-              onSubmit: (value) => _viewModel.loadDirectory(value),
+          Expanded(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 200,
+                maxWidth: 900,
+              ),
+              child: _PathInput(
+                controller: _pathController,
+                onSubmit: (value) => _viewModel.loadDirectory(value),
+              ),
             ),
           ),
           const SizedBox(width: 12),
