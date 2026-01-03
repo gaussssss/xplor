@@ -32,6 +32,7 @@ import '../widgets/list_view_table.dart';
 import '../widgets/sidebar_section.dart';
 import '../widgets/toolbar_button.dart';
 import '../../../../core/widgets/theme_controls_v2.dart';
+import '../../../../core/widgets/appearance_settings_dialog_v2.dart';
 
 class ExplorerPage extends StatefulWidget {
   const ExplorerPage({super.key});
@@ -45,6 +46,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   late final TextEditingController _pathController;
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
+  late final ScrollController _scrollController;
   late final List<_NavItem> _favoriteItems;
   late final List<_NavItem> _systemItems;
   late final List<_NavItem> _quickItems;
@@ -56,6 +58,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isToastShowing = false;
   bool _isSidebarCollapsed = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
+  String _lastPath = ''; // Pour détecter les changements de dossier
 
   @override
   void initState() {
@@ -76,6 +79,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _pathController = TextEditingController(text: initialPath);
     _searchController = TextEditingController(text: '');
     _searchFocusNode = FocusNode();
+    _scrollController = ScrollController();
+    _lastPath = initialPath;
     _favoriteItems = _buildFavoriteItems();
     _systemItems = _buildSystemItems(initialPath);
     _quickItems = _buildQuickItems();
@@ -146,6 +151,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _pathController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -199,6 +205,17 @@ class _ExplorerPageState extends State<ExplorerPage> {
         if (_pathController.text != state.currentPath) {
           _pathController.text = state.currentPath;
         }
+
+        // Scroller vers le haut quand on change de dossier
+        if (_lastPath != state.currentPath) {
+          _lastPath = state.currentPath;
+          // Utiliser addPostFrameCallback pour éviter les erreurs pendant le build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(0);
+            }
+          });
+        }
         if (_searchController.text != state.searchQuery) {
           _searchController.text = state.searchQuery;
         }
@@ -245,7 +262,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     child: Padding(
                       padding: EdgeInsets.only(
                         left: 10,
-                        top: Platform.isMacOS ? 26 : 10,
+                        top: 35,
                         right: 10,
                         bottom: 10,
                       ),
@@ -1043,6 +1060,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return ListViewTable(
       entries: entries,
       selectionMode: selectionMode,
+      scrollController: _scrollController,
       isSelected: (entry) => _viewModel.isSelected(entry),
       onEntryTap: (entry) {
         if (selectionMode) {
@@ -1069,6 +1087,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         final crossAxisCount = (maxWidth / 160).clamp(3, 8).floor();
 
         return GridView.builder(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           itemCount: entries.length,
@@ -1492,107 +1511,153 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (collapsed) {
-      return GlassPanelV2(
-        level: GlassPanelLevel.tertiary,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Pas de header avec doublon du toggle - juste les icônes
-              const SizedBox(height: 8),
-              // Favoris (3 premiers)
-              ...favoriteItems
-                  .take(3)
-                  .map(
-                    (item) => _RailButton(
-                      icon: item.icon,
-                      tooltip: item.label,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  ),
-              const SizedBox(height: 6),
-              // Divider subtil
-              Container(
-                width: 32,
-                height: 1,
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
-              const SizedBox(height: 6),
-              // Emplacements système
-              ...systemItems
-                  .map(
-                    (item) => _RailButton(
-                      icon: item.icon,
-                      tooltip: item.label,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  ),
-              if (volumes.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                // Divider subtil
-                Container(
-                  width: 32,
-                  height: 1,
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
-                const SizedBox(height: 6),
-                ...volumes.take(2).map(
-                  (volume) => _RailButton(
-                    icon: lucide.LucideIcons.hardDrive,
-                    tooltip: volume.label,
-                    onTap: () => onNavigate(volume.path),
-                  ),
-                ),
-                if (volumes.length > 2)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: _RailButton(
-                      icon: lucide.LucideIcons.chevronRight,
-                      tooltip: 'Tous les disques',
-                      onTap: () => _showAllDisksDialog(
-                        context,
-                        volumes,
-                        onNavigate,
+      return SizedBox(
+        height: double.infinity,
+        child: GlassPanelV2(
+          level: GlassPanelLevel.tertiary,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Pas de header avec doublon du toggle - juste les icônes
+                      const SizedBox(height: 8),
+                      // Favoris (3 premiers)
+                      ...favoriteItems
+                          .take(3)
+                          .map(
+                            (item) => _RailButton(
+                              icon: item.icon,
+                              tooltip: item.label,
+                              onTap: () => onNavigate(item.path),
+                            ),
+                          ),
+                      const SizedBox(height: 6),
+                      // Divider subtil
+                      Container(
+                        width: 32,
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
-                    ),
-                  ),
-              ],
-              if (tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  alignment: WrapAlignment.center,
-                  children: tags
-                      .map(
-                        (tag) => _TagDot(
-                          color: tag.color,
-                          active: selectedTags.contains(tag.label),
-                          onTap: onTagToggle == null
-                              ? null
-                              : () => onTagToggle!(tag.label),
+                      const SizedBox(height: 6),
+                      // Emplacements système
+                      ...systemItems
+                          .map(
+                            (item) => _RailButton(
+                              icon: item.icon,
+                              tooltip: item.label,
+                              onTap: () => onNavigate(item.path),
+                            ),
+                          ),
+                      if (volumes.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        // Divider subtil
+                        Container(
+                          width: 32,
+                          height: 1,
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
-                      )
-                      .toList(),
+                        const SizedBox(height: 6),
+                        ...volumes.take(2).map(
+                          (volume) => _RailButton(
+                            icon: lucide.LucideIcons.hardDrive,
+                            tooltip: volume.label,
+                            onTap: () => onNavigate(volume.path),
+                          ),
+                        ),
+                        if (volumes.length > 2)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: _RailButton(
+                              icon: lucide.LucideIcons.chevronRight,
+                              tooltip: 'Tous les disques',
+                              onTap: () => _showAllDisksDialog(
+                                context,
+                                volumes,
+                                onNavigate,
+                              ),
+                            ),
+                          ),
+                      ],
+                      if (tags.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.center,
+                          children: tags
+                              .map(
+                                (tag) => _TagDot(
+                                  color: tag.color,
+                                  active: selectedTags.contains(tag.label),
+                                  onTap: onTagToggle == null
+                                      ? null
+                                      : () => onTagToggle!(tag.label),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+
+                      // Zone de contrôles en bas (rail)
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (onToggleCollapse != null)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6),
+                              child: Tooltip(
+                                message: 'Étendre le menu',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: InkWell(
+                                    onTap: onToggleCollapse,
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      width: 48,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.1),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        lucide.LucideIcons.chevronsRight,
+                                        size: 18,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          ThemeRailControlsV2(
+                            isLight: isLight,
+                            currentPalette: currentPalette,
+                            onToggleLight: onToggleLight,
+                            onPaletteSelected: onPaletteSelected,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-              if (onToggleCollapse != null) ...[
-                const SizedBox(height: 10),
-                _RailButton(
-                  icon: lucide.LucideIcons.panelRightOpen,
-                  tooltip: 'Etendre',
-                  onTap: onToggleCollapse,
-                ),
-              ],
-              const SizedBox(height: 12),
-              ThemeRailControlsV2(
-                isLight: isLight,
-                currentPalette: currentPalette,
-                onToggleLight: onToggleLight,
-                onPaletteSelected: onPaletteSelected,
-              ),
-            ],
+              );
+            },
           ),
         ),
       );
@@ -1607,45 +1672,7 @@ class _Sidebar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            // Bouton pour replier le menu en haut
-            if (onToggleCollapse != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 4),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onToggleCollapse,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      height: 32,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            lucide.LucideIcons.panelLeftClose,
-                            size: 16,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: isLight ? 0.75 : 0.6),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Replier',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: isLight ? 0.75 : 0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            const SizedBox(height: 8),
 
             // Favoris
             SidebarSection(
@@ -1790,8 +1817,10 @@ class _Sidebar extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
+
+            // Contrôles de thème
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
               child: ThemeControlsV2(
                 isLight: isLight,
                 currentPalette: currentPalette,
@@ -1800,8 +1829,103 @@ class _Sidebar extends StatelessWidget {
                 onSettingsChanged: onSettingsChanged,
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Boutons d'action en bas (Réglages + Replier)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Bouton Réglages
+                  _BottomActionButton(
+                    icon: lucide.LucideIcons.settings,
+                    label: 'Réglages',
+                    isLight: isLight,
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const AppearanceSettingsDialogV2(),
+                      ).then((_) {
+                        if (onSettingsChanged != null) {
+                          onSettingsChanged!();
+                        }
+                      });
+                    },
+                  ),
+
+                  // Bouton Replier
+                  if (onToggleCollapse != null)
+                    _BottomActionButton(
+                      icon: lucide.LucideIcons.chevronsLeft,
+                      label: 'Replier',
+                      isLight: isLight,
+                      onTap: onToggleCollapse!,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
+        ),
+      ),
+    );
+  }
+}
+
+// Widget pour les boutons d'action en bas du menu (icône + label)
+class _BottomActionButton extends StatelessWidget {
+  const _BottomActionButton({
+    required this.icon,
+    required this.label,
+    required this.isLight,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isLight;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = Theme.of(context)
+        .colorScheme
+        .onSurface
+        .withValues(alpha: isLight ? 0.6 : 0.65);
+    final labelColor = Theme.of(context)
+        .colorScheme
+        .onSurface
+        .withValues(alpha: isLight ? 0.55 : 0.5);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: iconColor,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: labelColor,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -74,6 +74,7 @@ class ListViewTable extends StatefulWidget {
     required this.onEntrySecondaryTap,
     required this.isSelected,
     this.selectionMode = false,
+    this.scrollController,
   });
 
   final List<FileEntry> entries;
@@ -82,6 +83,7 @@ class ListViewTable extends StatefulWidget {
   final void Function(FileEntry, Offset) onEntrySecondaryTap;
   final bool Function(FileEntry) isSelected;
   final bool selectionMode;
+  final ScrollController? scrollController;
 
   @override
   State<ListViewTable> createState() => _ListViewTableState();
@@ -334,6 +336,7 @@ class _ListViewTableState extends State<ListViewTable> {
                 // Rows
                 Expanded(
                   child: ListView.builder(
+                    controller: widget.scrollController,
                     itemCount: sortedEntries.length,
                     itemBuilder: (context, index) {
                       final entry = sortedEntries[index];
