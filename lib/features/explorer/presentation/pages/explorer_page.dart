@@ -81,7 +81,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _tagItems = _buildTags();
     _volumes = _readVolumes();
     _viewModel.loadPreferences();
-    _viewModel.loadDirectory(initialPath, pushHistory: false);
+    _viewModel.loadDirectory(initialPath, recordHistory: false);
     _viewModel.bootstrap();
     _loadSidebarWidth();
   }
