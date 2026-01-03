@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:file_selector/file_selector.dart';
@@ -7,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:macos_file_picker/macos_file_picker.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/theme_provider.dart';
 import '../theme/color_palettes.dart';
@@ -36,6 +37,8 @@ class _AppearanceSettingsDialogV2State
   late bool _useGlassmorphism;
   late double _blurIntensity;
   late bool _showAnimations;
+  late BackgroundRefreshPeriod _backgroundRefreshPeriod;
+  bool _isMultiSelectionMode = false;
   bool _hoverChangeImage = false;
 
   @override
@@ -50,6 +53,21 @@ class _AppearanceSettingsDialogV2State
     _useGlassmorphism = themeProvider.useGlassmorphism;
     _blurIntensity = themeProvider.blurIntensity;
     _showAnimations = themeProvider.showAnimations;
+    _backgroundRefreshPeriod = themeProvider.backgroundRefreshPeriod;
+
+    // Charger le mode de sélection depuis SharedPreferences
+    _loadSelectionMode();
+  }
+
+  Future<void> _loadSelectionMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _isMultiSelectionMode = prefs.getBool('multi_selection_mode') ?? false;
+      });
+    } catch (_) {
+      _isMultiSelectionMode = false;
+    }
   }
 
   @override
@@ -63,6 +81,11 @@ class _AppearanceSettingsDialogV2State
 
     return Dialog(
       backgroundColor: Colors.transparent,
+      alignment: Alignment.center,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Platform.isMacOS ? 80 : 40,
+        vertical: 40,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: BackdropFilter(
@@ -210,26 +233,26 @@ class _AppearanceSettingsDialogV2State
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Colonne gauche
+        // Colonne gauche - Apparence générale
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildThemeModeSection(isLight, textColor, subtleTextColor),
               const SizedBox(height: 24),
-              _buildPaletteSection(isLight, textColor),
+              _buildAdvancedSection(isLight, textColor, subtleTextColor),
             ],
           ),
         ),
         const SizedBox(width: 32),
-        // Colonne droite
+        // Colonne droite - Personnalisation visuelle
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBackgroundSection(isLight, textColor, subtleTextColor),
+              _buildPaletteSection(isLight, textColor),
               const SizedBox(height: 24),
-              _buildAdvancedSection(isLight, textColor, subtleTextColor),
+              _buildBackgroundSection(isLight, textColor, subtleTextColor),
             ],
           ),
         ),
@@ -409,6 +432,8 @@ class _AppearanceSettingsDialogV2State
         if (_backgroundType == BackgroundType.imageFolder) ...[
           const SizedBox(height: 12),
           _buildFolderPicker(isLight, textColor),
+          const SizedBox(height: 12),
+          _buildRefreshPeriodPicker(isLight, textColor, subtleTextColor),
         ],
       ],
     );
@@ -454,6 +479,78 @@ class _AppearanceSettingsDialogV2State
           isLight,
           textColor,
           subtleTextColor,
+        ),
+        const SizedBox(height: 24),
+        _buildSectionTitle(
+          'Comportement',
+          LucideIcons.mousePointer2,
+          textColor,
+        ),
+        const SizedBox(height: 12),
+        _buildToggleOption(
+          'Mode sélection multiple',
+          'Activer les checkboxes et la sélection multiple',
+          _isMultiSelectionMode,
+          (value) => setState(() => _isMultiSelectionMode = value),
+          isLight,
+          textColor,
+          subtleTextColor,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRefreshPeriodPicker(
+    bool isLight,
+    Color textColor,
+    Color subtleTextColor,
+  ) {
+    final options = <BackgroundRefreshPeriod, String>{
+      BackgroundRefreshPeriod.none: 'Ne pas changer automatiquement',
+      BackgroundRefreshPeriod.tenMinutes: 'Toutes les 10 minutes',
+      BackgroundRefreshPeriod.oneHour: 'Chaque heure',
+      BackgroundRefreshPeriod.oneDay: 'Chaque jour',
+      BackgroundRefreshPeriod.oneWeek: 'Chaque semaine',
+      BackgroundRefreshPeriod.oneMonth: 'Chaque mois',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Rotation automatique',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<BackgroundRefreshPeriod>(
+          value: _backgroundRefreshPeriod,
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => _backgroundRefreshPeriod = value);
+          },
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          items: options.entries
+              .map(
+                (e) => DropdownMenuItem<BackgroundRefreshPeriod>(
+                  value: e.key,
+                  child: Text(
+                    e.value,
+                    style: TextStyle(color: subtleTextColor, fontSize: 13),
+                  ),
+                ),
+              )
+              .toList(),
         ),
       ],
     );
@@ -1123,6 +1220,7 @@ class _AppearanceSettingsDialogV2State
 
     await themeProvider.setThemeMode(_themeMode);
     await themeProvider.setBackgroundType(_backgroundType);
+    await themeProvider.setBackgroundRefreshPeriod(_backgroundRefreshPeriod);
 
     if (_backgroundType == BackgroundType.singleImage &&
         _backgroundImagePath != null) {
@@ -1137,6 +1235,14 @@ class _AppearanceSettingsDialogV2State
     await themeProvider.setUseGlassmorphism(_useGlassmorphism);
     await themeProvider.setBlurIntensity(_blurIntensity);
     await themeProvider.setShowAnimations(_showAnimations);
+
+    // Sauvegarder le mode de sélection
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('multi_selection_mode', _isMultiSelectionMode);
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
 
     if (!mounted) return;
     Navigator.of(context).pop();
