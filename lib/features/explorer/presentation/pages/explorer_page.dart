@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:another_flushbar/flushbar.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
@@ -59,6 +60,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isSidebarCollapsed = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
   String _lastPath = ''; // Pour détecter les changements de dossier
+
+  // État du drag and drop
+  bool _isDragging = false;
+  String? _dragTargetPath; // Le dossier cible pour le drop
 
   @override
   void initState() {
@@ -557,23 +562,148 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ? _buildList(entries, selectionMode)
         : _buildGrid(entries, selectionMode);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
-      onSecondaryTapDown: (details) =>
-          _showContextMenu(null, details.globalPosition),
-      child: Stack(
-        children: [
-          RefreshIndicator(onRefresh: _viewModel.refresh, child: content),
-          if (state.isLoading)
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: LinearProgressIndicator(minHeight: 2),
-            ),
-        ],
+    return DropTarget(
+      onDragEntered: (details) {
+        setState(() {
+          _isDragging = true;
+          _dragTargetPath = state.currentPath;
+        });
+      },
+      onDragExited: (details) {
+        setState(() {
+          _isDragging = false;
+          _dragTargetPath = null;
+        });
+      },
+      onDragDone: (details) async {
+        setState(() {
+          _isDragging = false;
+          _dragTargetPath = null;
+        });
+
+        // Copier les fichiers/dossiers droppés dans le dossier actuel
+        try {
+          final targetDir = Directory(state.currentPath);
+          for (final file in details.files) {
+            final sourcePath = file.path;
+            final fileName = sourcePath.split(Platform.pathSeparator).last;
+            final targetPath = '${targetDir.path}${Platform.pathSeparator}$fileName';
+
+            final source = FileSystemEntity.typeSync(sourcePath);
+            if (source == FileSystemEntityType.directory) {
+              // Copier le dossier récursivement
+              await _copyDirectory(sourcePath, targetPath);
+            } else {
+              // Copier le fichier
+              await File(sourcePath).copy(targetPath);
+            }
+          }
+
+          // Recharger le répertoire
+          await _viewModel.refresh();
+
+          if (mounted) {
+            _showToast('${details.files.length} élément(s) copié(s)');
+          }
+        } catch (e) {
+          if (mounted) {
+            _showToast('Erreur lors de la copie: $e');
+          }
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.deferToChild,
+        onSecondaryTapDown: (details) =>
+            _showContextMenu(null, details.globalPosition),
+        child: Stack(
+          children: [
+            RefreshIndicator(onRefresh: _viewModel.refresh, child: content),
+            if (state.isLoading)
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+
+            // Overlay de drag and drop
+            if (_isDragging)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 3,
+                    ),
+                  ),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            lucide.LucideIcons.download,
+                            size: 56,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Déposer ici pour copier',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'dans ${_dragTargetPath?.split(Platform.pathSeparator).last ?? "ce dossier"}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  // Fonction helper pour copier un dossier récursivement
+  Future<void> _copyDirectory(String sourcePath, String targetPath) async {
+    final sourceDir = Directory(sourcePath);
+    final targetDir = Directory(targetPath);
+
+    if (!await targetDir.exists()) {
+      await targetDir.create(recursive: true);
+    }
+
+    await for (final entity in sourceDir.list(recursive: false)) {
+      final fileName = entity.path.split(Platform.pathSeparator).last;
+      final newPath = '${targetDir.path}${Platform.pathSeparator}$fileName';
+
+      if (entity is Directory) {
+        await _copyDirectory(entity.path, newPath);
+      } else if (entity is File) {
+        await entity.copy(newPath);
+      }
+    }
   }
 
   Widget _buildActionBar(ExplorerViewState state) {
@@ -1150,6 +1280,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
         path: SpecialLocations.downloads,
       ),
       _NavItem(
+        label: 'Applications',
+        icon: lucide.LucideIcons.appWindow,
+        path: SpecialLocations.applications,
+      ),
+      _NavItem(
         label: 'Images',
         icon: lucide.LucideIcons.image,
         path: SpecialLocations.pictures,
@@ -1609,6 +1744,21 @@ class _Sidebar extends StatelessWidget {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: _RailButton(
+                              icon: lucide.LucideIcons.settings,
+                              tooltip: 'Réglages',
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      const AppearanceSettingsDialogV2(),
+                                ).then((_) => onSettingsChanged?.call());
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 6),
                           if (onToggleCollapse != null)
                             Padding(
                               padding:

@@ -52,6 +52,18 @@ class SpecialLocations {
     }
   }
 
+  /// Code pour l'emplacement "Applications"
+  static String get applications {
+    if (Platform.isMacOS) {
+      return '/Applications';
+    } else if (Platform.isWindows) {
+      return Platform.environment['PROGRAMFILES'] ?? 'C:\\\\Program Files';
+    } else {
+      // Point de chute raisonnable pour Linux/Unix
+      return '/usr/share/applications';
+    }
+  }
+
   /// Vérifie si un chemin est un emplacement spécial
   static bool isSpecialLocation(String path) {
     return path.startsWith('xplor://');
@@ -118,6 +130,11 @@ class SpecialLocations {
       SpecialLocationInfo(
         code: pictures,
         displayName: 'Images',
+        isVirtual: false,
+      ),
+      SpecialLocationInfo(
+        code: applications,
+        displayName: 'Applications',
         isVirtual: false,
       ),
     ];

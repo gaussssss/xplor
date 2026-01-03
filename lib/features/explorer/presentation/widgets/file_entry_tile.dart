@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -204,6 +205,7 @@ class _GridEntry extends StatefulWidget {
 
 class _GridEntryState extends State<_GridEntry> {
   bool _isHovered = false;
+  bool _isDragTarget = false;
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +219,7 @@ class _GridEntryState extends State<_GridEntry> {
             ? colorScheme.secondary
             : colorScheme.onSurface.withValues(alpha: 0.7));
 
-    return MouseRegion(
+    final baseWidget = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -232,20 +234,24 @@ class _GridEntryState extends State<_GridEntry> {
             borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
                 ? colorScheme.primary.withValues(alpha: 0.12)
-                : (_isHovered
-                    ? (isLight
-                        ? Colors.black.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.06))
-                    : Colors.transparent),
+                : (_isDragTarget
+                    ? colorScheme.primary.withValues(alpha: 0.2)
+                    : (_isHovered
+                        ? (isLight
+                            ? Colors.black.withValues(alpha: 0.04)
+                            : Colors.white.withValues(alpha: 0.06))
+                        : Colors.transparent)),
             border: widget.isSelected
                 ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1.5)
-                : (_isHovered
-                    ? Border.all(
-                        color: isLight
-                            ? Colors.black.withValues(alpha: 0.1)
-                            : Colors.white.withValues(alpha: 0.15),
-                        width: 1)
-                    : null),
+                : (_isDragTarget
+                    ? Border.all(color: colorScheme.primary, width: 2)
+                    : (_isHovered
+                        ? Border.all(
+                            color: isLight
+                                ? Colors.black.withValues(alpha: 0.1)
+                                : Colors.white.withValues(alpha: 0.15),
+                            width: 1)
+                        : null)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -294,6 +300,63 @@ class _GridEntryState extends State<_GridEntry> {
         ),
       ),
     );
+
+    // Wrapper avec DropTarget si c'est un dossier
+    if (widget.entry.isDirectory) {
+      return DropTarget(
+        onDragEntered: (details) {
+          setState(() => _isDragTarget = true);
+        },
+        onDragExited: (details) {
+          setState(() => _isDragTarget = false);
+        },
+        onDragDone: (details) async {
+          setState(() => _isDragTarget = false);
+
+          // Copier les fichiers dans ce dossier
+          try {
+            for (final file in details.files) {
+              final sourcePath = file.path;
+              final fileName = sourcePath.split(Platform.pathSeparator).last;
+              final targetPath = '${widget.entry.path}${Platform.pathSeparator}$fileName';
+
+              final source = FileSystemEntity.typeSync(sourcePath);
+              if (source == FileSystemEntityType.directory) {
+                await _copyDirectory(sourcePath, targetPath);
+              } else {
+                await File(sourcePath).copy(targetPath);
+              }
+            }
+          } catch (e) {
+            debugPrint('Erreur lors de la copie: $e');
+          }
+        },
+        child: baseWidget,
+      );
+    }
+
+    return baseWidget;
+  }
+
+  // Helper pour copier un dossier récursivement
+  Future<void> _copyDirectory(String sourcePath, String targetPath) async {
+    final sourceDir = Directory(sourcePath);
+    final targetDir = Directory(targetPath);
+
+    if (!await targetDir.exists()) {
+      await targetDir.create(recursive: true);
+    }
+
+    await for (final entity in sourceDir.list(recursive: false)) {
+      final fileName = entity.path.split(Platform.pathSeparator).last;
+      final newPath = '${targetDir.path}${Platform.pathSeparator}$fileName';
+
+      if (entity is Directory) {
+        await _copyDirectory(entity.path, newPath);
+      } else if (entity is File) {
+        await entity.copy(newPath);
+      }
+    }
   }
 
   Widget _buildPreview(BuildContext context, Color iconColor) {
