@@ -121,7 +121,7 @@ class SearchRepositoryImpl implements SearchRepository {
         searchDirectoriesOnly,
         searchFilesOnly,
       );
-      
+
       // Ajouter les résultats BD et tracker les paths
       for (final result in indexedResults) {
         results.add(result);
@@ -189,7 +189,7 @@ class SearchRepositoryImpl implements SearchRepository {
         searchDirectoriesOnly,
         searchFilesOnly,
       );
-      
+
       // Ajouter les résultats BD et notifier
       for (final result in indexedResults) {
         results.add(result);
@@ -275,7 +275,7 @@ class SearchRepositoryImpl implements SearchRepository {
               resultPaths.add(entity.path);
               // Notifier immédiatement du nouveau résultat
               onResultFound(result);
-              
+
               // Indexer ce résultat immédiatement
               _indexSingleResult(result);
             }
@@ -308,7 +308,7 @@ class SearchRepositoryImpl implements SearchRepository {
     Future.microtask(() async {
       try {
         final stat = await File(result.path).stat();
-        
+
         final model = FileIndexModel(
           path: result.path,
           name: result.name,
@@ -336,7 +336,7 @@ class SearchRepositoryImpl implements SearchRepository {
         for (final result in results) {
           try {
             final stat = await File(result.path).stat();
-            
+
             final model = FileIndexModel(
               path: result.path,
               name: result.name,

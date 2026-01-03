@@ -13,13 +13,12 @@ class SearchFilesProgressive {
     bool searchDirectoriesOnly = false,
     bool searchFilesOnly = false,
     required void Function(SearchResult) onResultFound,
-  }) =>
-      repository.searchProgressive(
-        query,
-        rootPath: rootPath,
-        maxResults: maxResults,
-        searchDirectoriesOnly: searchDirectoriesOnly,
-        searchFilesOnly: searchFilesOnly,
-        onResultFound: onResultFound,
-      );
+  }) => repository.searchProgressive(
+    query,
+    rootPath: rootPath,
+    maxResults: maxResults,
+    searchDirectoriesOnly: searchDirectoriesOnly,
+    searchFilesOnly: searchFilesOnly,
+    onResultFound: onResultFound,
+  );
 }
