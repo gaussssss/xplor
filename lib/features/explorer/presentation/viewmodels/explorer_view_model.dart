@@ -14,7 +14,7 @@ import '../../domain/usecases/duplicate_entries.dart';
 import '../../domain/usecases/list_directory_entries.dart';
 import '../../domain/usecases/move_entries.dart';
 import '../../domain/usecases/rename_entry.dart';
-import '../../../search/domain/usecases/search_files.dart';
+import '../../../search/domain/usecases/search_files_progressive.dart';
 import '../../../search/domain/usecases/build_index.dart';
 import '../../../search/domain/usecases/update_index.dart';
 import '../../../search/domain/usecases/get_index_status.dart';
@@ -114,7 +114,7 @@ class ExplorerViewModel extends ChangeNotifier {
     required DuplicateEntries duplicateEntries,
     required RenameEntry renameEntry,
     required String initialPath,
-    required SearchFiles searchFiles,
+    required SearchFilesProgressive searchFilesProgressive,
     required BuildIndex buildIndex,
     required UpdateIndex updateIndex,
     required GetIndexStatus getIndexStatus,
@@ -125,7 +125,7 @@ class ExplorerViewModel extends ChangeNotifier {
        _copyEntries = copyEntries,
        _duplicateEntries = duplicateEntries,
        _renameEntry = renameEntry,
-       _searchFiles = searchFiles,
+       _searchFilesProgressive = searchFilesProgressive,
        _buildIndex = buildIndex,
        _updateIndex = updateIndex,
        _state = ExplorerViewState.initial(initialPath);
@@ -137,7 +137,7 @@ class ExplorerViewModel extends ChangeNotifier {
   final CopyEntries _copyEntries;
   final DuplicateEntries _duplicateEntries;
   final RenameEntry _renameEntry;
-  final SearchFiles _searchFiles;
+  final SearchFilesProgressive _searchFilesProgressive;
   final BuildIndex _buildIndex;
   final UpdateIndex _updateIndex;
   ExplorerViewState _state;
@@ -186,7 +186,7 @@ class ExplorerViewModel extends ChangeNotifier {
   /// Retourne les résultats de recherche globale
   List<SearchResult> get globalSearchResults => _globalSearchResults;
 
-  /// Effectue une recherche globale dans les sous-répertoires
+  /// Effectue une recherche globale dans les sous-répertoires avec affichage progressif
   Future<void> globalSearch(String query) async {
     if (query.trim().isEmpty) {
       _globalSearchResults = [];
@@ -195,14 +195,21 @@ class ExplorerViewModel extends ChangeNotifier {
       return;
     }
 
+    _globalSearchResults = [];
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
 
     try {
-      _globalSearchResults = await _searchFiles(
+      await _searchFilesProgressive(
         query,
         rootPath: _state.currentPath,
         maxResults: 100,
+        onResultFound: (result) {
+          // Ajouter le résultat immédiatement à la liste
+          _globalSearchResults.add(result);
+          // Notifier immédiatement pour afficher progressivement
+          notifyListeners();
+        },
       );
     } catch (_) {
       _globalSearchResults = [];
@@ -262,7 +269,7 @@ class ExplorerViewModel extends ChangeNotifier {
         clearStatus: true,
       );
       await _recordRecent(targetPath);
-      
+
       // Mettre à jour l'index en arrière-plan (au lieu de rebuilder)
       _updateIndexInBackground(targetPath);
     } on FileSystemException catch (error) {
@@ -502,27 +509,17 @@ class ExplorerViewModel extends ChangeNotifier {
 
   void updateSearch(String query) {
     _state = _state.copyWith(searchQuery: query);
+    // Vider les résultats précédents immédiatement
+    _globalSearchResults = [];
+    notifyListeners();
+
     // Annuler le timer précédent
     _searchDebounceTimer?.cancel();
 
     // Déclencher la recherche globale si la requête n'est pas vide
     if (query.trim().isNotEmpty) {
-      // Attendre 500ms avant de lancer la recherche
-      _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-        globalSearch(query);
-      });
-    } else {
-      _globalSearchResults = [];
-      notifyListeners();
-    }
-  }
-
-  void setTagFilter(String? tag) {
-    _state = _state.copyWith(selectedTags: tag == null ? <String>{} : {tag});
-    notifyListeners();
-  }
-
-  void toggleTag(String tag) {
+      // Attendre 1000ms (1 seconde) avant de lancer la recherche
+      _searchDebounceTimer = Timer(const Duration(milliseconds: 1000), () {
     final updated = <String>{..._state.selectedTags};
     if (updated.contains(tag)) {
       updated.remove(tag);

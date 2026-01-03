@@ -8,6 +8,16 @@ abstract class SearchRepository {
   /// Met à jour l'index (ajout/suppression/modification)
   Future<void> updateIndex(String rootPath);
 
+  /// Recherche avec affichage progressif des résultats (BD puis raw)
+  Future<List<SearchResult>> searchProgressive(
+    String query, {
+    String? rootPath,
+    int maxResults = 50,
+    bool searchDirectoriesOnly = false,
+    bool searchFilesOnly = false,
+    required void Function(SearchResult) onResultFound,
+  });
+
   /// Recherche dans l'index
   Future<List<SearchResult>> search(
     String query, {

@@ -74,7 +74,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       copyEntries: CopyEntries(repository),
       duplicateEntries: DuplicateEntries(repository),
       renameEntry: RenameEntry(repository),
-      searchFiles: searchDeps.searchFiles,
+      searchFilesProgressive: searchDeps.searchFilesProgressive,
       buildIndex: searchDeps.buildIndex,
       updateIndex: searchDeps.updateIndex,
       getIndexStatus: searchDeps.getIndexStatus,
@@ -127,6 +127,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 suffixIcon: IconButton(
                   icon: const Icon(lucide.LucideIcons.x),
                   onPressed: () {
+                    // Vider le champ de recherche
+                    _searchController.clear();
+                    // Vider les résultats
+                    _viewModel.updateSearch('');
                     setState(() => _isSearchExpanded = false);
                     _searchFocusNode.unfocus();
                   },

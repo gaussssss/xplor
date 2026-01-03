@@ -14,7 +14,11 @@ class SqliteSearchDatabase implements LocalSearchDatabase {
     final dbPath = await _getDatabasePath();
     print('🔍 SQLite: Initializing database at: $dbPath');
     try {
-      _db = await openDatabase(dbPath, version: _dbVersion, onCreate: _onCreate);
+      _db = await openDatabase(
+        dbPath,
+        version: _dbVersion,
+        onCreate: _onCreate,
+      );
       print('✅ SQLite: Database initialized successfully');
     } catch (e) {
       print('❌ SQLite: Initialization error: $e');
@@ -29,16 +33,16 @@ class SqliteSearchDatabase implements LocalSearchDatabase {
     if (homeDir == null || homeDir.isEmpty) {
       throw Exception('Cannot determine home directory');
     }
-    
+
     final cacheDir = Directory('$homeDir/.xplor_cache');
     print('🔍 SQLite: Cache directory: ${cacheDir.path}');
-    
+
     if (!await cacheDir.exists()) {
       print('🔍 SQLite: Creating cache directory...');
       await cacheDir.create(recursive: true);
       print('✅ SQLite: Cache directory created');
     }
-    
+
     final dbPath = path_utils.join(cacheDir.path, _dbName);
     print('🔍 SQLite: Database path: $dbPath');
     return dbPath;

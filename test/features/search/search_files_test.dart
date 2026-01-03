@@ -46,6 +46,18 @@ class MockSearchRepository implements SearchRepository {
   }
 
   @override
+  Future<List<SearchResult>> searchProgressive(
+    String query, {
+    String? rootPath,
+    int maxResults = 50,
+    bool searchDirectoriesOnly = false,
+    bool searchFilesOnly = false,
+    required void Function(SearchResult) onResultFound,
+  }) async {
+    return [];
+  }
+
+  @override
   Future<FileIndexNode?> getIndex(String rootPath) async => null;
 
   @override
