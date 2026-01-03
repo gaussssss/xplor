@@ -2,8 +2,8 @@ import '../entities/search_result.dart';
 import '../entities/file_index.dart';
 
 abstract class SearchRepository {
-  /// Construit l'index complet du système de fichiers
-  Future<void> buildIndex(String rootPath);
+  /// Construit l'index du répertoire jusqu'à une profondeur spécifiée (par défaut 2)
+  Future<void> buildIndex(String rootPath, {int maxDepth = 2});
 
   /// Met à jour l'index (ajout/suppression/modification)
   Future<void> updateIndex(String rootPath);

@@ -8,17 +8,32 @@ import '../models/file_index_model.dart';
 
 class SearchRepositoryImpl implements SearchRepository {
   final LocalSearchDatabase database;
+  bool _initialized = false;
 
   SearchRepositoryImpl(this.database);
 
+  /// S'assurer que la base de données est initialisée
+  Future<void> _ensureInitialized() async {
+    if (!_initialized) {
+      try {
+        await database.initialize();
+        _initialized = true;
+      } catch (_) {
+        // Ignorer les erreurs d'initialisation
+      }
+    }
+  }
+
   @override
-  Future<void> buildIndex(String rootPath) async {
+  Future<void> buildIndex(String rootPath, {int maxDepth = 2}) async {
+    await _ensureInitialized();
+    
     // Nettoyer l'index précédent
     await database.deleteIndex(rootPath);
 
-    // Construire l'arbre de fichiers
+    // Construire l'arbre de fichiers jusqu'à maxDepth niveaux
     final nodes = <Map<String, dynamic>>[];
-    await _buildFileTree(rootPath, nodes);
+    await _buildFileTree(rootPath, nodes, currentDepth: 0, maxDepth: maxDepth);
 
     // Sauvegarder dans la base de données
     if (nodes.isNotEmpty) {
@@ -31,8 +46,13 @@ class SearchRepositoryImpl implements SearchRepository {
 
   Future<void> _buildFileTree(
     String rootPath,
-    List<Map<String, dynamic>> nodes,
-  ) async {
+    List<Map<String, dynamic>> nodes, {
+    required int currentDepth,
+    required int maxDepth,
+  }) async {
+    // Arrêter la récursion si on a atteint la profondeur max
+    if (currentDepth > maxDepth) return;
+
     try {
       final dir = Directory(rootPath);
 
@@ -58,9 +78,14 @@ class SearchRepositoryImpl implements SearchRepository {
 
           nodes.add(model.toMap());
 
-          // Récursion pour les répertoires
-          if (entity is Directory) {
-            await _buildFileTree(entity.path, nodes);
+          // Récursion pour les répertoires si on n'a pas atteint maxDepth
+          if (entity is Directory && currentDepth < maxDepth) {
+            await _buildFileTree(
+              entity.path,
+              nodes,
+              currentDepth: currentDepth + 1,
+              maxDepth: maxDepth,
+            );
           }
         } catch (_) {
           // Ignorer les fichiers inaccessibles
@@ -81,27 +106,89 @@ class SearchRepositoryImpl implements SearchRepository {
   }) async {
     if (query.trim().isEmpty) return [];
 
+    await _ensureInitialized();
+
     final normalizedRoot = rootPath ?? '/';
     final results = <SearchResult>[];
     final queryLower = query.toLowerCase();
 
     try {
-      await _searchInDirectory(
+      // 1. Chercher d'abord dans l'index
+      final indexedResults = await _searchInDatabase(
         normalizedRoot,
         queryLower,
-        results,
         searchDirectoriesOnly,
         searchFilesOnly,
-        maxResults,
       );
+
+      // Si on a des résultats dans la BD, les utiliser
+      if (indexedResults.isNotEmpty) {
+        results.addAll(indexedResults);
+      } else {
+        // Sinon, fallback sur raw filesystem search
+        await _searchInDirectory(
+          normalizedRoot,
+          queryLower,
+          results,
+          searchDirectoriesOnly,
+          searchFilesOnly,
+          maxResults,
+        );
+      }
     } catch (_) {
       // Ignorer les erreurs d'accès
     }
 
-    // Trier par pertinence
+    // Trier par pertinence et limiter aux résultats demandés
     results.sort((a, b) => b.relevance.compareTo(a.relevance));
 
     return results.take(maxResults).toList();
+  }
+
+  /// Cherche dans l'index de la base de données
+  Future<List<SearchResult>> _searchInDatabase(
+    String rootPath,
+    String queryLower,
+    bool searchDirectoriesOnly,
+    bool searchFilesOnly,
+  ) async {
+    final results = <SearchResult>[];
+
+    try {
+      final rows = await database.queryIndex(
+        rootPath,
+        query: queryLower,
+      );
+
+      for (final row in rows) {
+        final isDir = row['is_directory'] == 1;
+
+        // Appliquer les filtres
+        if (searchDirectoriesOnly && !isDir) continue;
+        if (searchFilesOnly && isDir) continue;
+
+        final name = row['name'] as String;
+        final path = row['path'] as String;
+
+        results.add(
+          SearchResult(
+            path: path,
+            name: name,
+            isDirectory: isDir,
+            size: row['size'] as int? ?? 0,
+            lastModified: DateTime.fromMillisecondsSinceEpoch(
+              row['last_modified'] as int? ?? 0,
+            ),
+            parentPath: row['parent_path'] as String? ?? '',
+            relevance: _calculateRelevance(name.toLowerCase(), queryLower),
+          ),
+        );
+      }
+    } catch (_) {
+      // Ignorer les erreurs de base de données
+    }
+
+    return results;
   }
 
   Future<void> _searchInDirectory(
@@ -193,6 +280,8 @@ class SearchRepositoryImpl implements SearchRepository {
 
   @override
   Future<void> updateIndex(String rootPath) async {
+    await _ensureInitialized();
+    
     final status = await getIndexStatus(rootPath);
 
     // Si l'index est à jour (moins d'1 heure), ne rien faire
@@ -223,6 +312,8 @@ class SearchRepositoryImpl implements SearchRepository {
 
   @override
   Future<IndexStatus> getIndexStatus(String rootPath) async {
+    await _ensureInitialized();
+    
     final lastIndexTime = await database.getLastIndexTime(rootPath);
     final fileCount = await database.getFileCount(rootPath);
 

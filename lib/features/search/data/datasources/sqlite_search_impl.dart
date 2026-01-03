@@ -12,12 +12,35 @@ class SqliteSearchDatabase implements LocalSearchDatabase {
   @override
   Future<void> initialize() async {
     final dbPath = await _getDatabasePath();
-    _db = await openDatabase(dbPath, version: _dbVersion, onCreate: _onCreate);
+    print('🔍 SQLite: Initializing database at: $dbPath');
+    try {
+      _db = await openDatabase(dbPath, version: _dbVersion, onCreate: _onCreate);
+      print('✅ SQLite: Database initialized successfully');
+    } catch (e) {
+      print('❌ SQLite: Initialization error: $e');
+      rethrow;
+    }
   }
 
   Future<String> _getDatabasePath() async {
-    final documentsDirectory = Directory.systemTemp;
-    final dbPath = path_utils.join(documentsDirectory.path, _dbName);
+    // Utiliser le répertoire cache de l'app (plus persistant que /tmp)
+    // Sur macOS: ~/Library/Caches/<app_id>/
+    final homeDir = Platform.environment['HOME'];
+    if (homeDir == null || homeDir.isEmpty) {
+      throw Exception('Cannot determine home directory');
+    }
+    
+    final cacheDir = Directory('$homeDir/.xplor_cache');
+    print('🔍 SQLite: Cache directory: ${cacheDir.path}');
+    
+    if (!await cacheDir.exists()) {
+      print('🔍 SQLite: Creating cache directory...');
+      await cacheDir.create(recursive: true);
+      print('✅ SQLite: Cache directory created');
+    }
+    
+    final dbPath = path_utils.join(cacheDir.path, _dbName);
+    print('🔍 SQLite: Database path: $dbPath');
     return dbPath;
   }
 
@@ -68,13 +91,16 @@ class SqliteSearchDatabase implements LocalSearchDatabase {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> queryIndex(String query) async {
+  Future<List<Map<String, dynamic>>> queryIndex(
+    String rootPath, {
+    required String query,
+  }) async {
     final queryLower = query.toLowerCase();
 
     final results = await _db.query(
       'file_index',
-      where: 'name_lower LIKE ?',
-      whereArgs: ['%$queryLower%'],
+      where: '(path = ? OR path LIKE ?) AND name_lower LIKE ?',
+      whereArgs: [rootPath, '$rootPath/%', '%$queryLower%'],
       orderBy: 'name_lower ASC',
       limit: 100,
     );

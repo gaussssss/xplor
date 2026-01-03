@@ -262,6 +262,9 @@ class ExplorerViewModel extends ChangeNotifier {
         clearStatus: true,
       );
       await _recordRecent(targetPath);
+      
+      // Mettre à jour l'index en arrière-plan (au lieu de rebuilder)
+      _updateIndexInBackground(targetPath);
     } on FileSystemException catch (error) {
       _state = _state.copyWith(
         isLoading: false,
@@ -411,6 +414,8 @@ class ExplorerViewModel extends ChangeNotifier {
         clearError: true,
         isLoading: false,
       );
+      // Mettre à jour l'index
+      _updateIndexInBackground(_state.currentPath);
     } on FileSystemException catch (error) {
       _state = _state.copyWith(isLoading: false, error: error.message);
     } finally {
@@ -486,6 +491,8 @@ class ExplorerViewModel extends ChangeNotifier {
         statusMessage: 'Renomme avec succes',
         isLoading: false,
       );
+      // Mettre à jour l'index
+      _updateIndexInBackground(_state.currentPath);
     } on FileSystemException catch (error) {
       _state = _state.copyWith(isLoading: false, error: error.message);
     } finally {
@@ -981,5 +988,16 @@ class ExplorerViewModel extends ChangeNotifier {
       counter++;
     }
     return base;
+  }
+
+  /// Met à jour l'index d'un répertoire en arrière-plan
+  void _updateIndexInBackground(String path) {
+    Future.microtask(() async {
+      try {
+        await _updateIndex(path);
+      } catch (_) {
+        // Ignorer les erreurs de mise à jour silencieusement
+      }
+    });
   }
 }

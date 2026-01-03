@@ -29,7 +29,7 @@ void main() {
 
 class MockSearchRepository implements SearchRepository {
   @override
-  Future<void> buildIndex(String rootPath) async {}
+  Future<void> buildIndex(String rootPath, {int maxDepth = 2}) async {}
 
   @override
   Future<void> updateIndex(String rootPath) async {}
