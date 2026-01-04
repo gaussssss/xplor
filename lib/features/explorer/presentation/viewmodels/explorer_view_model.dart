@@ -19,6 +19,7 @@ import '../../../search/domain/usecases/build_index.dart';
 import '../../../search/domain/usecases/update_index.dart';
 import '../../../search/domain/usecases/get_index_status.dart';
 import '../../../search/domain/entities/search_result.dart';
+import 'search_view_model.dart';
 
 enum ExplorerViewMode { list, grid }
 
@@ -125,9 +126,11 @@ class ExplorerViewModel extends ChangeNotifier {
        _copyEntries = copyEntries,
        _duplicateEntries = duplicateEntries,
        _renameEntry = renameEntry,
-       _searchFilesProgressive = searchFilesProgressive,
-       _buildIndex = buildIndex,
-       _updateIndex = updateIndex,
+       _searchViewModel = SearchViewModel(
+         searchFilesProgressive: searchFilesProgressive,
+         buildIndex: buildIndex,
+         updateIndex: updateIndex,
+       ),
        _state = ExplorerViewState.initial(initialPath);
 
   final ListDirectoryEntries _listDirectoryEntries;
@@ -137,16 +140,12 @@ class ExplorerViewModel extends ChangeNotifier {
   final CopyEntries _copyEntries;
   final DuplicateEntries _duplicateEntries;
   final RenameEntry _renameEntry;
-  final SearchFilesProgressive _searchFilesProgressive;
-  final BuildIndex _buildIndex;
-  final UpdateIndex _updateIndex;
+  late final SearchViewModel _searchViewModel;
   ExplorerViewState _state;
   List<FileEntry> _clipboard = [];
   final List<String> _backStack = [];
   final List<String> _forwardStack = [];
   List<String> _recentPaths = [];
-  List<SearchResult> _globalSearchResults = [];
-  Timer? _searchDebounceTimer;
 
   ExplorerViewState get state => _state;
 
@@ -154,8 +153,8 @@ class ExplorerViewModel extends ChangeNotifier {
     final query = _state.searchQuery.trim().toLowerCase();
     Iterable<FileEntry> filtered = _state.entries;
     // Si une recherche globale est en cours, afficher les résultats globaux
-    if (query.isNotEmpty && _globalSearchResults.isNotEmpty) {
-      return _globalSearchResults
+    if (query.isNotEmpty && _searchViewModel.globalSearchResults.isNotEmpty) {
+      return _searchViewModel.globalSearchResults
           .map(
             (result) => FileEntry(
               name: result.name,
@@ -184,35 +183,27 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   /// Retourne les résultats de recherche globale
-  List<SearchResult> get globalSearchResults => _globalSearchResults;
+  List<SearchResult> get globalSearchResults => _searchViewModel.globalSearchResults;
 
   /// Effectue une recherche globale dans les sous-répertoires avec affichage progressif
   Future<void> globalSearch(String query) async {
     if (query.trim().isEmpty) {
-      _globalSearchResults = [];
       _state = _state.copyWith(isLoading: false);
       notifyListeners();
       return;
     }
 
-    _globalSearchResults = [];
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
 
     try {
-      await _searchFilesProgressive(
+      await _searchViewModel.globalSearch(
         query,
         rootPath: _state.currentPath,
-        maxResults: 100,
-        onResultFound: (result) {
-          // Ajouter le résultat immédiatement à la liste
-          _globalSearchResults.add(result);
-          // Notifier immédiatement pour afficher progressivement
-          notifyListeners();
-        },
+        onUpdate: notifyListeners,
       );
     } catch (_) {
-      _globalSearchResults = [];
+      // Ignorer les erreurs
     } finally {
       _state = _state.copyWith(isLoading: false);
       notifyListeners();
@@ -221,20 +212,12 @@ class ExplorerViewModel extends ChangeNotifier {
 
   /// Construit l'index du répertoire courant
   Future<void> buildSearchIndex() async {
-    try {
-      await _buildIndex(_state.currentPath);
-    } catch (_) {
-      // Ignorer les erreurs
-    }
+    await _searchViewModel.buildSearchIndex(_state.currentPath);
   }
 
   /// Met à jour l'index si nécessaire
   Future<void> updateSearchIndex() async {
-    try {
-      await _updateIndex(_state.currentPath);
-    } catch (_) {
-      // Ignorer les erreurs
-    }
+    await _searchViewModel.updateSearchIndex(_state.currentPath);
   }
 
   Future<void> loadDirectory(String path, {bool pushHistory = true}) async {
@@ -509,20 +492,13 @@ class ExplorerViewModel extends ChangeNotifier {
 
   void updateSearch(String query) {
     _state = _state.copyWith(searchQuery: query);
-    // Vider les résultats précédents immédiatement
-    _globalSearchResults = [];
     notifyListeners();
 
-    // Annuler le timer précédent
-    _searchDebounceTimer?.cancel();
-
-    // Déclencher la recherche globale si la requête n'est pas vide
-    if (query.trim().isNotEmpty) {
-      // Attendre 1000ms (1 seconde) avant de lancer la recherche
-      _searchDebounceTimer = Timer(const Duration(milliseconds: 1000), () {
-        globalSearch(query);
-      });
-    }
+    _searchViewModel.updateSearch(
+      query,
+      currentPath: _state.currentPath,
+      onUpdate: notifyListeners,
+    );
   }
 
   void toggleTag(String tag) {
@@ -996,11 +972,13 @@ class ExplorerViewModel extends ChangeNotifier {
   /// Met à jour l'index d'un répertoire en arrière-plan
   void _updateIndexInBackground(String path) {
     Future.microtask(() async {
-      try {
-        await _updateIndex(path);
-      } catch (_) {
-        // Ignorer les erreurs de mise à jour silencieusement
-      }
+      await _searchViewModel.updateSearchIndex(path);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchViewModel.dispose();
+    super.dispose();
   }
 }
