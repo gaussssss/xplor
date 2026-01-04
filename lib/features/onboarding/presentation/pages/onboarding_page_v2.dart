@@ -25,8 +25,9 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
     with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  late AnimationController _fadeController;
-  late AnimationController _scaleController;
+  late AnimationController _contentController;
+  late AnimationController _iconController;
+  late AnimationController _glowController;
 
   final List<OnboardingStep> _steps = const [
     OnboardingStep(
@@ -34,62 +35,68 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
       icon: lucide.LucideIcons.sparkles,
       title: 'Xplor',
       subtitle: 'L\'explorateur réinventé',
-      pitch: 'Finder est lent, limité et daté.',
+      pitch: 'Finder est lent, limité et daté',
       description: 'Xplor offre une interface moderne, rapide et élégante pour gérer vos fichiers avec style.',
     ),
     OnboardingStep(
       backgroundImage: 1,
       icon: lucide.LucideIcons.layoutGrid,
       title: 'Adaptable',
-      subtitle: 'Grille · Liste · Votre choix',
-      pitch: 'Changez de vue en un clic.',
-      description: 'Passez de la grille visuelle à la liste détaillée selon vos besoins du moment.',
+      subtitle: 'Grille • Liste • Votre choix',
+      pitch: 'Changez de vue en un clic',
+      description: 'Passez de la grille visuelle à la liste détaillée selon vos besoins.',
     ),
     OnboardingStep(
       backgroundImage: 2,
       icon: lucide.LucideIcons.move,
       title: 'Intuitif',
-      subtitle: 'Glissez · Déposez · Terminé',
-      pitch: 'Organisez sans effort.',
-      description: 'Drag & drop depuis Finder avec gestion intelligente des doublons et des conflits.',
+      subtitle: 'Glissez • Déposez • Terminé',
+      pitch: 'Organisez sans effort',
+      description: 'Drag & drop avec gestion intelligente des doublons et des conflits.',
     ),
     OnboardingStep(
       backgroundImage: 3,
       icon: lucide.LucideIcons.zap,
       title: 'Rapide',
       subtitle: 'Recherche instantanée',
-      pitch: 'Trouvez tout, immédiatement.',
-      description: 'Moteur de recherche ultra-performant avec filtres avancés et résultats en temps réel.',
+      pitch: 'Trouvez tout, immédiatement',
+      description: 'Moteur de recherche ultra-performant avec résultats en temps réel.',
     ),
     OnboardingStep(
       backgroundImage: 4,
       icon: lucide.LucideIcons.palette,
       title: 'Personnel',
-      subtitle: 'Thèmes · Couleurs · Style',
-      pitch: 'Faites-le vôtre.',
-      description: 'Palettes de couleurs raffinées, mode clair/sombre, personnalisation complète.',
+      subtitle: 'Thèmes • Couleurs • Style',
+      pitch: 'Faites-le vôtre',
+      description: 'Palettes raffinées, mode clair/sombre, personnalisation complète.',
     ),
   ];
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
+    _contentController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 900),
     )..forward();
 
-    _scaleController = AnimationController(
+    _iconController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 1200),
     )..forward();
+
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _fadeController.dispose();
-    _scaleController.dispose();
+    _contentController.dispose();
+    _iconController.dispose();
+    _glowController.dispose();
     super.dispose();
   }
 
@@ -104,12 +111,14 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
 
   void _nextPage() {
     if (_currentPage < _steps.length - 1) {
-      _scaleController.reset();
+      _contentController.reset();
+      _iconController.reset();
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubicEmphasized,
       );
-      _scaleController.forward();
+      _contentController.forward();
+      _iconController.forward();
     } else {
       _completeOnboarding();
     }
@@ -117,12 +126,14 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
 
   void _previousPage() {
     if (_currentPage > 0) {
-      _scaleController.reset();
+      _contentController.reset();
+      _iconController.reset();
       _pageController.previousPage(
-        duration: const Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubicEmphasized,
       );
-      _scaleController.forward();
+      _contentController.forward();
+      _iconController.forward();
     }
   }
 
@@ -134,9 +145,9 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
     return Scaffold(
       body: Stack(
         children: [
-          // Background avec image et dégradé
+          // Background avec image + overlay plus sombre
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 1000),
+            duration: const Duration(milliseconds: 1200),
             switchInCurve: Curves.easeInOutCubic,
             switchOutCurve: Curves.easeInOutCubic,
             child: Container(
@@ -147,10 +158,6 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
                     AppAssets.onboardingBackgrounds[_steps[_currentPage].backgroundImage],
                   ),
                   fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withValues(alpha: 0.3),
-                    BlendMode.darken,
-                  ),
                 ),
               ),
               child: Container(
@@ -159,11 +166,10 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      theme.colorScheme.primary.withValues(alpha: 0.2),
-                      Colors.black.withValues(alpha: 0.6),
-                      Colors.black.withValues(alpha: 0.9),
+                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.85),
+                      Colors.black.withValues(alpha: 0.95),
                     ],
-                    stops: const [0.0, 0.5, 1.0],
                   ),
                 ),
               ),
@@ -177,8 +183,10 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
               setState(() {
                 _currentPage = index;
               });
-              _scaleController.reset();
-              _scaleController.forward();
+              _contentController.reset();
+              _iconController.reset();
+              _contentController.forward();
+              _iconController.forward();
             },
             itemCount: _steps.length,
             itemBuilder: (context, index) {
@@ -186,19 +194,19 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
             },
           ),
 
-          // Bouton skip
+          // Bouton skip discret
           Positioned(
-            top: 24,
-            right: 24,
+            top: 48,
+            right: 48,
             child: _buildSkipButton(theme),
           ),
 
-          // Contrôles en bas
+          // Contrôles centrés en bas
           Positioned(
-            bottom: 32,
+            bottom: 48,
             left: 0,
             right: 0,
-            child: _buildControls(theme, themeProvider),
+            child: _buildControls(theme),
           ),
         ],
       ),
@@ -212,227 +220,304 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
     ThemeProvider themeProvider,
   ) {
     return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600),
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Spacer(),
+            const Spacer(flex: 2),
 
-            // Icône compacte avec glow
+            // Icône avec animation et glow pulsant
             ScaleTransition(
-              scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+              scale: Tween<double>(begin: 0.5, end: 1.0).animate(
                 CurvedAnimation(
-                  parent: _scaleController,
-                  curve: Curves.easeOutBack,
+                  parent: _iconController,
+                  curve: Curves.elasticOut,
                 ),
               ),
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      theme.colorScheme.primary.withValues(alpha: 0.3),
-                      theme.colorScheme.primary.withValues(alpha: 0.0),
-                    ],
+              child: FadeTransition(
+                opacity: _iconController,
+                child: AnimatedBuilder(
+                  animation: _glowController,
+                  builder: (context, child) {
+                    return Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.4 + (_glowController.value * 0.3),
+                            ),
+                            blurRadius: 60 + (_glowController.value * 40),
+                            spreadRadius: 20 + (_glowController.value * 10),
+                          ),
+                        ],
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          theme.colorScheme.primary.withValues(alpha: 0.25),
+                          theme.colorScheme.primary.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                    child: Icon(
+                      step.icon,
+                      size: 56,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.5),
-                      blurRadius: 40,
-                      spreadRadius: 10,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 48),
+
+            // Titre avec fade et slide
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.3),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: _contentController,
+                curve: Curves.easeOutCubic,
+              )),
+              child: FadeTransition(
+                opacity: _contentController,
+                child: Column(
+                  children: [
+                    Text(
+                      step.title,
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -2,
+                        height: 1.0,
+                        fontSize: 72,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      step.subtitle,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2,
+                        fontSize: 18,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-                child: Icon(
-                  step.icon,
-                  size: 40,
-                  color: theme.colorScheme.primary,
+              ),
+            ),
+
+            const SizedBox(height: 56),
+
+            // Card glassmorphique VRAIMENT visible
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.5),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: _contentController,
+                curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+              )),
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: _contentController,
+                  curve: const Interval(0.2, 1.0),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Titre + Subtitle compact
-            FadeTransition(
-              opacity: _fadeController,
-              child: Column(
-                children: [
-                  Text(
-                    step.title,
-                    style: theme.textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: -1.5,
-                      height: 1.1,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    step.subtitle,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.95),
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Card glassmorphique compacte
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
                 child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                      width: 1,
+                  constraints: const BoxConstraints(maxWidth: 550),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                      child: Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              step.pitch,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                height: 1.3,
+                                fontSize: 24,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              height: 2,
+                              width: 60,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    theme.colorScheme.primary.withValues(alpha: 0.0),
+                                    theme.colorScheme.primary,
+                                    theme.colorScheme.primary.withValues(alpha: 0.0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              step.description,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                height: 1.7,
+                                fontSize: 16,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        step.pitch,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        step.description,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          height: 1.6,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
             ),
 
-            const Spacer(),
-            const SizedBox(height: 120), // Espace pour les contrôles
+            const Spacer(flex: 3),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildControls(ThemeData theme, ThemeProvider themeProvider) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Row(
-        children: [
-          // Bouton précédent (si pas première page)
-          if (_currentPage > 0)
-            _buildChevronButton(
-              icon: lucide.LucideIcons.chevronLeft,
-              onTap: _previousPage,
-              theme: theme,
-            )
-          else
-            const SizedBox(width: 48),
+  Widget _buildControls(ThemeData theme) {
+    final isLastPage = _currentPage == _steps.length - 1;
 
-          const SizedBox(width: 16),
+    return Column(
+      children: [
+        // Indicateurs de page
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _steps.length,
+            (index) => _buildDot(index == _currentPage, theme),
+          ),
+        ),
 
-          // Indicateurs au centre
-          Expanded(
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(
-                  _steps.length,
-                  (index) => _buildDot(index == _currentPage, theme),
+        const SizedBox(height: 32),
+
+        // Boutons de navigation
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 48),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Bouton précédent
+              if (_currentPage > 0) ...[
+                _buildNavButton(
+                  icon: lucide.LucideIcons.chevronLeft,
+                  onTap: _previousPage,
+                  theme: theme,
                 ),
+                const SizedBox(width: 20),
+              ],
+
+              // Bouton suivant/commencer
+              _buildMainButton(
+                label: isLastPage ? 'Commencer l\'aventure' : 'Suivant',
+                icon: isLastPage ? lucide.LucideIcons.rocket : lucide.LucideIcons.arrowRight,
+                onTap: _nextPage,
+                theme: theme,
               ),
-            ),
+            ],
           ),
-
-          const SizedBox(width: 16),
-
-          // Bouton suivant/terminer
-          _buildChevronButton(
-            icon: _currentPage == _steps.length - 1
-                ? lucide.LucideIcons.check
-                : lucide.LucideIcons.chevronRight,
-            onTap: _nextPage,
-            theme: theme,
-            isPrimary: true,
-            label: _currentPage == _steps.length - 1 ? 'Commencer' : null,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildChevronButton({
+  Widget _buildMainButton({
+    required String label,
     required IconData icon,
     required VoidCallback onTap,
     required ThemeData theme,
-    bool isPrimary = false,
-    String? label,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            child: Container(
-              height: 48,
-              padding: EdgeInsets.symmetric(
-                horizontal: label != null ? 20 : 16,
-              ),
-              decoration: BoxDecoration(
-                color: isPrimary
-                    ? theme.colorScheme.primary
-                    : Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: isPrimary
-                      ? theme.colorScheme.primary
-                      : Colors.white.withValues(alpha: 0.15),
-                  width: 1,
-                ),
-              ),
+            child: AnimatedBuilder(
+              animation: _glowController,
+              builder: (context, child) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.primary.withValues(alpha: 0.85),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.4 + (_glowController.value * 0.2),
+                        ),
+                        blurRadius: 20 + (_glowController.value * 10),
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: child,
+                );
+              },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (label != null) ...[
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
                     ),
-                    const SizedBox(width: 8),
-                  ],
+                  ),
+                  const SizedBox(width: 12),
                   Icon(
                     icon,
-                    size: 20,
+                    size: 22,
                     color: Colors.white,
                   ),
                 ],
@@ -444,38 +529,83 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
     );
   }
 
+  Widget _buildNavButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required ThemeData theme,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDot(bool isActive, ThemeData theme) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: isActive ? 24 : 6,
-      height: 6,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      width: isActive ? 40 : 8,
+      height: 8,
       decoration: BoxDecoration(
         color: isActive
             ? theme.colorScheme.primary
-            : Colors.white.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(3),
+            : Colors.white.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
       ),
     );
   }
 
   Widget _buildSkipButton(ThemeData theme) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: _completeOnboarding,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: Colors.white.withValues(alpha: 0.15),
                   width: 1,
                 ),
               ),
@@ -485,16 +615,16 @@ class _OnboardingPageV2State extends State<OnboardingPageV2>
                   Text(
                     'Passer',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   Icon(
                     lucide.LucideIcons.arrowRight,
-                    size: 14,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 16,
+                    color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ],
               ),
