@@ -5,10 +5,78 @@ import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/constants/assets.dart';
 
 /// Page des Conditions Générales d'Utilisation
 class TermsOfServicePage extends StatelessWidget {
   const TermsOfServicePage({super.key});
+
+  static const List<_TosSection> _sections = [
+    _TosSection(
+      title: "Résumé rapide",
+      description:
+          "Xplor vous aide à organiser vos fichiers localement. Aucune télémétrie n'est envoyée et vous gardez le contrôle de vos données.",
+      bullets: [
+        "Vous êtes pleinement responsable des actions menées dans l'application.",
+        "Nous ne sommes pas responsables d'un usage malveillant ou non conforme et nous ne le soutenons pas.",
+        "Sauvegardez vos données : les actions sur les fichiers sont immédiates et locales.",
+      ],
+    ),
+    _TosSection(
+      title: "Usage responsable et conformité",
+      description:
+          "Utilisez Xplor dans le respect des lois, politiques internes et droits des tiers. L'application n'est pas destinée à contourner des protections ni à automatiser des actions nuisibles.",
+      bullets: [
+        "Interdiction d'utiliser Xplor pour supprimer, copier ou diffuser des données sans autorisation.",
+        "Aucun soutien ni encouragement pour des usages non conformes ou illégaux (projets tiers compris).",
+        "Vous devez disposer des autorisations nécessaires avant de manipuler des données sensibles.",
+      ],
+    ),
+    _TosSection(
+      title: "Sécurité et risques",
+      description:
+          "Xplor opère sur vos fichiers locaux. Une mauvaise manipulation peut entraîner perte ou modification de données.",
+      bullets: [
+        "Aucune garantie de disponibilité, d'exactitude ou d'absence de bugs.",
+        "Les développeurs ne peuvent être tenus responsables des dommages directs ou indirects.",
+        "Vérifiez toujours vos actions avant de déplacer ou supprimer des éléments.",
+      ],
+    ),
+    _TosSection(
+      title: "Données et confidentialité",
+      description:
+          "L'application fonctionne hors ligne. Elle ne collecte pas vos fichiers ni vos habitudes d'usage.",
+      bullets: [
+        "Les chemins et contenus restent sur votre machine.",
+        "Aucune donnée personnelle n'est envoyée vers des serveurs externes.",
+        "En cas d'intégration de services tiers, leurs conditions s'appliquent séparément.",
+      ],
+    ),
+    _TosSection(
+      title: "Licence et contributions",
+      description:
+          "Xplor est distribué sous licence MIT. Vous pouvez l'utiliser, le modifier et contribuer.",
+      bullets: [
+        "Les contributions doivent respecter la licence MIT et le code de conduite du projet.",
+        "Le nom et le logo Xplor ne peuvent pas être utilisés pour se présenter comme partenaire officiel sans accord écrit.",
+      ],
+    ),
+    _TosSection(
+      title: "Évolution des conditions",
+      description:
+          "Nous pouvons mettre à jour ces CGU pour refléter l'évolution du produit ou des exigences légales.",
+      bullets: [
+        "Les modifications prennent effet dès leur publication dans l'application.",
+        "La poursuite de l'utilisation vaut acceptation des nouvelles conditions.",
+      ],
+    ),
+    _TosSection(
+      title: "Contact",
+      description:
+          "Pour toute question, consultez la page \"À propos\" ou ouvrez une issue sur le dépôt GitHub.",
+      bullets: [],
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -20,130 +88,139 @@ class TermsOfServicePage extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Contenu principal
-          Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
-                  margin: const EdgeInsets.all(40),
-                  padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                      width: 1.5,
+          Positioned.fill(
+            child: Image.asset(
+              AppAssets.background6,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.78),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 960,
+                      maxHeight: 820,
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // En-tête
-                      Row(
-                        children: [
-                          Icon(
-                            lucide.LucideIcons.fileText,
-                            color: theme.colorScheme.primary,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'Conditions Générales d\'Utilisation',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
+                    margin: const EdgeInsets.all(28),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.12,
+                        ),
+                        width: 1.1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.22),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(context, theme),
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          children: [
+                            _buildMetaChip(
+                              theme: theme,
+                              icon: lucide.LucideIcons.calendar,
+                              label: "Dernière mise à jour : 3 janv. 2026",
+                            ),
+                            _buildMetaChip(
+                              theme: theme,
+                              icon: lucide.LucideIcons.shieldCheck,
+                              label: "Licence MIT",
+                            ),
+                            _buildMetaChip(
+                              theme: theme,
+                              icon: lucide.LucideIcons.hardDrive,
+                              label: "Traitement local",
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceVariant
+                                  .withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.08,
+                                ),
+                              ),
+                            ),
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                children: _sections
+                                    .map(
+                                      (section) => _buildSectionCard(
+                                        context,
+                                        section,
+                                        theme,
+                                      ),
+                                    )
+                                    .toList(),
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(lucide.LucideIcons.x),
+                        ),
+                        const SizedBox(height: 18),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.icon(
                             onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Dernière mise à jour: 3 janvier 2026',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Contenu scrollable
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.03),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                            ),
-                          ),
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildSection(
-                                  context,
-                                  '1. Acceptation des conditions',
-                                  'En utilisant Xplor, vous acceptez d\'être lié par ces conditions générales d\'utilisation. Si vous n\'acceptez pas ces conditions, veuillez ne pas utiliser l\'application.',
-                                ),
-                                _buildSection(
-                                  context,
-                                  '2. Licence d\'utilisation',
-                                  'Xplor est un logiciel open-source gratuit. Vous êtes libre de l\'utiliser, de le modifier et de le distribuer selon les termes de la licence MIT.',
-                                ),
-                                _buildSection(
-                                  context,
-                                  '3. Utilisation de l\'application',
-                                  'Xplor est un explorateur de fichiers conçu pour vous aider à gérer vos fichiers et dossiers. Vous êtes responsable de toutes les actions effectuées dans l\'application, y compris la suppression, la modification ou le déplacement de fichiers.',
-                                ),
-                                _buildSection(
-                                  context,
-                                  '4. Collecte de données',
-                                  'Xplor ne collecte aucune donnée personnelle. Toutes les opérations sont effectuées localement sur votre appareil. Aucune information n\'est envoyée vers des serveurs externes.',
-                                ),
-                                _buildSection(
-                                  context,
-                                  '5. Limitation de responsabilité',
-                                  'L\'application est fournie "telle quelle" sans aucune garantie. Les développeurs ne peuvent être tenus responsables de toute perte de données ou dommages résultant de l\'utilisation de l\'application.',
-                                ),
-                                _buildSection(
-                                  context,
-                                  '6. Modifications',
-                                  'Nous nous réservons le droit de modifier ces conditions à tout moment. Les modifications prendront effet dès leur publication dans l\'application.',
-                                ),
-                                _buildSection(
-                                  context,
-                                  '7. Contact',
-                                  'Pour toute question concernant ces conditions, veuillez consulter la page "À propos" ou visiter notre dépôt GitHub.',
-                                ),
-                              ],
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: const Text("J'ai compris"),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 12,
+                              ),
+                              backgroundColor: theme.colorScheme.primary
+                                  .withValues(alpha: 0.92),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              textStyle: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.1,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Bouton de fermeture
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          ),
-                          child: const Text('J\'ai compris'),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -154,30 +231,198 @@ class TermsOfServicePage extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, String content) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
+  Widget _buildHeader(BuildContext context, ThemeData theme) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.25),
             ),
           ),
-          const SizedBox(height: 8),
+          child: Icon(
+            lucide.LucideIcons.fileText,
+            color: theme.colorScheme.primary,
+            size: 22,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Conditions Générales d'Utilisation",
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Lisez attentivement : votre utilisation de Xplor implique l'acceptation de ces conditions.",
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(lucide.LucideIcons.x),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetaChip({
+    required ThemeData theme,
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
           Text(
-            content,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              height: 1.6,
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildSectionCard(
+    BuildContext context,
+    _TosSection section,
+    ThemeData theme,
+  ) {
+    final onSurface = theme.colorScheme.onSurface;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.08),
+            Colors.white.withValues(alpha: 0.04),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.6),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  section.title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: onSurface,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            section.description,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.92),
+              height: 1.6,
+            ),
+          ),
+          if (section.bullets.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Column(
+              children: section.bullets
+                  .map((bullet) => _buildBulletPoint(theme, bullet))
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulletPoint(ThemeData theme, String text) {
+    final onSurface = theme.colorScheme.onSurface;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 2),
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 6, right: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: onSurface.withValues(alpha: 0.9),
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TosSection {
+  const _TosSection({
+    required this.title,
+    required this.description,
+    required this.bullets,
+  });
+
+  final String title;
+  final String description;
+  final List<String> bullets;
 }
