@@ -3,9 +3,14 @@ class AppAssets {
   AppAssets._();
 
   // Logos
+  static const String appLogo = 'assets/images/png/app_logo.png';
   static const String google_Drive_logo = 'assets/images/png/Google_Drive_logo.png';
   static const String iCloud_logo = 'assets/images/png/ICloud_logo.png';
   static const String oneDrive_logo = 'assets/images/png/OneDrive_logo.png';
+
+  // Portraits
+  static const String portraitFlorian = 'assets/images/jpg/Florian.jpeg';
+  static const String portraitJacobin = 'assets/images/jpg/Jacobin.jpeg';
 
   // Background images pour onboarding
   static const String background1 = 'assets/images/Backgrounds/anders-jilden-O85h02qZ24w-unsplash.jpg';

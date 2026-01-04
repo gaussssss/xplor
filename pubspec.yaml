@@ -50,6 +50,7 @@ dependencies:
   macos_window_utils: ^1.9.0
   window_manager: ^0.3.9
   desktop_drop: ^0.7.0
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +79,7 @@ flutter:
     - assets/images/png/
     - assets/images/svg/
     - assets/images/Backgrounds/
+    - assets/images/jpg/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
