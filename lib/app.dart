@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -6,7 +7,7 @@ import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/explorer/presentation/pages/explorer_page.dart';
 import 'features/onboarding/data/onboarding_service.dart';
-import 'features/onboarding/presentation/pages/onboarding_page.dart';
+import 'features/onboarding/presentation/pages/onboarding_page_v2.dart';
 
 class XplorApp extends StatelessWidget {
   const XplorApp({super.key});
@@ -39,7 +40,12 @@ class _XplorAppContentState extends State<_XplorAppContent> {
   }
 
   Future<void> _checkOnboarding() async {
-    final completed = await OnboardingService.isOnboardingCompleted();
+    // En mode debug, toujours afficher l'onboarding
+    // En mode release, vérifier si déjà complété
+    final completed = kDebugMode
+        ? false
+        : await OnboardingService.isOnboardingCompleted();
+
     if (mounted) {
       setState(() {
         _onboardingCompleted = completed;
@@ -80,7 +86,7 @@ class _XplorAppContentState extends State<_XplorAppContent> {
       materialThemeBuilder: (context, _) => themeBundle.material,
       home: _onboardingCompleted!
           ? const ExplorerPage()
-          : OnboardingPage(onComplete: _onOnboardingComplete),
+          : OnboardingPageV2(onComplete: _onOnboardingComplete),
       backgroundColor: themeBundle.background,
     );
   }
