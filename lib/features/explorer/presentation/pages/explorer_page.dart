@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../../core/constants/assets.dart';
@@ -25,6 +24,12 @@ import '../../../explorer/domain/usecases/list_directory_entries.dart';
 import '../../../explorer/domain/usecases/move_entries.dart';
 import '../../../explorer/domain/usecases/rename_entry.dart';
 import '../../../explorer/domain/usecases/copy_entries.dart';
+import '../../../search/domain/usecases/search_files_progressive.dart';
+import '../../../search/domain/usecases/build_index.dart';
+import '../../../search/domain/usecases/update_index.dart';
+import '../../../search/domain/usecases/get_index_status.dart';
+import '../../../search/data/repositories/search_repository_impl.dart';
+import '../../../search/data/datasources/sqlite_search_impl.dart';
 import '../viewmodels/explorer_view_model.dart';
 import '../widgets/breadcrumb_bar.dart';
 import '../widgets/file_entry_tile.dart';
@@ -101,6 +106,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     // Utiliser le vrai HOME de l'utilisateur au lieu du chemin sandbox
     final initialPath = Platform.environment['HOME'] ?? SpecialLocations.desktop;
     final repository = FileSystemRepositoryImpl(LocalFileSystemDataSource());
+    final searchRepository = SearchRepositoryImpl(SqliteSearchDatabase());
     _viewModel = ExplorerViewModel(
       listDirectoryEntries: ListDirectoryEntries(repository),
       createDirectory: CreateDirectory(repository),
@@ -110,6 +116,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
       duplicateEntries: DuplicateEntries(repository),
       renameEntry: RenameEntry(repository),
       initialPath: initialPath,
+      searchFilesProgressive: SearchFilesProgressive(searchRepository),
+      buildIndex: BuildIndex(searchRepository),
+      updateIndex: UpdateIndex(searchRepository),
+      getIndexStatus: GetIndexStatus(searchRepository),
     );
     _pathController = TextEditingController(text: initialPath);
     _searchController = TextEditingController(text: '');
@@ -121,27 +131,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _quickItems = _buildQuickItems();
     _tagItems = _buildTags();
     _volumes = _readVolumes();
-    _viewModel.loadPreferences();
-    _viewModel.loadDirectory(initialPath, recordHistory: false);
-    _viewModel.bootstrap();
-    _loadSidebarWidth();
-  }
-
-  /// Charge la largeur du sidebar depuis SharedPreferences
-  Future<void> _loadSidebarWidth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedWidth = prefs.getDouble('sidebar_width');
-    if (savedWidth != null && mounted) {
-      setState(() {
-        _sidebarWidth = savedWidth.clamp(180.0, 400.0);
-      });
-    }
-  }
-
-  /// Sauvegarde la largeur du sidebar dans SharedPreferences
-  Future<void> _saveSidebarWidth(double width) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('sidebar_width', width);
+    _viewModel.loadDirectory(initialPath);
   }
 
   Widget _buildSearchToggle() {
@@ -214,12 +204,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
         final adjustedOnSurface = hasBgImage && isLight
             ? Colors.black
             : (hasBgImage ? Colors.white : theme.colorScheme.onSurface);
-        final overlayLight = hasBgImage && isLight
-            ? Colors.white.withOpacity(0.55)
-            : null;
-        final overlayPrimary = hasBgImage && isLight
-            ? Colors.white.withOpacity(0.6)
-            : null;
         final themed = theme.copyWith(
           colorScheme: theme.colorScheme.copyWith(
             surface: adjustedSurface,
@@ -333,7 +317,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
                               currentPalette: themeProvider.currentPalette,
                               onToggleLight: themeProvider.setLightMode,
                               onPaletteSelected: themeProvider.setPalette,
-                              onSettingsChanged: () => _viewModel.loadPreferences(),
                               collapsed: _isSidebarCollapsed,
                             ),
                           ),
@@ -350,7 +333,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                 },
                                 onPanEnd: (_) {
                                   // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
-                                   _saveSidebarWidth(_sidebarWidth);
+                                  // TODO: Implémenter la sauvegarde de la largeur si nécessaire
                                  },
                                  child: Container(
                                    width: 8,
@@ -574,7 +557,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       );
     }
 
-    final selectionMode = state.isMultiSelectionMode;
+    final selectionMode = true; // Multi-selection always enabled
     final content = entries.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -1660,10 +1643,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
 }
 
 class _MenuItem {
-  const _MenuItem(this.value, this.label, {this.enabled = true});
+  const _MenuItem(this.value, this.label);
   final String value;
   final String label;
-  final bool enabled;
+  
+  bool get enabled => true;
 }
 
 class _DragFeedback extends StatelessWidget {
@@ -1721,7 +1705,6 @@ class _Sidebar extends StatelessWidget {
     required this.currentPalette,
     required this.onToggleLight,
     required this.onPaletteSelected,
-    this.onSettingsChanged,
     this.collapsed = false,
   });
 
@@ -1742,7 +1725,6 @@ class _Sidebar extends StatelessWidget {
   final ColorPalette currentPalette;
   final Future<void> Function(bool) onToggleLight;
   final Future<void> Function(ColorPalette) onPaletteSelected;
-  final VoidCallback? onSettingsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1855,7 +1837,7 @@ class _Sidebar extends StatelessWidget {
                                   context: context,
                                   builder: (context) =>
                                       const AppearanceSettingsDialogV2(),
-                                ).then((_) => onSettingsChanged?.call());
+                                );
                               },
                             ),
                           ),
@@ -2077,7 +2059,6 @@ class _Sidebar extends StatelessWidget {
                 currentPalette: currentPalette,
                 onToggleLight: onToggleLight,
                 onPaletteSelected: onPaletteSelected,
-                onSettingsChanged: onSettingsChanged,
               ),
             ),
 
@@ -2150,11 +2131,7 @@ class _Sidebar extends StatelessWidget {
                       showDialog(
                         context: context,
                         builder: (context) => const AppearanceSettingsDialogV2(),
-                      ).then((_) {
-                        if (onSettingsChanged != null) {
-                          onSettingsChanged!();
-                        }
-                      });
+                      );
                     },
                   ),
 
@@ -2689,26 +2666,6 @@ class _PathInput extends StatelessWidget {
             onPressed: () => onSubmit(controller.text),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SearchInput extends StatelessWidget {
-  const _SearchInput({required this.controller, required this.onChanged});
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      style: const TextStyle(fontSize: 14),
-      decoration: InputDecoration(
-        labelText: 'Recherche (nom ou extension)',
-        prefixIcon: const Icon(lucide.LucideIcons.search),
       ),
     );
   }
