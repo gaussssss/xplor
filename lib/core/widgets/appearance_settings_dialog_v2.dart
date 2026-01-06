@@ -32,7 +32,6 @@ class _AppearanceSettingsDialogV2State
     extends State<AppearanceSettingsDialogV2> {
   late ThemeMode _themeMode;
   late BackgroundType _backgroundType;
-  late Color _backgroundColor;
   String? _backgroundImagePath;
   String? _backgroundFolderPath;
   late bool _useGlassmorphism;
@@ -49,7 +48,6 @@ class _AppearanceSettingsDialogV2State
 
     _themeMode = themeProvider.themeModePreference;
     _backgroundType = themeProvider.backgroundType;
-    _backgroundColor = themeProvider.backgroundColor;
     _backgroundImagePath = themeProvider.backgroundImagePath;
     _backgroundFolderPath = themeProvider.backgroundFolderPath;
     _useGlassmorphism = themeProvider.useGlassmorphism;
