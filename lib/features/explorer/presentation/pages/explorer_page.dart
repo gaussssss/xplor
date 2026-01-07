@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../../core/constants/assets.dart';
@@ -266,6 +267,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isToastShowing = false;
   bool _isSidebarCollapsed = false;
   bool _isMultiSelectionMode = false;
+  bool _didInitialAutoRefresh = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
   String _lastPath = ''; // Pour détecter les changements de dossier
 
@@ -310,6 +312,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _viewModel.loadDirectory(initialPath);
     _loadSelectionMode();
     _loadPreferredRootPath();
+    _scheduleInitialRefresh();
   }
 
   Widget _buildSearchToggle() {
@@ -382,6 +385,15 @@ class _ExplorerPageState extends State<ExplorerPage> {
     if (_viewModel.state.currentPath == preferred) return;
     _pathController.text = preferred;
     await _viewModel.loadDirectory(preferred);
+  }
+
+  void _scheduleInitialRefresh() {
+    if (_didInitialAutoRefresh) return;
+    _didInitialAutoRefresh = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _viewModel.refresh();
+    });
   }
 
   bool _isTextInputFocused() {

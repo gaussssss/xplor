@@ -15,10 +15,7 @@ enum OnboardingStepKind { standard, access }
 
 /// Page d'onboarding avec plusieurs étapes
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({
-    super.key,
-    this.onComplete,
-  });
+  const OnboardingPage({super.key, this.onComplete});
 
   final VoidCallback? onComplete;
 
@@ -48,11 +45,7 @@ class _OnboardingPageState extends State<OnboardingPage>
       primaryCtaIcon: lucide.LucideIcons.arrowRight,
       secondaryCtaLabel: 'Voir les détails',
       secondaryCtaIcon: lucide.LucideIcons.sparkles,
-      highlights: [
-        'Interface glass',
-        'Navigation fluide',
-        'Local-first',
-      ],
+      highlights: ['Interface glass', 'Navigation fluide', 'Local-first'],
     ),
     OnboardingStep(
       title: 'Navigation intelligente',
@@ -80,6 +73,26 @@ class _OnboardingPageState extends State<OnboardingPage>
         'Ouvrir comme dossier',
         'Extraction rapide',
         'Drag & drop',
+        'Chiffrer vos dossiers',
+        'Verrouillage par clé',
+      ],
+    ),
+    OnboardingStep(
+      title: 'Chiffrement & verrouillage',
+      subtitle: 'Protégez vos fichiers et dossiers',
+      description:
+          'Verrouillez vos fichiers ou dossiers avec une clé de chiffrement. '
+          'Tout est chiffré localement, et vous gardez le contrôle.',
+      icon: lucide.LucideIcons.lock,
+      primaryCtaLabel: 'Découvrir le verrouillage',
+      primaryCtaIcon: lucide.LucideIcons.lock,
+      secondaryCtaLabel: 'Voir la sécurité',
+      secondaryCtaIcon: lucide.LucideIcons.shieldCheck,
+      highlights: [
+        'Clé privée',
+        'Chiffrement local',
+        'Fichiers & dossiers',
+        'Déverrouillage rapide',
       ],
     ),
     OnboardingStep(
@@ -92,6 +105,7 @@ class _OnboardingPageState extends State<OnboardingPage>
         'Local uniquement',
         'Réglable plus tard',
         'Indexation rapide',
+        'Chiffrement disponible',
       ],
       kind: OnboardingStepKind.access,
     ),
@@ -105,11 +119,7 @@ class _OnboardingPageState extends State<OnboardingPage>
       primaryCtaIcon: lucide.LucideIcons.palette,
       secondaryCtaLabel: 'Découvrir les thèmes',
       secondaryCtaIcon: lucide.LucideIcons.sparkles,
-      highlights: [
-        'Clair & sombre',
-        'Fonds personnalisés',
-        'Ambiance unique',
-      ],
+      highlights: ['Clair & sombre', 'Fonds personnalisés', 'Ambiance unique'],
     ),
   ];
 
@@ -124,15 +134,13 @@ class _OnboardingPageState extends State<OnboardingPage>
       parent: _introController,
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     );
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _introController,
-        curve: const Interval(0.1, 1.0, curve: Curves.easeOutCubic),
-      ),
-    );
+    _slideUp = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _introController,
+            curve: const Interval(0.1, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
     _introController.forward();
     _loadAccessPath();
   }
@@ -187,8 +195,9 @@ class _OnboardingPageState extends State<OnboardingPage>
       builder: (context) => MiniExplorerDialog(
         title: 'Ajouter un dossier',
         mode: MiniExplorerPickerMode.directory,
-        initialPath:
-            _accessPaths.isNotEmpty ? _accessPaths.last : _homeDirectory(),
+        initialPath: _accessPaths.isNotEmpty
+            ? _accessPaths.last
+            : _homeDirectory(),
         confirmLabel: 'Ajouter ce dossier',
       ),
     );
@@ -286,8 +295,10 @@ class _OnboardingPageState extends State<OnboardingPage>
               child: SlideTransition(
                 position: _slideUp,
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 24,
+                  ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth > 900;
@@ -312,8 +323,9 @@ class _OnboardingPageState extends State<OnboardingPage>
                                       onSelect: (index) {
                                         _pageController.animateToPage(
                                           index,
-                                          duration:
-                                              const Duration(milliseconds: 350),
+                                          duration: const Duration(
+                                            milliseconds: 350,
+                                          ),
                                           curve: Curves.easeOutCubic,
                                         );
                                       },
@@ -380,8 +392,9 @@ class _OnboardingPageState extends State<OnboardingPage>
         final opacity = 1 - (delta * 0.25);
         final accent = _accentForIndex(theme.colorScheme, index);
         final isActive = index == _currentPage;
-        final primaryCta =
-            index == _steps.length - 1 ? _completeOnboarding : _nextPage;
+        final primaryCta = index == _steps.length - 1
+            ? _completeOnboarding
+            : _nextPage;
 
         return Center(
           child: AnimatedBuilder(
@@ -445,10 +458,7 @@ class OnboardingStep {
 }
 
 class _OnboardingHeader extends StatelessWidget {
-  const _OnboardingHeader({
-    required this.isLight,
-    required this.onSkip,
-  });
+  const _OnboardingHeader({required this.isLight, required this.onSkip});
 
   final bool isLight;
   final VoidCallback onSkip;
@@ -458,41 +468,45 @@ class _OnboardingHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
 
-    return Row(
-      children: [
-        _BrandMark(isLight: isLight),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 25),
-            Text(
-              'Xplor',
-              style: GoogleFonts.fraunces(
-                textStyle: theme.textTheme.titleLarge,
-                fontWeight: FontWeight.w700,
-                color: onSurface,
-                letterSpacing: 0.3,
+    return Padding(
+      padding: const EdgeInsets.only(left: 0, top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _BrandMark(isLight: isLight),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Xplor',
+                style: GoogleFonts.fraunces(
+                  textStyle: theme.textTheme.titleLarge,
+                  fontWeight: FontWeight.w700,
+                  color: onSurface,
+                  letterSpacing: 0.3,
+                ),
               ),
-            ),
-            Text(
-              'Onboarding',
-              style: GoogleFonts.manrope(
-                textStyle: theme.textTheme.labelMedium,
-                fontWeight: FontWeight.w600,
-                color: onSurface.withValues(alpha: 0.6),
-                letterSpacing: 0.4,
+              Text(
+                'Découvrir. Explorer. Maîtriser.',
+                style: GoogleFonts.manrope(
+                  textStyle: theme.textTheme.labelMedium,
+                  fontWeight: FontWeight.w600,
+                  color: onSurface.withValues(alpha: 0.6),
+                  letterSpacing: 0.4,
+                ),
               ),
-            ),
-          ],
-        ),
-        const Spacer(),
-        _GlassActionButton(
-          label: 'Passer',
-          isLight: isLight,
-          onPressed: onSkip,
-        ),
-      ],
+            ],
+          ),
+          const Spacer(),
+          _GlassActionButton(
+            label: 'Passer',
+            isLight: isLight,
+            onPressed: onSkip,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -528,10 +542,7 @@ class _BrandMark extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.asset(
-          AppAssets.logo,
-          fit: BoxFit.cover,
-        ),
+        child: Image.asset(AppAssets.logo, fit: BoxFit.cover),
       ),
     );
   }
@@ -575,15 +586,16 @@ class _OnboardingCard extends StatelessWidget {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
     final alignRight = currentIndex.isOdd;
-    final crossAxis =
-        alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxis = alignRight
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
     final textAlign = alignRight ? TextAlign.right : TextAlign.left;
-    final alignment =
-        alignRight ? Alignment.centerRight : Alignment.centerLeft;
+    final alignment = alignRight ? Alignment.centerRight : Alignment.centerLeft;
     final titleSize = isWide ? 40.0 : 32.0;
     final subtitleSize = isWide ? 18.0 : 16.0;
     final bodySize = isWide ? 16.0 : 14.0;
-    final showCtas = step.kind == OnboardingStepKind.standard &&
+    final showCtas =
+        step.kind == OnboardingStepKind.standard &&
         (step.primaryCtaLabel != null || step.secondaryCtaLabel != null);
 
     return ConstrainedBox(
@@ -597,8 +609,7 @@ class _OnboardingCard extends StatelessWidget {
             begin: const Offset(0, 0.08),
             end: Offset.zero,
           ).animate(animation);
-          final scale =
-              Tween<double>(begin: 0.96, end: 1).animate(animation);
+          final scale = Tween<double>(begin: 0.96, end: 1).animate(animation);
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
@@ -850,12 +861,14 @@ class _AccessPanel extends StatelessWidget {
             ),
           ),
           child: Column(
-            crossAxisAlignment:
-                alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: alignRight
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment:
-                    alignRight ? MainAxisAlignment.end : MainAxisAlignment.start,
+                mainAxisAlignment: alignRight
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
                 children: [
                   Icon(
                     hasAccess
@@ -876,11 +889,7 @@ class _AccessPanel extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  if (hasAccess)
-                    _StatusPill(
-                      label: 'Prêt',
-                      isLight: isLight,
-                    ),
+                  if (hasAccess) _StatusPill(label: 'Prêt', isLight: isLight),
                 ],
               ),
               const SizedBox(height: 10),
@@ -899,8 +908,9 @@ class _AccessPanel extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  alignment:
-                      alignRight ? WrapAlignment.end : WrapAlignment.start,
+                  alignment: alignRight
+                      ? WrapAlignment.end
+                      : WrapAlignment.start,
                   children: accessPaths
                       .map(
                         (path) => _AccessPathBadge(
@@ -925,11 +935,12 @@ class _AccessPanel extends StatelessWidget {
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                alignment:
-                    alignRight ? WrapAlignment.end : WrapAlignment.start,
+                alignment: alignRight ? WrapAlignment.end : WrapAlignment.start,
                 children: [
                   _GradientButton(
-                    label: hasAccess ? 'Ajouter un dossier' : 'Choisir un dossier',
+                    label: hasAccess
+                        ? 'Ajouter un dossier'
+                        : 'Choisir un dossier',
                     icon: lucide.LucideIcons.folderPlus,
                     isLight: isLight,
                     onPressed: isRequesting ? null : onRequestAccess,
@@ -972,11 +983,18 @@ class _AccessPathBadge extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: isLight
-              ? Colors.white.withValues(alpha: 0.6)
-              : Colors.white.withValues(alpha: 0.12),
+              ? Colors.white.withValues(alpha: 0.72)
+              : Colors.white.withValues(alpha: 0.2),
           border: Border.all(
-            color: onSurface.withValues(alpha: isLight ? 0.14 : 0.22),
+            color: onSurface.withValues(alpha: isLight ? 0.22 : 0.32),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -1027,10 +1045,21 @@ class _StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: theme.colorScheme.primary.withValues(alpha: 0.15),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.25),
+        color: theme.colorScheme.primary.withValues(
+          alpha: isLight ? 0.28 : 0.22,
         ),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(
+            alpha: isLight ? 0.45 : 0.5,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Text(
         label.toUpperCase(),
@@ -1128,20 +1157,23 @@ class _GlassActionButton extends StatelessWidget {
               onTap: onPressed,
               borderRadius: BorderRadius.circular(14),
               child: Ink(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   color: isLight
-                      ? Colors.white.withValues(alpha: 0.84)
-                      : Colors.white.withValues(alpha: 0.18),
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : Colors.white.withValues(alpha: 0.28),
                   border: Border.all(
-                    color: onSurface.withValues(alpha: isLight ? 0.14 : 0.24),
+                    color: onSurface.withValues(alpha: isLight ? 0.2 : 0.3),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          Colors.black.withValues(alpha: isLight ? 0.06 : 0.25),
+                      color: Colors.black.withValues(
+                        alpha: isLight ? 0.06 : 0.25,
+                      ),
                       blurRadius: 16,
                       offset: const Offset(0, 10),
                     ),
@@ -1204,8 +1236,10 @@ class _GradientButton extends StatelessWidget {
               onTap: onPressed,
               borderRadius: BorderRadius.circular(18),
               child: Ink(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
                   gradient: LinearGradient(
@@ -1219,8 +1253,9 @@ class _GradientButton extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: colors.first
-                          .withValues(alpha: isLight ? 0.22 : 0.35),
+                      color: colors.first.withValues(
+                        alpha: isLight ? 0.22 : 0.35,
+                      ),
                       blurRadius: 18,
                       offset: const Offset(0, 10),
                     ),
@@ -1295,9 +1330,10 @@ class _TypewriterTextState extends State<_TypewriterText>
       milliseconds: (length * widget.speedPerChar.inMilliseconds) + 120,
     );
     _controller = AnimationController(vsync: this, duration: duration);
-    _chars = StepTween(begin: 0, end: length).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _chars = StepTween(
+      begin: 0,
+      end: length,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     if (length == 0) {
       _controller.value = 1;
     } else {
@@ -1350,7 +1386,7 @@ class _StepRail extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Parcours',
+          '',
           style: GoogleFonts.manrope(
             textStyle: theme.textTheme.titleSmall,
             fontWeight: FontWeight.w700,
@@ -1399,7 +1435,7 @@ class _StepRail extends StatelessWidget {
                                         colors: [
                                           (isActive || isCompleted)
                                               ? theme.colorScheme.primary
-                                                  .withValues(alpha: 0.55)
+                                                    .withValues(alpha: 0.55)
                                               : onSurface.withValues(
                                                   alpha: isLight ? 0.25 : 0.35,
                                                 ),
@@ -1430,19 +1466,19 @@ class _StepRail extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16),
                                   color: isActive
                                       ? (isLight
-                                          ? Colors.white.withValues(
-                                              alpha: 0.82,
-                                            )
-                                          : Colors.white.withValues(
-                                              alpha: 0.1,
-                                            ))
+                                            ? Colors.white.withValues(
+                                                alpha: 0.82,
+                                              )
+                                            : Colors.white.withValues(
+                                                alpha: 0.1,
+                                              ))
                                       : (isLight
-                                          ? Colors.white.withValues(
-                                              alpha: 0.55,
-                                            )
-                                          : Colors.white.withValues(
-                                              alpha: 0.04,
-                                            )),
+                                            ? Colors.white.withValues(
+                                                alpha: 0.55,
+                                              )
+                                            : Colors.white.withValues(
+                                                alpha: 0.04,
+                                              )),
                                   border: Border.all(
                                     color: onSurface.withValues(
                                       alpha: isActive ? 0.18 : 0.1,
@@ -1527,8 +1563,8 @@ class _StepIndexBadge extends StatelessWidget {
     final fillColor = isActive || isCompleted
         ? theme.colorScheme.primary
         : (isLight
-            ? Colors.white.withValues(alpha: 0.65)
-            : Colors.black.withValues(alpha: 0.25));
+              ? Colors.white.withValues(alpha: 0.65)
+              : Colors.black.withValues(alpha: 0.25));
     return Container(
       width: 20,
       height: 20,
@@ -1547,7 +1583,11 @@ class _StepIndexBadge extends StatelessWidget {
       ),
       child: Center(
         child: isCompleted
-            ? const Icon(lucide.LucideIcons.check, size: 12, color: Colors.white)
+            ? const Icon(
+                lucide.LucideIcons.check,
+                size: 12,
+                color: Colors.white,
+              )
             : Text(
                 index.toString(),
                 style: GoogleFonts.manrope(
@@ -1613,21 +1653,30 @@ class _HighlightChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        color: accent.withValues(alpha: isLight ? 0.14 : 0.22),
+        color: isLight
+            ? Colors.white.withValues(alpha: 0.22)
+            : Colors.white.withValues(alpha: 0.14),
         border: Border.all(
-          color: accent.withValues(alpha: isLight ? 0.3 : 0.4),
+          color: accent.withValues(alpha: isLight ? 0.32 : 0.42),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Text(
         label.toUpperCase(),
         style: GoogleFonts.manrope(
           textStyle: Theme.of(context).textTheme.labelSmall,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: accent,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
         ),
       ),
     );
@@ -1654,8 +1703,8 @@ class _IconBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           colors: [
-            accent.withValues(alpha: isLight ? 0.3 : 0.4),
-            accent.withValues(alpha: isLight ? 0.08 : 0.2),
+            accent.withValues(alpha: isLight ? 0.45 : 0.38),
+            accent.withValues(alpha: isLight ? 0.18 : 0.28),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1682,27 +1731,23 @@ class _StepDots extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        count,
-        (index) {
-          final isActive = index == currentIndex;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 28 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: isActive
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: isLight ? 0.2 : 0.4),
-              borderRadius: BorderRadius.circular(12),
-            ),
-          );
-        },
-      ),
+      children: List.generate(count, (index) {
+        final isActive = index == currentIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: isActive ? 28 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurface.withValues(
+                    alpha: isLight ? 0.2 : 0.4,
+                  ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+        );
+      }),
     );
   }
 }

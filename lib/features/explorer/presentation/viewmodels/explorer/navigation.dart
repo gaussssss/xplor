@@ -164,6 +164,11 @@ extension ExplorerNavigationOps on ExplorerViewModel {
     if (entry.isDirectory) {
       return loadDirectory(entry.path);
     }
+    if (isLockedPath(entry.path)) {
+      _state = _state.copyWith(statusMessage: 'Fichier verrouille');
+      notifyListeners();
+      return Future.value();
+    }
     if (_isArchivePath(entry.path)) {
       return openArchive(entry);
     }

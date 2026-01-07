@@ -24,7 +24,7 @@ enum BackgroundRefreshPeriod {
 /// Provider pour gérer le thème de l'application (palette de couleurs)
 /// Utilise ChangeNotifier pour notifier les widgets des changements
 /// Persiste la palette sélectionnée avec SharedPreferences
-class ThemeProvider extends ChangeNotifier {
+class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// Clés pour sauvegarder les paramètres dans SharedPreferences
   static const String _paletteKey = 'selected_color_palette';
   static const String _backgroundColorKey = 'selected_background_color';
@@ -62,6 +62,7 @@ class ThemeProvider extends ChangeNotifier {
 
   /// Constructeur qui charge automatiquement la palette sauvegardée
   ThemeProvider() {
+    WidgetsBinding.instance.addObserver(this);
     _loadSavedPalette();
   }
 
@@ -242,6 +243,20 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themeModeKey, mode.index);
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (_themeModePreference != settings.ThemeMode.adaptive) return;
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    setLightMode(brightness == Brightness.light);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> setBackgroundType(settings.BackgroundType type) async {
@@ -454,6 +469,16 @@ class ThemeProvider extends ChangeNotifier {
       final savedAnimations = prefs.getBool(_showAnimationsKey);
       if (savedAnimations != null) {
         _showAnimations = savedAnimations;
+      }
+
+      // En mode adaptatif, suivre le thème du système
+      if (_themeModePreference == settings.ThemeMode.adaptive) {
+        final systemBrightness =
+            WidgetsBinding.instance.platformDispatcher.platformBrightness;
+        _isLight = systemBrightness == Brightness.light;
+        _backgroundColor = _isLight
+            ? _backgroundForLight(_currentPalette)
+            : _backgroundFor(_currentPalette);
       }
 
       // Appliquer le fond selon le type configuré

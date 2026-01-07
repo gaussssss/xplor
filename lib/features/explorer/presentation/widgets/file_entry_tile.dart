@@ -20,6 +20,7 @@ class FileEntryTile extends StatelessWidget {
     this.onContextMenu,
     this.isSelected = false,
     this.selectionMode = false,
+    this.isLocked = false,
     this.enableDrop = true,
   });
 
@@ -30,6 +31,7 @@ class FileEntryTile extends StatelessWidget {
   final void Function(Offset globalPosition)? onContextMenu;
   final bool isSelected;
   final bool selectionMode;
+  final bool isLocked;
   final bool enableDrop;
 
   @override
@@ -42,6 +44,7 @@ class FileEntryTile extends StatelessWidget {
             onContextMenu: onContextMenu,
             isSelected: isSelected,
             selectionMode: selectionMode,
+            isLocked: isLocked,
             enableDrop: enableDrop,
           )
         : _GridEntry(
@@ -51,6 +54,7 @@ class FileEntryTile extends StatelessWidget {
             onContextMenu: onContextMenu,
             isSelected: isSelected,
             selectionMode: selectionMode,
+            isLocked: isLocked,
             enableDrop: enableDrop,
           );
   }
@@ -64,6 +68,7 @@ class _ListEntry extends StatefulWidget {
     this.onContextMenu,
     required this.isSelected,
     required this.selectionMode,
+    required this.isLocked,
     required this.enableDrop,
   });
 
@@ -73,6 +78,7 @@ class _ListEntry extends StatefulWidget {
   final void Function(Offset globalPosition)? onContextMenu;
   final bool isSelected;
   final bool selectionMode;
+  final bool isLocked;
   final bool enableDrop;
 
   @override
@@ -102,11 +108,12 @@ class _ListEntryState extends State<_ListEntry> {
             value: widget.isSelected,
             onChanged: (_) => widget.onToggleSelection?.call(),
           )
-        : _EntryIcon(
+        : _EntryIconWithBadge(
             entry: widget.entry,
             icon: iconData,
             color: iconColor,
             size: DesignTokens.iconSizeSmall,
+            showLock: widget.isLocked,
           );
 
     return MouseRegion(
@@ -196,6 +203,7 @@ class _GridEntry extends StatefulWidget {
     this.onContextMenu,
     required this.isSelected,
     required this.selectionMode,
+    required this.isLocked,
     required this.enableDrop,
   });
 
@@ -205,6 +213,7 @@ class _GridEntry extends StatefulWidget {
   final void Function(Offset globalPosition)? onContextMenu;
   final bool isSelected;
   final bool selectionMode;
+  final bool isLocked;
   final bool enableDrop;
 
   @override
@@ -269,6 +278,12 @@ class _GridEntryState extends State<_GridEntry> {
               Stack(
                 children: [
                   _buildPreview(context, iconColor),
+                  if (widget.isLocked)
+                    const Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: _LockBadge(size: 16),
+                    ),
                   // Checkbox en haut à droite si sélection mode
                   if (widget.selectionMode)
                     Positioned(
@@ -574,6 +589,90 @@ class _EntryIcon extends StatelessWidget {
       );
     }
     return Icon(icon, color: color, size: size);
+  }
+}
+
+class _EntryIconWithBadge extends StatelessWidget {
+  const _EntryIconWithBadge({
+    required this.entry,
+    required this.icon,
+    required this.color,
+    required this.size,
+    required this.showLock,
+  });
+
+  final FileEntry entry;
+  final IconData icon;
+  final Color color;
+  final double size;
+  final bool showLock;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Center(
+            child: _EntryIcon(
+              entry: entry,
+              icon: icon,
+              color: color,
+              size: size,
+            ),
+          ),
+          if (showLock)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: _LockBadge(
+                size: (size * 0.6).clamp(10.0, 16.0).toDouble(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LockBadge extends StatelessWidget {
+  const _LockBadge({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final surface = theme.colorScheme.surface;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colorScheme.primary,
+        border: Border.all(
+          color: surface.withValues(alpha: 0.85),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Icon(
+          LucideIcons.lock,
+          size: size * 0.58,
+          color: colorScheme.onPrimary,
+        ),
+      ),
+    );
   }
 }
 

@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:archive/archive.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -26,6 +30,7 @@ import 'search_view_model.dart';
 part 'explorer/archive.dart';
 part 'explorer/clipboard.dart';
 part 'explorer/file_ops.dart';
+part 'explorer/lock.dart';
 part 'explorer/navigation.dart';
 part 'explorer/platform.dart';
 part 'explorer/preferences.dart';
