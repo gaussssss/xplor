@@ -221,8 +221,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
         );
 
         final state = _viewModel.state;
-        if (_pathController.text != state.currentPath) {
-          _pathController.text = state.currentPath;
+        final displayPath = _viewModel.displayPath;
+        if (_pathController.text != displayPath) {
+          _pathController.text = displayPath;
         }
 
         // Scroller vers le haut quand on change de dossier
@@ -793,6 +794,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
   Widget _buildActionBar(ExplorerViewState state) {
     final selectionCount = state.selectedPaths.length;
 
+    if (state.isArchiveView) {
+      return _buildArchiveActionBar(state);
+    }
+
     return SizedBox(
       height: 44,
       child: SingleChildScrollView(
@@ -920,6 +925,71 @@ class _ExplorerPageState extends State<ExplorerPage> {
     );
   }
 
+  Widget _buildArchiveActionBar(ExplorerViewState state) {
+    final selectionCount = state.selectedPaths.length;
+    return SizedBox(
+      height: 44,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Row(
+          children: [
+            ToolbarButton(
+              icon: lucide.LucideIcons.copy,
+              tooltip: 'Copier depuis l\'archive',
+              isActive: !state.isLoading && selectionCount > 0,
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _viewModel.copySelectionToClipboard,
+            ),
+            const SizedBox(width: 8),
+            ToolbarButton(
+              icon: lucide.LucideIcons.download,
+              tooltip: 'Extraire la sélection',
+              isActive: !state.isLoading && selectionCount > 0,
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _promptExtractSelection,
+            ),
+            const SizedBox(width: 4),
+            ToolbarButton(
+              icon: lucide.LucideIcons.folderOpen,
+              tooltip: 'Extraire toute l\'archive',
+              isActive: !state.isLoading,
+              onPressed: state.isLoading ? null : _promptExtractArchive,
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 1,
+              height: 24,
+              color: Colors.white.withValues(alpha: 0.1),
+            ),
+            const SizedBox(width: 12),
+            ToolbarButton(
+              icon: lucide.LucideIcons.x,
+              tooltip: 'Fermer l archive',
+              isActive: !state.isLoading,
+              onPressed: state.isLoading ? null : _viewModel.exitArchiveView,
+            ),
+            const SizedBox(width: 12),
+            if (selectionCount > 0) ...[
+              Text(
+                '$selectionCount sélectionné(s)',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   void _handleEntryTap(FileEntry entry) {
     if (entry.isApplication) {
       _viewModel.launchApplication(entry);
@@ -961,6 +1031,34 @@ class _ExplorerPageState extends State<ExplorerPage> {
     );
     if (destination == null || destination.trim().isEmpty) return;
     await _viewModel.moveSelected(destination.trim());
+  }
+
+  Future<void> _promptExtractArchive() async {
+    final archivePath = _viewModel.state.archivePath;
+    final initialPath = archivePath != null
+        ? Directory(archivePath).parent.path
+        : _viewModel.state.currentPath;
+    final destination = await _showTextDialog(
+      title: 'Extraire l archive',
+      label: 'Chemin de destination',
+      initial: initialPath,
+    );
+    if (destination == null || destination.trim().isEmpty) return;
+    await _viewModel.extractArchiveTo(destination.trim());
+  }
+
+  Future<void> _promptExtractSelection() async {
+    final archivePath = _viewModel.state.archivePath;
+    final initialPath = archivePath != null
+        ? Directory(archivePath).parent.path
+        : _viewModel.state.currentPath;
+    final destination = await _showTextDialog(
+      title: 'Extraire la sélection',
+      label: 'Chemin de destination',
+      initial: initialPath,
+    );
+    if (destination == null || destination.trim().isEmpty) return;
+    await _viewModel.extractSelectionTo(destination.trim());
   }
 
   Future<void> _confirmDeletion() async {
@@ -1006,6 +1104,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     if (_contextMenuOpen) return;
     _contextMenuOpen = true;
 
+    final isArchiveView = _viewModel.state.isArchiveView;
     if (entry != null && !_viewModel.state.selectedPaths.contains(entry.path)) {
       _viewModel.selectSingle(entry);
     }
@@ -1022,16 +1121,18 @@ class _ExplorerPageState extends State<ExplorerPage> {
       items.addAll(const [
         _MenuItem('reveal', 'Afficher dans Finder'),
         _MenuItem('copy', 'Copier'),
-        _MenuItem('cut', 'Couper'),
         _MenuItem('copyPath', 'Copier le chemin'),
         _MenuItem('openTerminal', 'Ouvrir le terminal ici'),
       ]);
+      if (!isArchiveView) {
+        items.add(const _MenuItem('cut', 'Couper'));
+      }
     }
 
     final pasteDestination = entry != null && entry.isDirectory
         ? entry.path
         : null;
-    if (_viewModel.canPaste) {
+    if (_viewModel.canPaste && !isArchiveView) {
       items.add(
         _MenuItem(
           'paste',
@@ -1040,17 +1141,17 @@ class _ExplorerPageState extends State<ExplorerPage> {
       );
     }
 
-    if (entry != null) {
+    if (entry != null && !isArchiveView) {
       items.addAll(const [
         _MenuItem('duplicate', 'Dupliquer'),
         _MenuItem('move', 'Deplacer vers...'),
         _MenuItem('rename', 'Renommer'),
         _MenuItem('delete', 'Supprimer'),
       ]);
-    } else {
+    } else if (entry == null && !isArchiveView) {
       items.add(const _MenuItem('newFolder', 'Nouveau dossier'));
     }
-    if (_viewModel.state.selectedPaths.isNotEmpty) {
+    if (_viewModel.state.selectedPaths.isNotEmpty && !isArchiveView) {
       items.add(const _MenuItem('compress', 'Compresser en .zip'));
     }
     if (entry == null) {
@@ -1204,6 +1305,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       onToggleSelection: () => _viewModel.toggleSelection(entry),
       onOpen: () => _handleEntryTap(entry),
       onContextMenu: (position) => _showContextMenu(entry, position),
+      enableDrop: !_viewModel.state.isArchiveView,
     );
     final draggingTile = Opacity(
       opacity: 0.35,
@@ -1215,6 +1317,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         onToggleSelection: () => _viewModel.toggleSelection(entry),
         onOpen: () => _handleEntryTap(entry),
         onContextMenu: (position) => _showContextMenu(entry, position),
+        enableDrop: !_viewModel.state.isArchiveView,
       ),
     );
 
@@ -1226,7 +1329,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       child: tile,
     );
 
-    if (!entry.isDirectory) return draggable;
+    if (!entry.isDirectory || _viewModel.state.isArchiveView) return draggable;
 
     return DragTarget<List<FileEntry>>(
       onWillAccept: (data) {

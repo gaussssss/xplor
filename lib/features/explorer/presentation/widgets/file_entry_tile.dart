@@ -20,6 +20,7 @@ class FileEntryTile extends StatelessWidget {
     this.onContextMenu,
     this.isSelected = false,
     this.selectionMode = false,
+    this.enableDrop = true,
   });
 
   final FileEntry entry;
@@ -29,6 +30,7 @@ class FileEntryTile extends StatelessWidget {
   final void Function(Offset globalPosition)? onContextMenu;
   final bool isSelected;
   final bool selectionMode;
+  final bool enableDrop;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,7 @@ class FileEntryTile extends StatelessWidget {
             onContextMenu: onContextMenu,
             isSelected: isSelected,
             selectionMode: selectionMode,
+            enableDrop: enableDrop,
           )
         : _GridEntry(
             entry: entry,
@@ -48,6 +51,7 @@ class FileEntryTile extends StatelessWidget {
             onContextMenu: onContextMenu,
             isSelected: isSelected,
             selectionMode: selectionMode,
+            enableDrop: enableDrop,
           );
   }
 }
@@ -60,6 +64,7 @@ class _ListEntry extends StatefulWidget {
     this.onContextMenu,
     required this.isSelected,
     required this.selectionMode,
+    required this.enableDrop,
   });
 
   final FileEntry entry;
@@ -68,6 +73,7 @@ class _ListEntry extends StatefulWidget {
   final void Function(Offset globalPosition)? onContextMenu;
   final bool isSelected;
   final bool selectionMode;
+  final bool enableDrop;
 
   @override
   State<_ListEntry> createState() => _ListEntryState();
@@ -190,6 +196,7 @@ class _GridEntry extends StatefulWidget {
     this.onContextMenu,
     required this.isSelected,
     required this.selectionMode,
+    required this.enableDrop,
   });
 
   final FileEntry entry;
@@ -198,6 +205,7 @@ class _GridEntry extends StatefulWidget {
   final void Function(Offset globalPosition)? onContextMenu;
   final bool isSelected;
   final bool selectionMode;
+  final bool enableDrop;
 
   @override
   State<_GridEntry> createState() => _GridEntryState();
@@ -343,7 +351,7 @@ class _GridEntryState extends State<_GridEntry> {
     );
 
     // Wrapper avec DropTarget si c'est un dossier
-    if (widget.entry.isDirectory) {
+    if (widget.entry.isDirectory && widget.enableDrop) {
       return DropTarget(
         onDragEntered: (details) {
           setState(() => _isDragTarget = true);
