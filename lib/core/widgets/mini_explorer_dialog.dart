@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 enum MiniExplorerPickerMode { file, directory }
@@ -32,6 +33,9 @@ class MiniExplorerDialog extends StatefulWidget {
 }
 
 class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
+  static const String _lastPathKey = 'mini_explorer_last_path';
+  static const String _lastSelectionKey = 'mini_explorer_last_selection';
+
   late String _currentPath;
   String? _selectedPath;
   bool _isLoading = true;
@@ -44,11 +48,9 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
   @override
   void initState() {
     super.initState();
-    final resolved = _resolveInitialPath(widget.initialPath);
-    _currentPath = resolved.path;
-    _selectedPath = resolved.selectedPath;
-    _pathController = TextEditingController(text: _currentPath);
-    _loadDirectory(_currentPath, pushHistory: false);
+    _currentPath = _homeDirectory();
+    _pathController = TextEditingController();
+    _initialize();
   }
 
   @override
@@ -57,23 +59,55 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
     super.dispose();
   }
 
-  _InitialPath _resolveInitialPath(String? initial) {
-    final fallback = _homeDirectory();
-    if (initial == null || initial.trim().isEmpty) {
-      return _InitialPath(path: fallback);
+  Future<void> _initialize() async {
+    final lastPath = await _loadLastPath();
+    final lastSelection = await _loadLastSelection();
+    final resolved = _resolveInitialPath(
+      widget.initialPath,
+      fallback: lastPath,
+      lastSelection: lastSelection,
+      allowFileSelection: widget.mode == MiniExplorerPickerMode.file,
+    );
+    if (!mounted) return;
+    _currentPath = resolved.path;
+    _selectedPath = resolved.selectedPath;
+    _pathController.text = _currentPath;
+    await _loadDirectory(
+      _currentPath,
+      pushHistory: false,
+      selectedPath: _selectedPath,
+    );
+  }
+
+  _InitialPath _resolveInitialPath(
+    String? initial, {
+    required String? fallback,
+    required String? lastSelection,
+    required bool allowFileSelection,
+  }) {
+    final candidates = [
+      initial,
+      lastSelection,
+      fallback,
+      _homeDirectory(),
+    ];
+    for (final candidate in candidates) {
+      if (candidate == null || candidate.trim().isEmpty) {
+        continue;
+      }
+      final normalized = p.normalize(candidate.trim());
+      final type = FileSystemEntity.typeSync(normalized);
+      if (type == FileSystemEntityType.directory) {
+        return _InitialPath(path: normalized);
+      }
+      if (type == FileSystemEntityType.file) {
+        return _InitialPath(
+          path: Directory(normalized).parent.path,
+          selectedPath: allowFileSelection ? normalized : null,
+        );
+      }
     }
-    final normalized = p.normalize(initial.trim());
-    final type = FileSystemEntity.typeSync(normalized);
-    if (type == FileSystemEntityType.directory) {
-      return _InitialPath(path: normalized);
-    }
-    if (type == FileSystemEntityType.file) {
-      return _InitialPath(
-        path: Directory(normalized).parent.path,
-        selectedPath: normalized,
-      );
-    }
-    return _InitialPath(path: fallback);
+    return _InitialPath(path: _homeDirectory());
   }
 
   String _homeDirectory() {
@@ -83,7 +117,11 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
     return Platform.environment['HOME'] ?? Directory.current.path;
   }
 
-  Future<void> _loadDirectory(String path, {bool pushHistory = true}) async {
+  Future<void> _loadDirectory(
+    String path, {
+    bool pushHistory = true,
+    String? selectedPath,
+  }) async {
     final target = p.normalize(path);
     if (pushHistory && target == _currentPath) return;
     setState(() {
@@ -137,10 +175,13 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
         _forwardStack.clear();
       }
 
+      await _saveLastPath(target);
       setState(() {
         _currentPath = target;
         _pathController.text = target;
-        _selectedPath = null;
+        _selectedPath = _isSelectionInDirectory(selectedPath, target)
+            ? selectedPath
+            : null;
         _entries = entries;
         _isLoading = false;
       });
@@ -183,6 +224,9 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
     setState(() {
       _selectedPath = matchesMode ? entry.path : null;
     });
+    if (matchesMode) {
+      _saveLastSelection(entry.path);
+    }
   }
 
   void _onEntryDoubleTap(_ExplorerEntry entry) {
@@ -191,17 +235,47 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
       return;
     }
     if (widget.mode == MiniExplorerPickerMode.file) {
+      _saveLastSelection(entry.path);
       Navigator.of(context).pop(entry.path);
     }
   }
 
   void _confirmSelection() {
     if (widget.mode == MiniExplorerPickerMode.directory) {
-      Navigator.of(context).pop(_selectedPath ?? _currentPath);
+      final selection = _selectedPath ?? _currentPath;
+      _saveLastSelection(selection);
+      Navigator.of(context).pop(selection);
       return;
     }
     if (_selectedPath == null) return;
+    _saveLastSelection(_selectedPath!);
     Navigator.of(context).pop(_selectedPath);
+  }
+
+  bool _isSelectionInDirectory(String? selection, String directory) {
+    if (selection == null || selection.trim().isEmpty) return false;
+    final normalizedSelection = p.normalize(selection);
+    return p.dirname(normalizedSelection) == directory;
+  }
+
+  Future<String?> _loadLastPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastPathKey);
+  }
+
+  Future<String?> _loadLastSelection() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastSelectionKey);
+  }
+
+  Future<void> _saveLastPath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastPathKey, path);
+  }
+
+  Future<void> _saveLastSelection(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastSelectionKey, path);
   }
 
   @override
