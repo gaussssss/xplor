@@ -46,6 +46,7 @@ import '../../../settings/presentation/pages/about_page.dart';
 import '../../../settings/presentation/pages/terms_of_service_page.dart';
 import '../../domain/entities/duplicate_action.dart';
 import '../services/volume_info_service.dart';
+import '../../../onboarding/data/onboarding_service.dart';
 
 part 'explorer/support.dart';
 part 'explorer/sidebar.dart';
@@ -308,6 +309,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _volumes = _volumeInfoService.readVolumes();
     _viewModel.loadDirectory(initialPath);
     _loadSelectionMode();
+    _loadPreferredRootPath();
   }
 
   Widget _buildSearchToggle() {
@@ -370,6 +372,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
       setState(() => _isMultiSelectionMode = enabled);
     }
     _viewModel.setMultiSelectionEnabled(enabled);
+  }
+
+  Future<void> _loadPreferredRootPath() async {
+    final preferred = await OnboardingService.getPreferredRootPath();
+    if (preferred == null || preferred.trim().isEmpty) return;
+    if (!Directory(preferred).existsSync()) return;
+    if (!mounted) return;
+    if (_viewModel.state.currentPath == preferred) return;
+    _pathController.text = preferred;
+    await _viewModel.loadDirectory(preferred);
   }
 
   bool _isTextInputFocused() {

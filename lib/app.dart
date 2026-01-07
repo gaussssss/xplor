@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -39,6 +40,15 @@ class _XplorAppContentState extends State<_XplorAppContent> {
   }
 
   Future<void> _checkOnboarding() async {
+    if (kDebugMode) {
+      if (mounted) {
+        setState(() {
+          _onboardingCompleted = false;
+        });
+      }
+      return;
+    }
+
     final completed = await OnboardingService.isOnboardingCompleted();
     if (mounted) {
       setState(() {
