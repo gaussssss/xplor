@@ -1,4 +1,4 @@
-part of 'explorer_page.dart';
+part of '../explorer_page.dart';
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
@@ -26,7 +26,7 @@ class _Sidebar extends StatelessWidget {
   final List<_NavItem> systemItems;
   final List<_NavItem> quickItems;
   final List<_TagItem> tags;
-  final List<_VolumeInfo> volumes;
+  final List<VolumeInfo> volumes;
   final List<String> recentPaths;
   final Set<String> selectedTags;
   final Set<String> selectedTypes;
@@ -734,7 +734,7 @@ class _TagChipSimple extends StatelessWidget {
 class _VolumeItem extends StatelessWidget {
   const _VolumeItem({required this.volume, required this.onTap});
 
-  final _VolumeInfo volume;
+  final VolumeInfo volume;
   final VoidCallback onTap;
 
   @override
@@ -1006,26 +1006,10 @@ class _TagItem {
   final Color color;
 }
 
-class _VolumeInfo {
-  const _VolumeInfo({
-    required this.label,
-    required this.path,
-    required this.usage,
-    required this.totalBytes,
-  });
-
-  final String label;
-  final String path;
-  final double usage;
-  final int totalBytes;
-}
-
-
-
 /// Affiche une dialog avec tous les disques
 void _showAllDisksDialog(
   BuildContext context,
-  List<_VolumeInfo> volumes,
+  List<VolumeInfo> volumes,
   void Function(String) onNavigate,
 ) {
   showDialog(
@@ -1051,11 +1035,11 @@ class _AllDisksDialogContent extends StatelessWidget {
     required this.onNavigate,
   });
 
-  final List<_VolumeInfo> volumes;
+  final List<VolumeInfo> volumes;
   final void Function(String) onNavigate;
   static final Map<String, Future<bool>> _assetPresenceCache = {};
 
-  Widget _buildVolumeIcon(_VolumeInfo volume, Color primary, Color onSurface) {
+  Widget _buildVolumeIcon(VolumeInfo volume, Color primary, Color onSurface) {
     final logo = _cloudLogoFor(volume);
     final bg = logo != null
         ? onSurface.withValues(alpha: 0.06)
@@ -1101,7 +1085,7 @@ class _AllDisksDialogContent extends StatelessWidget {
     );
   }
 
-  String? _cloudLogoFor(_VolumeInfo volume) {
+  String? _cloudLogoFor(VolumeInfo volume) {
     final label = volume.label.toLowerCase();
     final path = volume.path.toLowerCase();
 

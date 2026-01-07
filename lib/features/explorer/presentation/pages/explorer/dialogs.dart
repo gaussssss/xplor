@@ -1,4 +1,4 @@
-part of 'explorer_page.dart';
+part of '../explorer_page.dart';
 
 class _DuplicateDialog extends StatefulWidget {
   const _DuplicateDialog({
