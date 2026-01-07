@@ -503,11 +503,8 @@ class _SidebarFooter extends StatelessWidget {
                 label: 'CGU',
                 isLight: isLight,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const TermsOfServicePage(),
-                    ),
+                  Navigator.of(context).push(
+                    _noTransitionRoute(const TermsOfServicePage()),
                   );
                 },
               ),
@@ -516,11 +513,8 @@ class _SidebarFooter extends StatelessWidget {
                 label: 'À propos',
                 isLight: isLight,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AboutPage(),
-                    ),
+                  Navigator.of(context).push(
+                    _noTransitionRoute(const AboutPage()),
                   );
                 },
               ),
@@ -628,6 +622,15 @@ class _FooterLink extends StatelessWidget {
       ),
     );
   }
+}
+
+PageRouteBuilder<T> _noTransitionRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
+  );
 }
 
 class _RailButton extends StatelessWidget {
