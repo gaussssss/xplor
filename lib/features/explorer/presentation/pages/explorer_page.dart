@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:another_flushbar/flushbar.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
@@ -60,11 +61,196 @@ class ExplorerPage extends StatefulWidget {
   State<ExplorerPage> createState() => _ExplorerPageState();
 }
 
+class _NavigateBackIntent extends Intent {
+  const _NavigateBackIntent();
+}
+
+class _NavigateForwardIntent extends Intent {
+  const _NavigateForwardIntent();
+}
+
+class _NavigateUpIntent extends Intent {
+  const _NavigateUpIntent();
+}
+
+class _RefreshIntent extends Intent {
+  const _RefreshIntent();
+}
+
+class _FocusSearchIntent extends Intent {
+  const _FocusSearchIntent();
+}
+
+class _OpenSelectionIntent extends Intent {
+  const _OpenSelectionIntent();
+}
+
+class _DeleteSelectionIntent extends Intent {
+  const _DeleteSelectionIntent();
+}
+
+class _RenameSelectionIntent extends Intent {
+  const _RenameSelectionIntent();
+}
+
+class _NewFolderIntent extends Intent {
+  const _NewFolderIntent();
+}
+
+class _CopySelectionIntent extends Intent {
+  const _CopySelectionIntent();
+}
+
+class _CutSelectionIntent extends Intent {
+  const _CutSelectionIntent();
+}
+
+class _PasteSelectionIntent extends Intent {
+  const _PasteSelectionIntent();
+}
+
+class _SelectAllIntent extends Intent {
+  const _SelectAllIntent();
+}
+
+class _ClearSelectionIntent extends Intent {
+  const _ClearSelectionIntent();
+}
+
+class _ExplorerShortcutAction<T extends Intent> extends ContextAction<T> {
+  _ExplorerShortcutAction({
+    required this.onInvoke,
+    required this.isEnabledCallback,
+  });
+
+  final Object? Function() onInvoke;
+  final bool Function() isEnabledCallback;
+
+  @override
+  bool isEnabled(T intent, [BuildContext? context]) => isEnabledCallback();
+
+  @override
+  Object? invoke(T intent, [BuildContext? context]) => onInvoke();
+}
+
 class _ExplorerPageState extends State<ExplorerPage> {
+  static final Map<ShortcutActivator, Intent> _shortcuts =
+      <ShortcutActivator, Intent>{
+        const SingleActivator(
+          LogicalKeyboardKey.arrowLeft,
+          alt: true,
+        ): const _NavigateBackIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowRight,
+          alt: true,
+        ): const _NavigateForwardIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.bracketLeft,
+          meta: true,
+        ): const _NavigateBackIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.bracketRight,
+          meta: true,
+        ): const _NavigateForwardIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowUp,
+          alt: true,
+        ): const _NavigateUpIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowUp,
+          meta: true,
+        ): const _NavigateUpIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.browserBack,
+        ): const _NavigateBackIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.browserForward,
+        ): const _NavigateForwardIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyR,
+          meta: true,
+        ): const _RefreshIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyR,
+          control: true,
+        ): const _RefreshIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.f5,
+        ): const _RefreshIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyF,
+          meta: true,
+        ): const _FocusSearchIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyF,
+          control: true,
+        ): const _FocusSearchIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.enter,
+        ): const _OpenSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.numpadEnter,
+        ): const _OpenSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.delete,
+        ): const _DeleteSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.backspace,
+        ): const _DeleteSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.f2,
+        ): const _RenameSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          meta: true,
+          shift: true,
+        ): const _NewFolderIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          control: true,
+          shift: true,
+        ): const _NewFolderIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyC,
+          meta: true,
+        ): const _CopySelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyC,
+          control: true,
+        ): const _CopySelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyX,
+          meta: true,
+        ): const _CutSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyX,
+          control: true,
+        ): const _CutSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyV,
+          meta: true,
+        ): const _PasteSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyV,
+          control: true,
+        ): const _PasteSelectionIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyA,
+          meta: true,
+        ): const _SelectAllIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyA,
+          control: true,
+        ): const _SelectAllIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.escape,
+        ): const _ClearSelectionIntent(),
+      };
   late final ExplorerViewModel _viewModel;
   late final TextEditingController _pathController;
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
+  late final FocusNode _shortcutsFocusNode;
   late final ScrollController _scrollController;
   late final List<_NavItem> _favoriteItems;
   late final List<_NavItem> _systemItems;
@@ -111,6 +297,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _pathController = TextEditingController(text: initialPath);
     _searchController = TextEditingController(text: '');
     _searchFocusNode = FocusNode();
+    _shortcutsFocusNode = FocusNode(debugLabel: 'ExplorerShortcuts');
     _scrollController = ScrollController();
     _lastPath = initialPath;
     _favoriteItems = _buildFavoriteItems();
@@ -165,6 +352,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _pathController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _shortcutsFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -182,6 +370,147 @@ class _ExplorerPageState extends State<ExplorerPage> {
       setState(() => _isMultiSelectionMode = enabled);
     }
     _viewModel.setMultiSelectionEnabled(enabled);
+  }
+
+  bool _isTextInputFocused() {
+    final focus = FocusManager.instance.primaryFocus;
+    final widget = focus?.context?.widget;
+    return widget is EditableText;
+  }
+
+  bool _shouldHandleShortcut({bool allowWhenTextInput = false}) {
+    if (_contextMenuOpen) return false;
+    if (!allowWhenTextInput && _isTextInputFocused()) return false;
+    return true;
+  }
+
+  Action<Intent> _buildShortcutAction(
+    Object? Function() handler, {
+    bool allowWhenTextInput = false,
+    bool Function()? isEnabled,
+  }) {
+    return _ExplorerShortcutAction(
+      onInvoke: handler,
+      isEnabledCallback: () {
+        if (!_shouldHandleShortcut(
+          allowWhenTextInput: allowWhenTextInput,
+        )) {
+          return false;
+        }
+        return isEnabled == null ? true : isEnabled();
+      },
+    );
+  }
+
+  Map<Type, Action<Intent>> _buildShortcutActions(ExplorerViewState state) {
+    return <Type, Action<Intent>>{
+      _NavigateBackIntent: _buildShortcutAction(
+        () => _viewModel.goBack(),
+        isEnabled: () => !state.isLoading && _viewModel.canGoBack,
+      ),
+      _NavigateForwardIntent: _buildShortcutAction(
+        () => _viewModel.goForward(),
+        isEnabled: () => !state.isLoading && _viewModel.canGoForward,
+      ),
+      _NavigateUpIntent: _buildShortcutAction(
+        () => _viewModel.goToParent(),
+        isEnabled: () => !state.isLoading && !_viewModel.isAtRoot,
+      ),
+      _RefreshIntent: _buildShortcutAction(
+        () => _viewModel.refresh(),
+        isEnabled: () => !state.isLoading,
+      ),
+      _FocusSearchIntent: _buildShortcutAction(
+        () => _focusSearch(),
+        allowWhenTextInput: true,
+      ),
+      _OpenSelectionIntent: _buildShortcutAction(
+        () => _openSelection(),
+        isEnabled: () => !state.isLoading,
+      ),
+      _DeleteSelectionIntent: _buildShortcutAction(
+        () => _confirmDeletion(),
+        isEnabled: () =>
+            !state.isLoading && state.selectedPaths.isNotEmpty,
+      ),
+      _RenameSelectionIntent: _buildShortcutAction(
+        () => _promptRename(),
+        isEnabled: () =>
+            !state.isLoading && state.selectedPaths.length == 1,
+      ),
+      _NewFolderIntent: _buildShortcutAction(
+        () => _promptCreateFolder(),
+        isEnabled: () => !state.isLoading,
+      ),
+      _CopySelectionIntent: _buildShortcutAction(
+        () => _viewModel.copySelectionToClipboard(),
+        isEnabled: () =>
+            !state.isLoading && state.selectedPaths.isNotEmpty,
+      ),
+      _CutSelectionIntent: _buildShortcutAction(
+        () => _viewModel.cutSelectionToClipboard(),
+        isEnabled: () =>
+            !state.isLoading && state.selectedPaths.isNotEmpty,
+      ),
+      _PasteSelectionIntent: _buildShortcutAction(
+        () => _viewModel.pasteClipboard(),
+        isEnabled: () => !state.isLoading && _viewModel.canPaste,
+      ),
+      _SelectAllIntent: _buildShortcutAction(
+        () => _viewModel.selectAllVisible(force: true),
+        isEnabled: () =>
+            !state.isLoading && _viewModel.visibleEntries.isNotEmpty,
+      ),
+      _ClearSelectionIntent: _buildShortcutAction(
+        () => _clearSelectionOrSearch(),
+        allowWhenTextInput: true,
+      ),
+    };
+  }
+
+  void _focusSearch() {
+    if (!_isSearchExpanded) {
+      setState(() => _isSearchExpanded = true);
+    }
+    Future.microtask(() => _searchFocusNode.requestFocus());
+  }
+
+  void _openSelection() {
+    final selected = _viewModel.state.selectedPaths;
+    if (selected.isEmpty) return;
+    final entries = _viewModel.visibleEntries;
+    FileEntry? target;
+    for (final entry in entries) {
+      if (selected.contains(entry.path)) {
+        target = entry;
+        break;
+      }
+    }
+    if (target != null) {
+      _viewModel.open(target);
+    }
+  }
+
+  void _clearSelectionOrSearch() {
+    if (_isSearchExpanded && _searchFocusNode.hasFocus) {
+      setState(() => _isSearchExpanded = false);
+      _searchFocusNode.unfocus();
+      return;
+    }
+    _viewModel.clearSelection();
+  }
+
+  void _handleMouseNavigation(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.mouse) return;
+    if (_contextMenuOpen) return;
+    final buttons = event.buttons;
+    if ((buttons & kBackMouseButton) != 0 && _viewModel.canGoBack) {
+      _viewModel.goBack();
+      return;
+    }
+    if ((buttons & kForwardMouseButton) != 0 && _viewModel.canGoForward) {
+      _viewModel.goForward();
+    }
   }
 
   @override
@@ -278,200 +607,240 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
         return Theme(
           data: themed,
-          child: Scaffold(
-            body: Stack(
-              children: [
-                // Background image
-                if (hasBgImage)
-                  Container(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: FileImage(File(bgImagePath)),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                // Overlay layer (dark in dark mode, light in light mode)
-                if (hasBgImage)
-                  Container(
-                    color: isLight
-                        ? Colors.white.withValues(alpha: 0.3)
-                        : Colors.black.withValues(alpha: 0.4),
-                  ),
-                // Main content
-                Container(
-                  color: hasBgImage ? Colors.transparent : bgColor,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: 10,
-                        top: 35,
-                        right: 10,
-                        bottom: 10,
-                      ),
-                      child: Column(
-                        children: [
-                          // Main content area
-                          Expanded(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Sidebar avec resize handle
-                                Row(
-                                  children: [
-                                    SizedBox(
-                                      width: _isSidebarCollapsed
-                                          ? 70
-                                          : _sidebarWidth,
-                                      child: _Sidebar(
-                                        favoriteItems: _favoriteItems,
-                                        systemItems: _systemItems,
-                                        quickItems: _quickItems,
-                                        tags: _tagItems,
-                                        volumes: _volumes,
-                                        recentPaths: state.recentPaths,
-                                        selectedTags: _viewModel.selectedTags,
-                                        selectedTypes: _viewModel.selectedTypes,
-                                        onNavigate: _viewModel.loadDirectory,
-                                        onTagToggle: _viewModel.toggleTag,
-                                        onTypeToggle: _viewModel.toggleType,
-                                        onToggleCollapse: () {
-                                          setState(
-                                            () => _isSidebarCollapsed =
-                                                !_isSidebarCollapsed,
-                                          );
-                                        },
-                                        onSettingsClosed: _loadSelectionMode,
-                                        isLight: themeProvider.isLight,
-                                        currentPalette:
-                                            themeProvider.currentPalette,
-                                        onToggleLight:
-                                            themeProvider.setLightMode,
-                                        onPaletteSelected:
-                                            themeProvider.setPalette,
-                                        collapsed: _isSidebarCollapsed,
-                                      ),
-                                    ),
-                                    // Resize handle - seulement visible quand sidebar n'est pas collapsed
-                                    if (!_isSidebarCollapsed)
-                                      MouseRegion(
-                                        cursor: SystemMouseCursors.resizeColumn,
-                                        child: GestureDetector(
-                                          onPanUpdate: (details) {
-                                            setState(() {
-                                              _sidebarWidth =
-                                                  (_sidebarWidth +
-                                                          details.delta.dx)
-                                                      .clamp(
-                                                        180.0,
-                                                        400.0,
-                                                      ); // Min 180px, Max 400px
-                                            });
-                                          },
-                                          onPanEnd: (_) {
-                                            // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
-                                            // TODO: Implémenter la sauvegarde de la largeur si nécessaire
-                                          },
-                                          child: Container(
-                                            width: 8,
-                                            color: Colors.transparent,
-                                            child: Center(
-                                              child: Container(
-                                                width: 2,
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.1,
-                                                ),
+          child: Shortcuts(
+            shortcuts: _shortcuts,
+            child: Actions(
+              actions: _buildShortcutActions(state),
+              child: Focus(
+                autofocus: true,
+                focusNode: _shortcutsFocusNode,
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: _handleMouseNavigation,
+                  child: Scaffold(
+                    body: Stack(
+                      children: [
+                        // Background image
+                        if (hasBgImage)
+                          Container(
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: FileImage(File(bgImagePath)),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        // Overlay layer (dark in dark mode, light in light mode)
+                        if (hasBgImage)
+                          Container(
+                            color: isLight
+                                ? Colors.white.withValues(alpha: 0.3)
+                                : Colors.black.withValues(alpha: 0.4),
+                          ),
+                        // Main content
+                        Container(
+                          color: hasBgImage ? Colors.transparent : bgColor,
+                          child: SafeArea(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: 10,
+                                top: 35,
+                                right: 10,
+                                bottom: 10,
+                              ),
+                              child: Column(
+                                children: [
+                                  // Main content area
+                                  Expanded(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Sidebar avec resize handle
+                                        Row(
+                                          children: [
+                                            SizedBox(
+                                              width: _isSidebarCollapsed
+                                                  ? 70
+                                                  : _sidebarWidth,
+                                              child: _Sidebar(
+                                                favoriteItems: _favoriteItems,
+                                                systemItems: _systemItems,
+                                                quickItems: _quickItems,
+                                                tags: _tagItems,
+                                                volumes: _volumes,
+                                                recentPaths:
+                                                    state.recentPaths,
+                                                selectedTags:
+                                                    _viewModel.selectedTags,
+                                                selectedTypes:
+                                                    _viewModel.selectedTypes,
+                                                onNavigate:
+                                                    _viewModel.loadDirectory,
+                                                onTagToggle:
+                                                    _viewModel.toggleTag,
+                                                onTypeToggle:
+                                                    _viewModel.toggleType,
+                                                onToggleCollapse: () {
+                                                  setState(
+                                                    () => _isSidebarCollapsed =
+                                                        !_isSidebarCollapsed,
+                                                  );
+                                                },
+                                                onSettingsClosed:
+                                                    _loadSelectionMode,
+                                                isLight:
+                                                    themeProvider.isLight,
+                                                currentPalette: themeProvider
+                                                    .currentPalette,
+                                                onToggleLight:
+                                                    themeProvider.setLightMode,
+                                                onPaletteSelected:
+                                                    themeProvider.setPalette,
+                                                collapsed: _isSidebarCollapsed,
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      const SizedBox(width: 8),
-                                  ],
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      GlassPanelV2(
-                                        level: GlassPanelLevel.secondary,
-                                        child: _buildToolbar(state),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      GlassPanelV2(
-                                        level: GlassPanelLevel.secondary,
-                                        child: _buildActionBar(state),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Expanded(
-                                        child: GlassPanelV2(
-                                          level: GlassPanelLevel.primary,
-                                          padding: const EdgeInsets.all(0),
-                                          child: _buildContent(state, entries),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                        ),
-                                        child: _StatsFooter(state: state),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      GlassPanelV2(
-                                        level: GlassPanelLevel.tertiary,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            BreadcrumbBar(
-                                              path: state.currentPath,
-                                              onNavigate: (path) => _viewModel
-                                                  .loadDirectory(path),
-                                            ),
+                                            // Resize handle - seulement visible quand sidebar n'est pas collapsed
+                                            if (!_isSidebarCollapsed)
+                                              MouseRegion(
+                                                cursor:
+                                                    SystemMouseCursors.resizeColumn,
+                                                child: GestureDetector(
+                                                  onPanUpdate: (details) {
+                                                    setState(() {
+                                                      _sidebarWidth =
+                                                          (_sidebarWidth +
+                                                                  details
+                                                                      .delta
+                                                                      .dx)
+                                                              .clamp(
+                                                                180.0,
+                                                                400.0,
+                                                              ); // Min 180px, Max 400px
+                                                    });
+                                                  },
+                                                  onPanEnd: (_) {
+                                                    // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
+                                                    // TODO: Implémenter la sauvegarde de la largeur si nécessaire
+                                                  },
+                                                  child: Container(
+                                                    width: 8,
+                                                    color: Colors.transparent,
+                                                    child: Center(
+                                                      child: Container(
+                                                        width: 2,
+                                                        color:
+                                                            Colors.white.withValues(
+                                                          alpha: 0.1,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              const SizedBox(width: 8),
                                           ],
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ), // Row (sidebar + content)
-                          ), // Expanded (wraps Row)
-                        ], // Column children
-                      ), // Column
-                    ), // Padding
-                  ), // SafeArea
-                ), // Container
-                // Zone de double-clic pour maximiser/restaurer la fenêtre (macOS/Windows)
-                // Placé à la fin du Stack pour être au-dessus du contenu
-                if (Platform.isMacOS || Platform.isWindows)
-                  Positioned(
-                    top: 0,
-                    left: Platform.isMacOS ? 80 : 0,
-                    right: Platform.isMacOS ? 0 : 140,
-                    height: Platform.isMacOS ? 28 : 32,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onDoubleTap: () async {
-                        if (await windowManager.isMaximized()) {
-                          await windowManager.unmaximize();
-                        } else {
-                          await windowManager.maximize();
-                        }
-                      },
-                      child: Container(color: Colors.transparent),
-                    ),
-                  ),
-              ], // Stack children
-            ), // Stack
-          ), // Scaffold body
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              GlassPanelV2(
+                                                level: GlassPanelLevel.secondary,
+                                                child: _buildToolbar(state),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              GlassPanelV2(
+                                                level: GlassPanelLevel.secondary,
+                                                child: _buildActionBar(state),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Expanded(
+                                                child: GlassPanelV2(
+                                                  level:
+                                                      GlassPanelLevel.primary,
+                                                  padding:
+                                                      const EdgeInsets.all(0),
+                                                  child: _buildContent(
+                                                    state,
+                                                    entries,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 4,
+                                                ),
+                                                child: _StatsFooter(
+                                                  state: state,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              GlassPanelV2(
+                                                level:
+                                                    GlassPanelLevel.tertiary,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 10,
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    BreadcrumbBar(
+                                                      path: state.currentPath,
+                                                      onNavigate: (path) =>
+                                                          _viewModel
+                                                              .loadDirectory(
+                                                        path,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ), // Row (sidebar + content)
+                                  ), // Expanded (wraps Row)
+                                ], // Column children
+                              ), // Column
+                            ), // Padding
+                          ), // SafeArea
+                        ), // Container
+                        // Zone de double-clic pour maximiser/restaurer la fenêtre (macOS/Windows)
+                        // Placé à la fin du Stack pour être au-dessus du contenu
+                        if (Platform.isMacOS || Platform.isWindows)
+                          Positioned(
+                            top: 0,
+                            left: Platform.isMacOS ? 80 : 0,
+                            right: Platform.isMacOS ? 0 : 140,
+                            height: Platform.isMacOS ? 28 : 32,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onDoubleTap: () async {
+                                if (await windowManager.isMaximized()) {
+                                  await windowManager.unmaximize();
+                                } else {
+                                  await windowManager.maximize();
+                                }
+                              },
+                              child: Container(color: Colors.transparent),
+                            ),
+                          ),
+                      ], // Stack children
+                    ), // Stack
+                  ), // Scaffold body
+                ),
+              ),
+            ),
+          ),
         );
       },
     );

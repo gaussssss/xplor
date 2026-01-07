@@ -1,8 +1,8 @@
 1. Désactiver la sélection multiple par défaut et ne considérer que la configuration dans les paramètres
 2. Refractoriser le code en plusieurs fichiers tout en respectant l'architecture car les fichiers sont trop lours actuellement. Il faut faire attention à ne pas changer le style ou le fonctionnement actuel
 3. Revoir les CGU et À propos, tant dans le style que le contenu (les contributeurs sont Florian Tiya et Jacobin Fokou)
-
 4. Gérer les raccourcis clavier et les boutons de la souris (tenant compte des boutons de navigation de la souris)
+
 5. On doit travailler sur les fonctionnalités dans le clique droit sur un fichier. Par exemple ouvrir avec, rafraichir, partager, déplacer, renommer, prévisualiser, copier couper coller, propriétés, supprimer, vérouiller (qui va chiffrer le fichier), etc.
 6. Permettre le drag and drop de l'application vers d'autres systèmes comme finder, ou autres
 7. Retravailler complètement le design du onboarding

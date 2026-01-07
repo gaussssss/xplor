@@ -31,6 +31,17 @@ extension ExplorerSelectionOps on ExplorerViewModel {
     notifyListeners();
   }
 
+  void selectAllVisible({bool force = false}) {
+    if (!_multiSelectionEnabled && !force) return;
+    final entries = visibleEntries;
+    if (entries.isEmpty) return;
+    _state = _state.copyWith(
+      selectedPaths: entries.map((entry) => entry.path).toSet(),
+      clearStatus: true,
+    );
+    notifyListeners();
+  }
+
   void setMultiSelectionEnabled(bool enabled) {
     if (_multiSelectionEnabled == enabled) return;
     _multiSelectionEnabled = enabled;
