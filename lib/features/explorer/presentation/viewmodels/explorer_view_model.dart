@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/special_locations.dart';
+import '../../domain/entities/duplicate_action.dart';
 import '../../domain/entities/file_entry.dart';
 import '../../domain/usecases/copy_entries.dart';
 import '../../domain/usecases/create_directory.dart';
@@ -40,6 +41,8 @@ class ExplorerViewState {
     required this.isArchiveView,
     this.archivePath,
     this.archiveRootPath,
+    this.pendingOpenPath,
+    this.pendingOpenLabel,
     this.error,
     this.statusMessage,
   });
@@ -58,6 +61,8 @@ class ExplorerViewState {
   final bool isArchiveView;
   final String? archivePath;
   final String? archiveRootPath;
+  final String? pendingOpenPath;
+  final String? pendingOpenLabel;
   final String? error;
   final String? statusMessage;
 
@@ -75,6 +80,8 @@ class ExplorerViewState {
       selectedTypes: const <String>{},
       recentPaths: const [],
       isArchiveView: false,
+      pendingOpenPath: null,
+      pendingOpenLabel: null,
     );
   }
 
@@ -93,11 +100,14 @@ class ExplorerViewState {
     bool? isArchiveView,
     String? archivePath,
     String? archiveRootPath,
+    String? pendingOpenPath,
+    String? pendingOpenLabel,
     String? error,
     String? statusMessage,
     bool clearError = false,
     bool clearStatus = false,
     bool clearArchive = false,
+    bool clearPendingOpen = false,
   }) {
     return ExplorerViewState(
       currentPath: currentPath ?? this.currentPath,
@@ -115,6 +125,10 @@ class ExplorerViewState {
       archivePath: clearArchive ? null : (archivePath ?? this.archivePath),
       archiveRootPath:
           clearArchive ? null : (archiveRootPath ?? this.archiveRootPath),
+      pendingOpenPath:
+          clearPendingOpen ? null : (pendingOpenPath ?? this.pendingOpenPath),
+      pendingOpenLabel:
+          clearPendingOpen ? null : (pendingOpenLabel ?? this.pendingOpenLabel),
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
     );
@@ -600,7 +614,10 @@ class ExplorerViewModel extends ChangeNotifier {
     await loadDirectory(parentPath);
   }
 
-  Future<void> extractArchiveTo(String destinationPath) async {
+  Future<void> extractArchiveTo(
+    String destinationPath, {
+    Map<String, DuplicateAction>? duplicateActions,
+  }) async {
     if (!_state.isArchiveView || _state.archiveRootPath == null) return;
     final target = destinationPath.trim();
     if (target.isEmpty) return;
@@ -611,10 +628,16 @@ class ExplorerViewModel extends ChangeNotifier {
     );
     notifyListeners();
     try {
-      await _copyDirectoryContents(_state.archiveRootPath!, target);
+      await _copyDirectoryContents(
+        _state.archiveRootPath!,
+        target,
+        duplicateActions: duplicateActions,
+      );
       _state = _state.copyWith(
         isLoading: false,
         statusMessage: 'Archive extraite',
+        pendingOpenPath: target,
+        pendingOpenLabel: 'Ouvrir le dossier extrait ?',
       );
     } on FileSystemException catch (error) {
       _state = _state.copyWith(isLoading: false, error: error.message);
@@ -623,7 +646,10 @@ class ExplorerViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> extractSelectionTo(String destinationPath) async {
+  Future<void> extractSelectionTo(
+    String destinationPath, {
+    Map<String, DuplicateAction>? duplicateActions,
+  }) async {
     if (!_state.isArchiveView || _state.archiveRootPath == null) return;
     final target = destinationPath.trim();
     if (target.isEmpty) return;
@@ -638,10 +664,20 @@ class ExplorerViewModel extends ChangeNotifier {
     );
     notifyListeners();
     try {
-      await _copyEntries(entries, target);
+      if (duplicateActions == null) {
+        await _copyEntries(entries, target);
+      } else {
+        await _copyEntriesWithActions(
+          entries,
+          target,
+          duplicateActions: duplicateActions,
+        );
+      }
       _state = _state.copyWith(
         isLoading: false,
         statusMessage: '${entries.length} element(s) extrait(s)',
+        pendingOpenPath: target,
+        pendingOpenLabel: 'Ouvrir le dossier extrait ?',
       );
     } on FileSystemException catch (error) {
       _state = _state.copyWith(isLoading: false, error: error.message);
@@ -979,6 +1015,12 @@ class ExplorerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearPendingOpenPath() {
+    if (_state.pendingOpenPath == null) return;
+    _state = _state.copyWith(clearPendingOpen: true);
+    notifyListeners();
+  }
+
   bool get isAtRoot {
     final parent = Directory(_state.currentPath).parent.path;
     return parent == _state.currentPath;
@@ -1196,10 +1238,32 @@ class ExplorerViewModel extends ChangeNotifier {
     return result.exitCode == 0;
   }
 
+  Future<void> _copyEntriesWithActions(
+    List<FileEntry> entries,
+    String destinationPath, {
+    Map<String, DuplicateAction>? duplicateActions,
+  }) async {
+    final destinationDir = Directory(destinationPath);
+    if (!await destinationDir.exists()) {
+      throw FileSystemException('Destination introuvable', destinationPath);
+    }
+
+    for (final entry in entries) {
+      await _copyEntryWithAction(
+        sourcePath: entry.path,
+        entryName: entry.name,
+        isDirectory: entry.isDirectory,
+        destinationPath: destinationDir.path,
+        duplicateActions: duplicateActions,
+      );
+    }
+  }
+
   Future<void> _copyDirectoryContents(
     String sourcePath,
-    String destinationPath,
-  ) async {
+    String destinationPath, {
+    Map<String, DuplicateAction>? duplicateActions,
+  }) async {
     final sourceDir = Directory(sourcePath);
     if (!await sourceDir.exists()) {
       throw FileSystemException('Source introuvable', sourcePath);
@@ -1211,14 +1275,122 @@ class ExplorerViewModel extends ChangeNotifier {
 
     await for (final entity
         in sourceDir.list(recursive: false, followLinks: false)) {
+      if (entity is! File && entity is! Directory) {
+        continue;
+      }
       final name = p.basename(entity.path);
-      final targetPath = p.join(destinationDir.path, name);
-      if (entity is Directory) {
-        await _copyDirectory(Directory(entity.path), Directory(targetPath));
-      } else if (entity is File) {
-        await _copyFile(File(entity.path), File(targetPath));
+      await _copyEntryWithAction(
+        sourcePath: entity.path,
+        entryName: name,
+        isDirectory: entity is Directory,
+        destinationPath: destinationDir.path,
+        duplicateActions: duplicateActions,
+      );
+    }
+  }
+
+  Future<void> _copyEntryWithAction({
+    required String sourcePath,
+    required String entryName,
+    required bool isDirectory,
+    required String destinationPath,
+    Map<String, DuplicateAction>? duplicateActions,
+  }) async {
+    String targetName = entryName;
+    bool shouldReplace = false;
+
+    if (duplicateActions != null) {
+      final action = duplicateActions[entryName];
+      if (action != null) {
+        switch (action.type) {
+          case DuplicateActionType.skip:
+            return;
+          case DuplicateActionType.replace:
+            shouldReplace = true;
+            break;
+          case DuplicateActionType.duplicate:
+            targetName = _resolveDuplicateName(
+              action.newName,
+              entryName,
+              isDirectory,
+              destinationPath,
+            );
+            break;
+        }
+      } else {
+        final existing = FileSystemEntity.typeSync(
+          p.join(destinationPath, entryName),
+        );
+        if (existing != FileSystemEntityType.notFound) {
+          return;
+        }
       }
     }
+
+    final targetPath = p.join(destinationPath, targetName);
+    if (shouldReplace) {
+      await _deleteExistingTarget(targetPath);
+    }
+
+    if (isDirectory) {
+      await _copyDirectory(Directory(sourcePath), Directory(targetPath));
+    } else {
+      await _copyFile(File(sourcePath), File(targetPath));
+    }
+  }
+
+  Future<void> _deleteExistingTarget(String targetPath) async {
+    final existingType = FileSystemEntity.typeSync(targetPath);
+    if (existingType == FileSystemEntityType.notFound) return;
+    if (existingType == FileSystemEntityType.directory) {
+      await Directory(targetPath).delete(recursive: true);
+    } else if (existingType == FileSystemEntityType.file) {
+      await File(targetPath).delete();
+    } else if (existingType == FileSystemEntityType.link) {
+      await Link(targetPath).delete();
+    }
+  }
+
+  String _resolveDuplicateName(
+    String? proposedName,
+    String fallbackName,
+    bool isDirectory,
+    String destinationPath,
+  ) {
+    final candidate = p.basename((proposedName ?? '').trim());
+    final baseName = candidate.isEmpty ? fallbackName : candidate;
+    return _uniqueName(destinationPath, baseName, isDirectory);
+  }
+
+  String _uniqueName(String parentPath, String originalName, bool isDir) {
+    final trimmed = originalName.trim();
+    if (trimmed.isEmpty) return originalName;
+    final hasExtension = !isDir && trimmed.contains('.');
+    String base;
+    String ext = '';
+    if (hasExtension) {
+      final dotIndex = trimmed.lastIndexOf('.');
+      base = trimmed.substring(0, dotIndex);
+      ext = trimmed.substring(dotIndex);
+    } else {
+      base = trimmed;
+    }
+
+    var candidate = trimmed;
+    final separator = Platform.pathSeparator;
+    if (FileSystemEntity.typeSync('$parentPath$separator$candidate') ==
+        FileSystemEntityType.notFound) {
+      return candidate;
+    }
+
+    candidate = '$base copie$ext';
+    var counter = 2;
+    while (FileSystemEntity.typeSync('$parentPath$separator$candidate') !=
+        FileSystemEntityType.notFound) {
+      candidate = '$base copie $counter$ext';
+      counter++;
+    }
+    return candidate;
   }
 
   Future<void> _copyDirectory(Directory source, Directory destination) async {

@@ -42,34 +42,7 @@ import '../../../../core/widgets/theme_controls_v2.dart';
 import '../../../../core/widgets/appearance_settings_dialog_v2.dart';
 import '../../../settings/presentation/pages/about_page.dart';
 import '../../../settings/presentation/pages/terms_of_service_page.dart';
-
-// Enum pour les actions de gestion des doublons
-enum DuplicateActionType {
-  replace,   // Remplacer le fichier existant
-  duplicate, // Créer une copie avec un nouveau nom
-  skip,      // Ne pas copier ce fichier
-}
-
-// Classe pour stocker l'action à effectuer pour un doublon
-class DuplicateAction {
-  const DuplicateAction({
-    required this.type,
-    this.newName,
-  });
-
-  final DuplicateActionType type;
-  final String? newName; // Utilisé si type == duplicate
-
-  DuplicateAction copyWith({
-    DuplicateActionType? type,
-    String? newName,
-  }) {
-    return DuplicateAction(
-      type: type ?? this.type,
-      newName: newName ?? this.newName,
-    );
-  }
-}
+import '../../domain/entities/duplicate_action.dart';
 
 class ExplorerPage extends StatefulWidget {
   const ExplorerPage({super.key});
@@ -90,6 +63,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   late final List<_TagItem> _tagItems;
   late final List<_VolumeInfo> _volumes;
   String? _lastStatusMessage;
+  String? _lastPendingOpenPath;
   bool _contextMenuOpen = false;
   bool _isSearchExpanded = false;
   bool _isToastShowing = false;
@@ -252,6 +226,25 @@ class _ExplorerPageState extends State<ExplorerPage> {
           });
         } else if (state.statusMessage == null && _lastStatusMessage != null) {
           _lastStatusMessage = null;
+        }
+        if (state.pendingOpenPath != null &&
+            state.pendingOpenPath != _lastPendingOpenPath) {
+          _lastPendingOpenPath = state.pendingOpenPath;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            final targetPath = state.pendingOpenPath!;
+            final shouldOpen = await _showOpenExtractedPrompt(
+              targetPath,
+              state.pendingOpenLabel,
+            );
+            _viewModel.clearPendingOpenPath();
+            if (shouldOpen == true && mounted) {
+              await _viewModel.loadDirectory(targetPath);
+            }
+          });
+        } else if (state.pendingOpenPath == null &&
+            _lastPendingOpenPath != null) {
+          _lastPendingOpenPath = null;
         }
 
         return Theme(
@@ -772,6 +765,29 @@ class _ExplorerPageState extends State<ExplorerPage> {
     );
   }
 
+  Future<Map<String, DuplicateAction>?> _resolveDuplicateActionsForExtraction(
+    Map<String, String> sourcePathMap,
+    String destinationPath,
+  ) async {
+    if (sourcePathMap.isEmpty) {
+      return <String, DuplicateAction>{};
+    }
+
+    final duplicates = <String>[];
+    for (final name in sourcePathMap.keys) {
+      final targetPath = '$destinationPath${Platform.pathSeparator}$name';
+      if (FileSystemEntity.typeSync(targetPath) != FileSystemEntityType.notFound) {
+        duplicates.add(name);
+      }
+    }
+
+    if (duplicates.isEmpty) {
+      return <String, DuplicateAction>{};
+    }
+    if (!mounted) return null;
+    return _showDuplicateDialog(duplicates, sourcePathMap);
+  }
+
   // Fonction helper pour copier un dossier récursivement
   Future<void> _copyDirectory(String sourcePath, String targetPath) async {
     final sourceDir = Directory(sourcePath);
@@ -1046,7 +1062,34 @@ class _ExplorerPageState extends State<ExplorerPage> {
       confirmLabel: 'Extraire ici',
     );
     if (destination == null || destination.trim().isEmpty) return;
-    await _viewModel.extractArchiveTo(destination.trim());
+    final target = destination.trim();
+    final archiveRootPath = _viewModel.state.archiveRootPath;
+    if (archiveRootPath == null) return;
+
+    final sourceDir = Directory(archiveRootPath);
+    if (!await sourceDir.exists()) {
+      if (mounted) {
+        _showToast('Archive introuvable');
+      }
+      return;
+    }
+
+    final sourcePathMap = <String, String>{};
+    await for (final entity in sourceDir.list(recursive: false, followLinks: false)) {
+      final name = entity.path.split(Platform.pathSeparator).last;
+      sourcePathMap[name] = entity.path;
+    }
+
+    final actions = await _resolveDuplicateActionsForExtraction(
+      sourcePathMap,
+      target,
+    );
+    if (actions == null) return;
+
+    await _viewModel.extractArchiveTo(
+      target,
+      duplicateActions: actions,
+    );
   }
 
   Future<void> _promptExtractSelection() async {
@@ -1060,7 +1103,61 @@ class _ExplorerPageState extends State<ExplorerPage> {
       confirmLabel: 'Extraire ici',
     );
     if (destination == null || destination.trim().isEmpty) return;
-    await _viewModel.extractSelectionTo(destination.trim());
+    final target = destination.trim();
+    final entries = _viewModel.state.entries
+        .where((entry) => _viewModel.state.selectedPaths.contains(entry.path))
+        .toList();
+    if (entries.isEmpty) return;
+
+    final sourcePathMap = <String, String>{};
+    for (final entry in entries) {
+      sourcePathMap[entry.name] = entry.path;
+    }
+
+    final actions = await _resolveDuplicateActionsForExtraction(
+      sourcePathMap,
+      target,
+    );
+    if (actions == null) return;
+
+    await _viewModel.extractSelectionTo(
+      target,
+      duplicateActions: actions,
+    );
+  }
+
+  Future<bool?> _showOpenExtractedPrompt(
+    String destinationPath,
+    String? message,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          alignment: Alignment.center,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: Platform.isMacOS ? 80 : 40,
+            vertical: 40,
+          ),
+          child: AlertDialog(
+            title: const Text('Extraction terminee'),
+            content: Text(
+              message ?? 'Ouvrir le dossier ou les fichiers ont ete extraits ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Plus tard'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Ouvrir'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _confirmDeletion() async {
@@ -3343,7 +3440,7 @@ class _DuplicateDialogState extends State<_DuplicateDialog> {
                                     },
                                   ),
                                   ChoiceChip(
-                                    label: const Text('Dupliquer'),
+                                    label: const Text('Dupliquer (conserver les deux)'),
                                     selected: _batchAction == DuplicateActionType.duplicate,
                                     onSelected: (selected) {
                                       setState(() {
@@ -3352,7 +3449,7 @@ class _DuplicateDialogState extends State<_DuplicateDialog> {
                                     },
                                   ),
                                   ChoiceChip(
-                                    label: const Text('Ne pas copier'),
+                                    label: const Text('Garder la version actuelle'),
                                     selected: _batchAction == DuplicateActionType.skip,
                                     onSelected: (selected) {
                                       setState(() {
@@ -3441,7 +3538,7 @@ class _DuplicateDialogState extends State<_DuplicateDialog> {
                                       },
                                     ),
                                     ChoiceChip(
-                                      label: const Text('Dupliquer'),
+                                      label: const Text('Dupliquer (conserver les deux)'),
                                       selected: selectedAction == DuplicateActionType.duplicate,
                                       onSelected: (selected) {
                                         setState(() {
@@ -3452,7 +3549,7 @@ class _DuplicateDialogState extends State<_DuplicateDialog> {
                                       },
                                     ),
                                     ChoiceChip(
-                                      label: const Text('Ne pas copier'),
+                                      label: const Text('Garder la version actuelle'),
                                       selected: selectedAction == DuplicateActionType.skip,
                                       onSelected: (selected) {
                                         setState(() {
