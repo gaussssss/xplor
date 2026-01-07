@@ -235,6 +235,25 @@ class ExplorerViewModel extends ChangeNotifier {
   ExplorerViewState get state => _state;
   bool get isArchiveView => _state.isArchiveView;
   String get displayPath => _formatDisplayPath(_state.currentPath);
+  String resolveInputPath(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    if (!_state.isArchiveView ||
+        _state.archivePath == null ||
+        _state.archiveRootPath == null) {
+      return trimmed;
+    }
+    final archivePath = p.normalize(_state.archivePath!);
+    final inputPath = p.normalize(trimmed);
+    if (p.equals(inputPath, archivePath)) {
+      return _state.archiveRootPath!;
+    }
+    if (p.isWithin(archivePath, inputPath)) {
+      final relative = p.relative(inputPath, from: archivePath);
+      return p.join(_state.archiveRootPath!, relative);
+    }
+    return trimmed;
+  }
 
   String _formatDisplayPath(String currentPath) {
     if (!_state.isArchiveView ||

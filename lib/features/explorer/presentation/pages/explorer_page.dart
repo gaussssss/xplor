@@ -14,6 +14,7 @@ import '../../../../core/constants/special_locations.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/color_palettes.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/mini_explorer_dialog.dart';
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';
@@ -494,7 +495,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
               ),
               child: _PathInput(
                 controller: _pathController,
-                onSubmit: (value) => _viewModel.loadDirectory(value),
+                onSubmit: (value) => _viewModel
+                    .loadDirectory(_viewModel.resolveInputPath(value)),
               ),
             ),
           ),
@@ -1024,10 +1026,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Future<void> _promptMove() async {
-    final destination = await _showTextDialog(
+    final destination = await _pickDirectoryPath(
       title: 'Deplacer vers...',
-      label: 'Chemin de destination',
-      initial: _viewModel.state.currentPath,
+      initialPath: _viewModel.state.currentPath,
+      confirmLabel: 'Deplacer ici',
     );
     if (destination == null || destination.trim().isEmpty) return;
     await _viewModel.moveSelected(destination.trim());
@@ -1038,10 +1040,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
     final initialPath = archivePath != null
         ? Directory(archivePath).parent.path
         : _viewModel.state.currentPath;
-    final destination = await _showTextDialog(
+    final destination = await _pickDirectoryPath(
       title: 'Extraire l archive',
-      label: 'Chemin de destination',
-      initial: initialPath,
+      initialPath: initialPath,
+      confirmLabel: 'Extraire ici',
     );
     if (destination == null || destination.trim().isEmpty) return;
     await _viewModel.extractArchiveTo(destination.trim());
@@ -1052,10 +1054,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
     final initialPath = archivePath != null
         ? Directory(archivePath).parent.path
         : _viewModel.state.currentPath;
-    final destination = await _showTextDialog(
+    final destination = await _pickDirectoryPath(
       title: 'Extraire la sélection',
-      label: 'Chemin de destination',
-      initial: initialPath,
+      initialPath: initialPath,
+      confirmLabel: 'Extraire ici',
     );
     if (destination == null || destination.trim().isEmpty) return;
     await _viewModel.extractSelectionTo(destination.trim());
@@ -1283,6 +1285,23 @@ class _ExplorerPageState extends State<ExplorerPage> {
           ),
         );
       },
+    );
+  }
+
+  Future<String?> _pickDirectoryPath({
+    required String title,
+    required String initialPath,
+    String? confirmLabel,
+  }) {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => MiniExplorerDialog(
+        title: title,
+        mode: MiniExplorerPickerMode.directory,
+        initialPath: initialPath,
+        confirmLabel: confirmLabel,
+        showFiles: false,
+      ),
     );
   }
 
