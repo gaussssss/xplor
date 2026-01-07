@@ -1149,7 +1149,7 @@ class _AllDisksDialogContent extends StatelessWidget {
     final isLight = theme.brightness == Brightness.light;
     final onSurface = theme.colorScheme.onSurface;
     final bgColor =
-        isLight ? Colors.white.withOpacity(0.74) : Colors.black.withOpacity(0.8);
+        isLight ? Colors.white.withOpacity(0.94) : Colors.black.withOpacity(0.8);
     final borderColor =
         isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.1);
     final headerText = onSurface.withValues(alpha: isLight ? 0.88 : 0.94);
@@ -1168,7 +1168,7 @@ class _AllDisksDialogContent extends StatelessWidget {
             gradient: LinearGradient(
               colors: [
                 bgColor,
-                bgColor.withOpacity(isLight ? 0.68 : 0.72),
+                bgColor.withOpacity(isLight ? 0.9 : 0.72),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
