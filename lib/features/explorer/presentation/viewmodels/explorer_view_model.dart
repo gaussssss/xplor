@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:id3/id3.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -137,12 +139,15 @@ class ExplorerViewState {
       recentPaths: recentPaths ?? this.recentPaths,
       isArchiveView: isArchiveView ?? this.isArchiveView,
       archivePath: clearArchive ? null : (archivePath ?? this.archivePath),
-      archiveRootPath:
-          clearArchive ? null : (archiveRootPath ?? this.archiveRootPath),
-      pendingOpenPath:
-          clearPendingOpen ? null : (pendingOpenPath ?? this.pendingOpenPath),
-      pendingOpenLabel:
-          clearPendingOpen ? null : (pendingOpenLabel ?? this.pendingOpenLabel),
+      archiveRootPath: clearArchive
+          ? null
+          : (archiveRootPath ?? this.archiveRootPath),
+      pendingOpenPath: clearPendingOpen
+          ? null
+          : (pendingOpenPath ?? this.pendingOpenPath),
+      pendingOpenLabel: clearPendingOpen
+          ? null
+          : (pendingOpenLabel ?? this.pendingOpenLabel),
       error: clearError ? null : (error ?? this.error),
       statusMessage: clearStatus ? null : (statusMessage ?? this.statusMessage),
     );
@@ -192,6 +197,11 @@ class ExplorerViewModel extends ChangeNotifier {
   final List<String> _forwardStack = [];
   List<String> _recentPaths = [];
   final List<String> _stagedArchiveRoots = [];
+  final Map<String, String?> _defaultAppIconCache = {};
+  final Map<String, String?> _defaultAppPathCache = {};
+  final Map<String, String?> _previewCache = {};
+  final Map<String, String?> _mediaPreviewCache = {};
+  final Map<String, Uint8List?> _audioArtCache = {};
 
   ExplorerViewState get state => _state;
   bool get isArchiveView => _state.isArchiveView;
@@ -216,4 +226,11 @@ class ExplorerViewModel extends ChangeNotifier {
     _searchViewModel.dispose();
     super.dispose();
   }
+}
+
+class OpenWithApp {
+  const OpenWithApp({required this.name, required this.path});
+
+  final String name;
+  final String path;
 }

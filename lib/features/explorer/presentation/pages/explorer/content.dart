@@ -1,7 +1,7 @@
 part of '../explorer_page.dart';
 
 extension _ExplorerPageContent on _ExplorerPageState {
-Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
+  Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
     if (state.isLoading && entries.isEmpty) {
       return const Center(
         child: Column(
@@ -84,10 +84,12 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
 
         for (final file in details.files) {
           final fileName = file.path.split(Platform.pathSeparator).last;
-          final targetPath = '${targetDir.path}${Platform.pathSeparator}$fileName';
+          final targetPath =
+              '${targetDir.path}${Platform.pathSeparator}$fileName';
           sourcePathMap[fileName] = file.path;
 
-          if (FileSystemEntity.typeSync(targetPath) != FileSystemEntityType.notFound) {
+          if (FileSystemEntity.typeSync(targetPath) !=
+              FileSystemEntityType.notFound) {
             duplicates.add(fileName);
           }
         }
@@ -108,7 +110,8 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
           for (final file in details.files) {
             final sourcePath = file.path;
             final fileName = sourcePath.split(Platform.pathSeparator).last;
-            String targetPath = '${targetDir.path}${Platform.pathSeparator}$fileName';
+            String targetPath =
+                '${targetDir.path}${Platform.pathSeparator}$fileName';
 
             // Si c'est un doublon, vérifier l'action à effectuer
             if (duplicates.contains(fileName)) {
@@ -117,9 +120,11 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
                 continue; // Ne pas copier ce fichier
               }
 
-              if (action.type == DuplicateActionType.duplicate && action.newName != null) {
+              if (action.type == DuplicateActionType.duplicate &&
+                  action.newName != null) {
                 // Utiliser le nouveau nom
-                targetPath = '${targetDir.path}${Platform.pathSeparator}${action.newName}';
+                targetPath =
+                    '${targetDir.path}${Platform.pathSeparator}${action.newName}';
               } else if (action.type == DuplicateActionType.replace) {
                 // Supprimer l'existant avant de copier
                 final source = FileSystemEntity.typeSync(sourcePath);
@@ -174,7 +179,9 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.1),
                     border: Border.all(
                       color: Theme.of(context).colorScheme.primary,
                       width: 3,
@@ -186,12 +193,19 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 24,
+                          ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surface.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
                             boxShadow: [
@@ -213,16 +227,19 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
                               const SizedBox(height: 16),
                               Text(
                                 'Déposer ici pour copier',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'dans ${_dragTargetPath?.split(Platform.pathSeparator).last ?? "ce dossier"}',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                                ),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.7),
+                                    ),
                               ),
                             ],
                           ),
@@ -251,6 +268,20 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
     final handleSelection = selectionMode
         ? () => _viewModel.toggleSelection(entry)
         : () => _viewModel.selectSingle(entry);
+    final appIconFuture = entry.isDirectory
+        ? null
+        : _viewModel.resolveDefaultAppIconPath(entry.path);
+    final previewFuture =
+        entry.isDirectory || _viewModel.isLockedPath(entry.path)
+        ? null
+        : (_viewModel.shouldGeneratePreview(entry.path)
+              ? _viewModel.resolvePreviewThumbnail(entry.path)
+              : (_viewModel.isVideoFile(entry.path)
+                    ? _viewModel.resolveVideoThumbnail(entry.path)
+                    : null));
+    final audioArtFuture = _viewModel.isAudioFile(entry.path)
+        ? _viewModel.resolveAudioArtwork(entry.path)
+        : null;
 
     final tile = FileEntryTile(
       entry: entry,
@@ -258,6 +289,9 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
       selectionMode: selectionMode,
       isSelected: _viewModel.isSelected(entry),
       isLocked: _viewModel.isLockedPath(entry.path),
+      appIconFuture: appIconFuture,
+      previewFuture: previewFuture,
+      audioArtFuture: audioArtFuture,
       onToggleSelection: handleSelection,
       onOpen: () => _handleEntryTap(entry),
       onContextMenu: (position) => _showContextMenu(entry, position),
@@ -271,6 +305,9 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
         selectionMode: selectionMode,
         isSelected: _viewModel.isSelected(entry),
         isLocked: _viewModel.isLockedPath(entry.path),
+        appIconFuture: appIconFuture,
+        previewFuture: previewFuture,
+        audioArtFuture: audioArtFuture,
         onToggleSelection: handleSelection,
         onOpen: () => _handleEntryTap(entry),
         onContextMenu: (position) => _showContextMenu(entry, position),
@@ -383,5 +420,4 @@ Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
       },
     );
   }
-
 }

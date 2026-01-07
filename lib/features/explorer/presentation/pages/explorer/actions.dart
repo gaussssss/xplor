@@ -540,6 +540,11 @@ extension _ExplorerPageActions on _ExplorerPageState {
         : null;
     final canPaste = _viewModel.canPaste && !isArchiveView;
     final isLocked = entry != null && _viewModel.isLockedEntry(entry);
+    final canPreview =
+        entry != null &&
+        !entry.isDirectory &&
+        !isLocked &&
+        _viewModel.canPreviewPath(entry.path);
 
     final items = <_ContextMenuEntry>[];
     if (entry != null) {
@@ -571,12 +576,12 @@ extension _ExplorerPageActions on _ExplorerPageState {
                 ),
               ],
             ),
-            _ContextMenuEntry(
-              id: 'preview',
-              label: 'Previsualiser',
-              icon: lucide.LucideIcons.eye,
-              enabled: !entry.isDirectory && !isLocked,
-            ),
+            if (canPreview)
+              const _ContextMenuEntry(
+                id: 'preview',
+                label: 'Previsualiser',
+                icon: lucide.LucideIcons.eye,
+              ),
             if (entry.isApplication) const _ContextMenuEntry.separator(),
             if (entry.isApplication)
               const _ContextMenuEntry(
@@ -962,16 +967,84 @@ extension _ExplorerPageActions on _ExplorerPageState {
       _showToast('Ouverture avec application indisponible ici');
       return;
     }
-    final app = await _showTextDialog(
-      title: 'Ouvrir avec',
-      label: 'Nom de l application (ex: Preview)',
-    );
-    if (app == null || app.trim().isEmpty) return;
     try {
-      await Process.run('open', ['-a', app.trim(), entry.path]);
-      _showToast('Ouvert avec $app');
+      final apps = await _viewModel.resolveOpenWithApps(entry.path);
+      final selection = await _showOpenWithDialog(apps);
+      if (selection == null) return;
+      if (selection.name == '__choose__') {
+        final appPath = await _pickApplicationPath();
+        if (appPath == null) return;
+        await Process.run('open', ['-a', appPath, entry.path]);
+        _showToast('Ouvert avec ${p.basenameWithoutExtension(appPath)}');
+        return;
+      }
+      await Process.run('open', ['-a', selection.path, entry.path]);
+      _showToast('Ouvert avec ${selection.name}');
     } catch (_) {
-      _showToast('Impossible d ouvrir avec $app');
+      _showToast('Impossible d ouvrir avec cette application');
+    }
+  }
+
+  Future<OpenWithApp?> _showOpenWithDialog(List<OpenWithApp> apps) async {
+    final maxHeight = 220.0;
+    return showDialog<OpenWithApp?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Ouvrir avec'),
+          content: SizedBox(
+            width: 320,
+            height: apps.isEmpty ? 120 : maxHeight,
+            child: apps.isEmpty
+                ? const Center(child: Text('Aucune application trouvée.'))
+                : ListView.separated(
+                    itemCount: apps.length + 1,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      if (index == apps.length) {
+                        return ListTile(
+                          leading: const Icon(lucide.LucideIcons.search),
+                          title: const Text('Choisir une autre application'),
+                          onTap: () => Navigator.of(context).pop(
+                            const OpenWithApp(name: '__choose__', path: ''),
+                          ),
+                        );
+                      }
+                      final app = apps[index];
+                      return ListTile(
+                        title: Text(app.name),
+                        subtitle: Text(
+                          app.path,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => Navigator.of(context).pop(app),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Annuler'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<String?> _pickApplicationPath() async {
+    if (!Platform.isMacOS) return null;
+    const script = 'POSIX path of (choose application)';
+    try {
+      final result = await Process.run('osascript', ['-e', script]);
+      if (result.exitCode != 0) return null;
+      final output = (result.stdout ?? '').toString().trim();
+      if (output.isEmpty) return null;
+      return output;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -980,15 +1053,17 @@ extension _ExplorerPageActions on _ExplorerPageState {
       await _viewModel.open(entry);
       return;
     }
-    try {
-      if (Platform.isMacOS) {
-        await Process.run('qlmanage', ['-p', entry.path]);
-      } else {
-        await _viewModel.openFile(entry);
-      }
-    } catch (_) {
-      _showToast('Previsualisation impossible');
-    }
+    await _showPreviewDialog(entry);
+  }
+
+  Future<void> _showPreviewDialog(FileEntry entry) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return _MediaPreviewDialog(entry: entry, viewModel: _viewModel);
+      },
+    );
   }
 
   Future<void> _openCurrentInFinder() async {
@@ -1161,11 +1236,14 @@ extension _ExplorerPageActions on _ExplorerPageState {
           ),
           child: AlertDialog(
             title: Text(title),
-            content: TextField(
-              controller: controller,
-              decoration: InputDecoration(labelText: label),
-              autofocus: true,
-              onSubmitted: (value) => Navigator.of(context).pop(value),
+            content: SizedBox(
+              width: 320,
+              child: TextField(
+                controller: controller,
+                decoration: InputDecoration(labelText: label),
+                autofocus: true,
+                onSubmitted: (value) => Navigator.of(context).pop(value),
+              ),
             ),
             actions: [
               TextButton(
@@ -1416,5 +1494,314 @@ extension _ExplorerPageActions on _ExplorerPageState {
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+}
+
+class _MediaPreviewDialog extends StatefulWidget {
+  const _MediaPreviewDialog({required this.entry, required this.viewModel});
+
+  final FileEntry entry;
+  final ExplorerViewModel viewModel;
+
+  @override
+  State<_MediaPreviewDialog> createState() => _MediaPreviewDialogState();
+}
+
+class _MediaPreviewDialogState extends State<_MediaPreviewDialog> {
+  VideoPlayerController? _videoController;
+  bool _videoInitFailed = false;
+  Future<Uint8List?>? _audioArtFuture;
+  Future<String?>? _docPreviewFuture;
+  late final bool _isVideo;
+  late final bool _isAudio;
+  late final bool _isImage;
+  late final bool _isSvg;
+
+  @override
+  void initState() {
+    super.initState();
+    final ext = p.extension(widget.entry.path).toLowerCase();
+    _isSvg = ext == '.svg';
+    _isImage = const {
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.bmp',
+    }.contains(ext);
+    _isVideo = const {
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.webm',
+      '.flv',
+    }.contains(ext);
+    _isAudio = const {
+      '.mp3',
+      '.wav',
+      '.aac',
+      '.flac',
+      '.ogg',
+      '.m4a',
+      '.wma',
+    }.contains(ext);
+
+    if (_isVideo) {
+      _videoController = VideoPlayerController.file(File(widget.entry.path))
+        ..initialize()
+            .then((_) {
+              if (mounted) setState(() {});
+            })
+            .catchError((_) {
+              _videoInitFailed = true;
+              if (mounted) setState(() {});
+            });
+    } else if (_isAudio) {
+      _audioArtFuture = widget.viewModel.resolveAudioArtwork(widget.entry.path);
+    } else if (widget.viewModel.shouldGeneratePreview(widget.entry.path)) {
+      _docPreviewFuture = widget.viewModel.resolvePreviewThumbnail(
+        widget.entry.path,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.entry.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(lucide.LucideIcons.x),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Fermer',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Center(child: _buildPreviewBody(theme)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Fermer'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () {
+                      widget.viewModel.openFile(widget.entry);
+                    },
+                    child: const Text('Ouvrir'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewBody(ThemeData theme) {
+    if (_isVideo) {
+      final controller = _videoController;
+      if (_videoInitFailed) {
+        return _buildVideoFallback(theme);
+      }
+      if (controller == null || !controller.value.isInitialized) {
+        return _buildLoading(theme);
+      }
+      return SizedBox(
+        width: 420,
+        height: 236,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: controller.value.aspectRatio,
+                child: VideoPlayer(controller),
+              ),
+            ),
+            IconButton(
+              iconSize: 48,
+              icon: Icon(
+                controller.value.isPlaying
+                    ? lucide.LucideIcons.pauseCircle
+                    : lucide.LucideIcons.playCircle,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                setState(() {
+                  controller.value.isPlaying
+                      ? controller.pause()
+                      : controller.play();
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_isAudio) {
+      final artFuture = _audioArtFuture;
+      if (artFuture == null) {
+        return _buildAudioFallback(theme);
+      }
+      return FutureBuilder<Uint8List?>(
+        future: artFuture,
+        builder: (context, snapshot) {
+          final art = snapshot.data;
+          if (art == null || art.isEmpty) {
+            return _buildAudioFallback(theme);
+          }
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              art,
+              width: 220,
+              height: 220,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildAudioFallback(theme),
+            ),
+          );
+        },
+      );
+    }
+
+    if (_isImage && widget.entry.path.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          File(widget.entry.path),
+          width: 280,
+          height: 280,
+          fit: BoxFit.contain,
+        ),
+      );
+    }
+
+    if (_isSvg && widget.entry.path.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SvgPicture.file(
+          File(widget.entry.path),
+          width: 280,
+          height: 280,
+          fit: BoxFit.contain,
+        ),
+      );
+    }
+
+    final previewFuture = _docPreviewFuture;
+    if (previewFuture == null) {
+      return _buildFallbackIcon(theme);
+    }
+    return FutureBuilder<String?>(
+      future: previewFuture,
+      builder: (context, snapshot) {
+        final path = snapshot.data;
+        if (path == null || path.isEmpty) {
+          return _buildFallbackIcon(theme);
+        }
+        final file = File(path);
+        if (!file.existsSync()) {
+          return _buildFallbackIcon(theme);
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.file(file, width: 280, height: 280, fit: BoxFit.contain),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoading(ThemeData theme) {
+    return SizedBox(
+      width: 200,
+      height: 200,
+      child: Center(
+        child: CircularProgressIndicator(color: theme.colorScheme.primary),
+      ),
+    );
+  }
+
+  Widget _buildFallbackIcon(ThemeData theme) {
+    return Container(
+      width: 220,
+      height: 220,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        lucide.LucideIcons.fileText,
+        size: 72,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  Widget _buildAudioFallback(ThemeData theme) {
+    return Container(
+      width: 220,
+      height: 220,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        lucide.LucideIcons.music2,
+        size: 72,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  Widget _buildVideoFallback(ThemeData theme) {
+    return Container(
+      width: 240,
+      height: 160,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        lucide.LucideIcons.video,
+        size: 64,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
   }
 }

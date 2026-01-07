@@ -304,33 +304,24 @@ extension ExplorerArchiveOps on ExplorerViewModel {
     String destinationPath,
   ) async {
     final tools = <({String cmd, List<String> args})>[
-      (
-        cmd: '7z',
-        args: ['x', '-y', '-o$destinationPath', archivePath],
-      ),
+      (cmd: 'unrar', args: ['x', '-o+', archivePath, destinationPath]),
+      (cmd: '7z', args: ['x', '-y', '-o$destinationPath', archivePath]),
       (
         cmd: 'unar',
         args: ['-quiet', '-output-directory', destinationPath, archivePath],
       ),
-      (
-        cmd: 'bsdtar',
-        args: ['-xf', archivePath, '-C', destinationPath],
-      ),
-      (
-        cmd: 'unzip',
-        args: ['-q', '-o', archivePath, '-d', destinationPath],
-      ),
-      (
-        cmd: 'tar',
-        args: ['-xf', archivePath, '-C', destinationPath],
-      ),
+      (cmd: 'bsdtar', args: ['-xf', archivePath, '-C', destinationPath]),
+      (cmd: 'unzip', args: ['-q', '-o', archivePath, '-d', destinationPath]),
+      (cmd: 'tar', args: ['-xf', archivePath, '-C', destinationPath]),
     ];
 
     String? lastError;
+    var attempted = false;
     for (final tool in tools) {
       if (!await _commandExists(tool.cmd)) {
         continue;
       }
+      attempted = true;
       final result = await Process.run(tool.cmd, tool.args);
       if (result.exitCode == 0) {
         return;
@@ -344,6 +335,12 @@ extension ExplorerArchiveOps on ExplorerViewModel {
       lastError = stderrText.trim().isNotEmpty
           ? stderrText.trim()
           : stdoutText.trim();
+    }
+    if (!attempted) {
+      throw FileSystemException(
+        'Aucun outil d extraction disponible. Installez 7z ou unar.',
+        archivePath,
+      );
     }
     throw FileSystemException(
       lastError ?? 'Extraction impossible',
@@ -392,8 +389,10 @@ extension ExplorerArchiveOps on ExplorerViewModel {
       throw FileSystemException('Destination introuvable', destinationPath);
     }
 
-    await for (final entity
-        in sourceDir.list(recursive: false, followLinks: false)) {
+    await for (final entity in sourceDir.list(
+      recursive: false,
+      followLinks: false,
+    )) {
       if (entity is! File && entity is! Directory) {
         continue;
       }
@@ -517,8 +516,10 @@ extension ExplorerArchiveOps on ExplorerViewModel {
       await destination.create(recursive: true);
     }
 
-    await for (final entity
-        in source.list(recursive: false, followLinks: false)) {
+    await for (final entity in source.list(
+      recursive: false,
+      followLinks: false,
+    )) {
       final name = p.basename(entity.path);
       final targetPath = p.join(destination.path, name);
       if (entity is File) {
