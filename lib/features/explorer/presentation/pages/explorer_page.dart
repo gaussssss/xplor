@@ -46,7 +46,8 @@ import '../widgets/list_view_table.dart';
 import '../widgets/sidebar_section.dart';
 import '../widgets/toolbar_button.dart';
 import '../../../../core/widgets/theme_controls_v2.dart';
-import '../../../../core/widgets/appearance_settings_dialog_v2.dart';
+import '../../../../core/widgets/appearance_settings_dialog_v2.dart'
+    as settings;
 import '../../../settings/presentation/pages/about_page.dart';
 import '../../../settings/presentation/pages/terms_of_service_page.dart';
 import '../../domain/entities/duplicate_action.dart';
@@ -142,115 +143,66 @@ class _ExplorerShortcutAction<T extends Intent> extends ContextAction<T> {
 class _ExplorerPageState extends State<ExplorerPage> {
   static final Map<ShortcutActivator, Intent> _shortcuts =
       <ShortcutActivator, Intent>{
-        const SingleActivator(
-          LogicalKeyboardKey.arrowLeft,
-          alt: true,
-        ): const _NavigateBackIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.arrowRight,
-          alt: true,
-        ): const _NavigateForwardIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.bracketLeft,
-          meta: true,
-        ): const _NavigateBackIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.bracketRight,
-          meta: true,
-        ): const _NavigateForwardIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.arrowUp,
-          alt: true,
-        ): const _NavigateUpIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.arrowUp,
-          meta: true,
-        ): const _NavigateUpIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.browserBack,
-        ): const _NavigateBackIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.browserForward,
-        ): const _NavigateForwardIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyR,
-          meta: true,
-        ): const _RefreshIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyR,
-          control: true,
-        ): const _RefreshIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.f5,
-        ): const _RefreshIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyF,
-          meta: true,
-        ): const _FocusSearchIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyF,
-          control: true,
-        ): const _FocusSearchIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.enter,
-        ): const _OpenSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.numpadEnter,
-        ): const _OpenSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.delete,
-        ): const _DeleteSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.backspace,
-        ): const _DeleteSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.f2,
-        ): const _RenameSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyN,
-          meta: true,
-          shift: true,
-        ): const _NewFolderIntent(),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
+            const _NavigateBackIntent(),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
+            const _NavigateForwardIntent(),
+        const SingleActivator(LogicalKeyboardKey.bracketLeft, meta: true):
+            const _NavigateBackIntent(),
+        const SingleActivator(LogicalKeyboardKey.bracketRight, meta: true):
+            const _NavigateForwardIntent(),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
+            const _NavigateUpIntent(),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, meta: true):
+            const _NavigateUpIntent(),
+        const SingleActivator(LogicalKeyboardKey.browserBack):
+            const _NavigateBackIntent(),
+        const SingleActivator(LogicalKeyboardKey.browserForward):
+            const _NavigateForwardIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyR, meta: true):
+            const _RefreshIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyR, control: true):
+            const _RefreshIntent(),
+        const SingleActivator(LogicalKeyboardKey.f5): const _RefreshIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            const _FocusSearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            const _FocusSearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter):
+            const _OpenSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.numpadEnter):
+            const _OpenSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.delete):
+            const _DeleteSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.backspace):
+            const _DeleteSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.f2):
+            const _RenameSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true):
+            const _NewFolderIntent(),
         const SingleActivator(
           LogicalKeyboardKey.keyN,
           control: true,
           shift: true,
         ): const _NewFolderIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyC,
-          meta: true,
-        ): const _CopySelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyC,
-          control: true,
-        ): const _CopySelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyX,
-          meta: true,
-        ): const _CutSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyX,
-          control: true,
-        ): const _CutSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyV,
-          meta: true,
-        ): const _PasteSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyV,
-          control: true,
-        ): const _PasteSelectionIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyA,
-          meta: true,
-        ): const _SelectAllIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyA,
-          control: true,
-        ): const _SelectAllIntent(),
-        const SingleActivator(
-          LogicalKeyboardKey.escape,
-        ): const _ClearSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyC, meta: true):
+            const _CopySelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true):
+            const _CopySelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyX, meta: true):
+            const _CutSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyX, control: true):
+            const _CutSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+            const _PasteSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            const _PasteSelectionIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyA, meta: true):
+            const _SelectAllIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+            const _SelectAllIntent(),
+        const SingleActivator(LogicalKeyboardKey.escape):
+            const _ClearSelectionIntent(),
       };
   late final ExplorerViewModel _viewModel;
   late final TextEditingController _pathController;
@@ -313,10 +265,19 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _tagItems = _buildTags();
     _volumeInfoService = VolumeInfoService();
     _volumes = _volumeInfoService.readVolumes();
-    _viewModel.loadDirectory(initialPath);
+    _initializeExplorer(initialPath);
     _loadSelectionMode();
     _loadPreferredRootPath();
     _scheduleInitialRefresh();
+  }
+
+  Future<void> _initializeExplorer(String fallbackPath) async {
+    await _viewModel.bootstrap();
+    final startupPath = await _viewModel.resolveStartupPath(fallbackPath);
+    if (!mounted) return;
+    _pathController.text = startupPath;
+    _lastPath = startupPath;
+    await _viewModel.loadDirectory(startupPath);
   }
 
   Widget _buildSearchToggle() {
@@ -420,9 +381,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     return _ExplorerShortcutAction(
       onInvoke: handler,
       isEnabledCallback: () {
-        if (!_shouldHandleShortcut(
-          allowWhenTextInput: allowWhenTextInput,
-        )) {
+        if (!_shouldHandleShortcut(allowWhenTextInput: allowWhenTextInput)) {
           return false;
         }
         return isEnabled == null ? true : isEnabled();
@@ -458,13 +417,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
       ),
       _DeleteSelectionIntent: _buildShortcutAction(
         () => _confirmDeletion(),
-        isEnabled: () =>
-            !state.isLoading && state.selectedPaths.isNotEmpty,
+        isEnabled: () => !state.isLoading && state.selectedPaths.isNotEmpty,
       ),
       _RenameSelectionIntent: _buildShortcutAction(
         () => _promptRename(),
-        isEnabled: () =>
-            !state.isLoading && state.selectedPaths.length == 1,
+        isEnabled: () => !state.isLoading && state.selectedPaths.length == 1,
       ),
       _NewFolderIntent: _buildShortcutAction(
         () => _promptCreateFolder(),
@@ -472,13 +429,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
       ),
       _CopySelectionIntent: _buildShortcutAction(
         () => _viewModel.copySelectionToClipboard(),
-        isEnabled: () =>
-            !state.isLoading && state.selectedPaths.isNotEmpty,
+        isEnabled: () => !state.isLoading && state.selectedPaths.isNotEmpty,
       ),
       _CutSelectionIntent: _buildShortcutAction(
         () => _viewModel.cutSelectionToClipboard(),
-        isEnabled: () =>
-            !state.isLoading && state.selectedPaths.isNotEmpty,
+        isEnabled: () => !state.isLoading && state.selectedPaths.isNotEmpty,
       ),
       _PasteSelectionIntent: _buildShortcutAction(
         () => _viewModel.pasteClipboard(),
@@ -697,8 +652,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                 quickItems: _quickItems,
                                                 tags: _tagItems,
                                                 volumes: _volumes,
-                                                recentPaths:
-                                                    state.recentPaths,
+                                                recentPaths: state.recentPaths,
                                                 selectedTags:
                                                     _viewModel.selectedTags,
                                                 selectedTypes:
@@ -717,8 +671,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                 },
                                                 onSettingsClosed:
                                                     _loadSelectionMode,
-                                                isLight:
-                                                    themeProvider.isLight,
+                                                isLight: themeProvider.isLight,
                                                 currentPalette: themeProvider
                                                     .currentPalette,
                                                 onToggleLight:
@@ -731,8 +684,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                             // Resize handle - seulement visible quand sidebar n'est pas collapsed
                                             if (!_isSidebarCollapsed)
                                               MouseRegion(
-                                                cursor:
-                                                    SystemMouseCursors.resizeColumn,
+                                                cursor: SystemMouseCursors
+                                                    .resizeColumn,
                                                 child: GestureDetector(
                                                   onPanUpdate: (details) {
                                                     setState(() {
@@ -757,10 +710,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                     child: Center(
                                                       child: Container(
                                                         width: 2,
-                                                        color:
-                                                            Colors.white.withValues(
-                                                          alpha: 0.1,
-                                                        ),
+                                                        color: Colors.white
+                                                            .withValues(
+                                                              alpha: 0.1,
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -776,12 +729,14 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                 CrossAxisAlignment.stretch,
                                             children: [
                                               GlassPanelV2(
-                                                level: GlassPanelLevel.secondary,
+                                                level:
+                                                    GlassPanelLevel.secondary,
                                                 child: _buildToolbar(state),
                                               ),
                                               const SizedBox(height: 8),
                                               GlassPanelV2(
-                                                level: GlassPanelLevel.secondary,
+                                                level:
+                                                    GlassPanelLevel.secondary,
                                                 child: _buildActionBar(state),
                                               ),
                                               const SizedBox(height: 8),
@@ -789,8 +744,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                 child: GlassPanelV2(
                                                   level:
                                                       GlassPanelLevel.primary,
-                                                  padding:
-                                                      const EdgeInsets.all(0),
+                                                  padding: const EdgeInsets.all(
+                                                    0,
+                                                  ),
                                                   child: _buildContent(
                                                     state,
                                                     entries,
@@ -801,21 +757,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                               Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  horizontal: 4,
-                                                ),
+                                                      horizontal: 4,
+                                                    ),
                                                 child: _StatsFooter(
                                                   state: state,
                                                 ),
                                               ),
                                               const SizedBox(height: 8),
                                               GlassPanelV2(
-                                                level:
-                                                    GlassPanelLevel.tertiary,
+                                                level: GlassPanelLevel.tertiary,
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 10,
-                                                ),
+                                                      horizontal: 12,
+                                                      vertical: 10,
+                                                    ),
                                                 child: Column(
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
@@ -825,8 +780,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                       onNavigate: (path) =>
                                                           _viewModel
                                                               .loadDirectory(
-                                                        path,
-                                                      ),
+                                                                path,
+                                                              ),
                                                     ),
                                                   ],
                                                 ),

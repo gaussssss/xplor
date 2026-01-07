@@ -18,6 +18,7 @@ class ThemeControlsV2 extends StatelessWidget {
     required this.onToggleLight,
     required this.onPaletteSelected,
     this.showPalette = true,
+    this.showLightDarkToggle = true,
     this.showSettings = true,
     this.onSettingsChanged,
   });
@@ -27,20 +28,20 @@ class ThemeControlsV2 extends StatelessWidget {
   final Future<void> Function(bool) onToggleLight;
   final Future<void> Function(ColorPalette) onPaletteSelected;
   final bool showPalette;
+  final bool showLightDarkToggle;
   final bool showSettings;
   final VoidCallback? onSettingsChanged;
 
   @override
   Widget build(BuildContext context) {
     final titleStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
-          fontSize: 10,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurface
-              .withValues(alpha: isLight ? 0.7 : 0.4),
-        );
+      letterSpacing: 1.2,
+      fontWeight: FontWeight.w600,
+      fontSize: 10,
+      color: Theme.of(
+        context,
+      ).colorScheme.onSurface.withValues(alpha: isLight ? 0.7 : 0.4),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,10 +56,9 @@ class ThemeControlsV2 extends StatelessWidget {
                 icon: Icon(
                   LucideIcons.settings2,
                   size: 14,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: isLight ? 0.6 : 0.7),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(
+                    alpha: isLight ? 0.6 : 0.7,
+                  ),
                 ),
                 tooltip: 'Paramètres d\'apparence',
                 onPressed: () async {
@@ -77,10 +77,8 @@ class ThemeControlsV2 extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         // Toggle élégant moon/sun
-        _LightDarkToggle(
-          isLight: isLight,
-          onToggle: onToggleLight,
-        ),
+        if (showLightDarkToggle)
+          _LightDarkToggle(isLight: isLight, onToggle: onToggleLight),
         if (showPalette) ...[
           const SizedBox(height: 12),
           // Sélecteur de palette amélioré
@@ -97,10 +95,7 @@ class ThemeControlsV2 extends StatelessWidget {
 
 /// Toggle élégant entre mode clair et mode sombre avec icônes moon/sun
 class _LightDarkToggle extends StatelessWidget {
-  const _LightDarkToggle({
-    required this.isLight,
-    required this.onToggle,
-  });
+  const _LightDarkToggle({required this.isLight, required this.onToggle});
 
   final bool isLight;
   final Future<void> Function(bool) onToggle;
@@ -108,8 +103,12 @@ class _LightDarkToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final activeColor = colorScheme.onSurface.withValues(alpha: isLight ? 0.85 : 0.9);
-    final inactiveColor = colorScheme.onSurface.withValues(alpha: isLight ? 0.35 : 0.4);
+    final activeColor = colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.85 : 0.9,
+    );
+    final inactiveColor = colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.35 : 0.4,
+    );
     final bgActive = isLight
         ? Colors.black.withValues(alpha: 0.06)
         : Colors.white.withValues(alpha: 0.08);
@@ -229,8 +228,9 @@ class _PaletteSelector extends StatelessWidget {
               : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color:
-                colorScheme.onSurface.withValues(alpha: isLight ? 0.08 : 0.12),
+            color: colorScheme.onSurface.withValues(
+              alpha: isLight ? 0.08 : 0.12,
+            ),
             width: 1,
           ),
         ),
@@ -249,8 +249,9 @@ class _PaletteSelector extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface
-                          .withValues(alpha: isLight ? 0.5 : 0.4),
+                      color: colorScheme.onSurface.withValues(
+                        alpha: isLight ? 0.5 : 0.4,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -259,8 +260,9 @@ class _PaletteSelector extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface
-                          .withValues(alpha: isLight ? 0.85 : 0.9),
+                      color: colorScheme.onSurface.withValues(
+                        alpha: isLight ? 0.85 : 0.9,
+                      ),
                     ),
                   ),
                 ],
@@ -270,8 +272,9 @@ class _PaletteSelector extends StatelessWidget {
             Icon(
               LucideIcons.chevronRight,
               size: 16,
-              color:
-                  colorScheme.onSurface.withValues(alpha: isLight ? 0.4 : 0.5),
+              color: colorScheme.onSurface.withValues(
+                alpha: isLight ? 0.4 : 0.5,
+              ),
             ),
           ],
         ),
@@ -383,12 +386,10 @@ class _PaletteSelectionDialog extends StatelessWidget {
                     Text(
                       'Choisir une palette',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: isLight ? 0.9 : 0.95),
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: isLight ? 0.9 : 0.95),
+                      ),
                     ),
                   ],
                 ),
@@ -414,9 +415,7 @@ class _PaletteSelectionDialog extends StatelessWidget {
                     child: Text(
                       'Annuler',
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
+                        color: Theme.of(context).colorScheme.onSurface
                             .withValues(alpha: isLight ? 0.6 : 0.7),
                       ),
                     ),
@@ -472,19 +471,21 @@ class _PaletteCardState extends State<_PaletteCard> {
               color: widget.isSelected
                   ? colorScheme.primary.withValues(alpha: 0.15)
                   : (_isHovered
-                      ? (widget.isLight
-                          ? Colors.black.withValues(alpha: 0.03)
-                          : Colors.white.withValues(alpha: 0.04))
-                      : Colors.transparent),
+                        ? (widget.isLight
+                              ? Colors.black.withValues(alpha: 0.03)
+                              : Colors.white.withValues(alpha: 0.04))
+                        : Colors.transparent),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: widget.isSelected
                     ? colorScheme.primary.withValues(alpha: 0.5)
                     : (_isHovered
-                        ? colorScheme.onSurface
-                            .withValues(alpha: widget.isLight ? 0.15 : 0.2)
-                        : colorScheme.onSurface
-                            .withValues(alpha: widget.isLight ? 0.08 : 0.12)),
+                          ? colorScheme.onSurface.withValues(
+                              alpha: widget.isLight ? 0.15 : 0.2,
+                            )
+                          : colorScheme.onSurface.withValues(
+                              alpha: widget.isLight ? 0.08 : 0.12,
+                            )),
                 width: widget.isSelected ? 2 : 1,
               ),
             ),
@@ -545,11 +546,7 @@ class _PaletteCardState extends State<_PaletteCard> {
                 ),
                 // Check icon si sélectionné
                 if (widget.isSelected)
-                  Icon(
-                    LucideIcons.check,
-                    size: 20,
-                    color: colorScheme.primary,
-                  ),
+                  Icon(LucideIcons.check, size: 20, color: colorScheme.primary),
               ],
             ),
           ),

@@ -17,8 +17,7 @@ extension ExplorerNavigationOps on ExplorerViewModel {
     }
 
     if (_isArchivePath(targetPath) &&
-        FileSystemEntity.typeSync(targetPath) ==
-            FileSystemEntityType.file) {
+        FileSystemEntity.typeSync(targetPath) == FileSystemEntityType.file) {
       return openArchive(
         FileEntry(
           name: p.basename(targetPath),
@@ -30,8 +29,9 @@ extension ExplorerNavigationOps on ExplorerViewModel {
     }
 
     if (pushHistory && _state.currentPath != targetPath) {
-      final historyPath =
-          leavingArchive && archivePath != null ? archivePath : _state.currentPath;
+      final historyPath = leavingArchive && archivePath != null
+          ? archivePath
+          : _state.currentPath;
       _backStack.add(historyPath);
       _forwardStack.clear();
     }
@@ -60,6 +60,7 @@ extension ExplorerNavigationOps on ExplorerViewModel {
           ? _state.archivePath!
           : targetPath;
       await _recordRecent(recentPath);
+      await _recordLastPath(recentPath);
 
       // Mettre a jour l'index en arriere-plan (au lieu de rebuilder)
       if (!_state.isArchiveView) {

@@ -43,8 +43,12 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buildNumber =
-        const String.fromEnvironment('BUILD_NUMBER', defaultValue: 'dev');
+    final buildNumber = const String.fromEnvironment(
+      'BUILD_NUMBER',
+      defaultValue: 'dev',
+    );
+    final themeProvider = context.watch<ThemeProvider>();
+    final themeMode = themeProvider.themeModePreference;
     if (collapsed) {
       return SizedBox(
         height: double.infinity,
@@ -81,14 +85,13 @@ class _Sidebar extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       // Emplacements système
-                      ...systemItems
-                          .map(
-                            (item) => _RailButton(
-                              icon: item.icon,
-                              tooltip: item.label,
-                              onTap: () => onNavigate(item.path),
-                            ),
-                          ),
+                      ...systemItems.map(
+                        (item) => _RailButton(
+                          icon: item.icon,
+                          tooltip: item.label,
+                          onTap: () => onNavigate(item.path),
+                        ),
+                      ),
                       if (volumes.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         // Divider subtil
@@ -98,13 +101,15 @@ class _Sidebar extends StatelessWidget {
                           color: Colors.white.withValues(alpha: 0.1),
                         ),
                         const SizedBox(height: 6),
-                        ...volumes.take(2).map(
-                          (volume) => _RailButton(
-                            icon: lucide.LucideIcons.hardDrive,
-                            tooltip: volume.label,
-                            onTap: () => onNavigate(volume.path),
-                          ),
-                        ),
+                        ...volumes
+                            .take(2)
+                            .map(
+                              (volume) => _RailButton(
+                                icon: lucide.LucideIcons.hardDrive,
+                                tooltip: volume.label,
+                                onTap: () => onNavigate(volume.path),
+                              ),
+                            ),
                         if (volumes.length > 2)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
@@ -153,7 +158,7 @@ class _Sidebar extends StatelessWidget {
                                 await showDialog(
                                   context: context,
                                   builder: (context) =>
-                                      const AppearanceSettingsDialogV2(),
+                                      const settings.AppearanceSettingsDialogV2(),
                                 );
                                 await onSettingsClosed?.call();
                               },
@@ -162,8 +167,9 @@ class _Sidebar extends StatelessWidget {
                           const SizedBox(height: 6),
                           if (onToggleCollapse != null)
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
                               child: Tooltip(
                                 message: 'Étendre le menu',
                                 child: Material(
@@ -178,16 +184,18 @@ class _Sidebar extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.1),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.1,
+                                          ),
                                           width: 0.5,
                                         ),
                                       ),
                                       child: Icon(
                                         lucide.LucideIcons.chevronsRight,
                                         size: 18,
-                                        color: Colors.white
-                                            .withValues(alpha: 0.7),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.7,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -223,172 +231,195 @@ class _Sidebar extends StatelessWidget {
           Expanded(
             child: SingleChildScrollView(
               child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-            const SizedBox(height: 8),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 8),
 
-            // Favoris
-            SidebarSection(
-              title: 'Favoris',
-              items: favoriteItems
-                  .map(
-                    (item) => SidebarItem(
-                      label: item.label,
-                      icon: item.icon,
-                      onTap: () => onNavigate(item.path),
-                    ),
-                  )
-                  .toList(),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Emplacements (incluant Fichiers récents)
-            SidebarSection(
-              title: 'Emplacements',
-              items: [
-                // Fichiers récents en premier si disponibles
-                if (recentPaths.isNotEmpty)
-                  SidebarItem(
-                    label: 'Fichiers récents',
-                    icon: lucide.LucideIcons.clock,
-                    onTap: () => onNavigate(SpecialLocations.recentFiles),
+                  // Favoris
+                  SidebarSection(
+                    title: 'Favoris',
+                    items: favoriteItems
+                        .map(
+                          (item) => SidebarItem(
+                            label: item.label,
+                            icon: item.icon,
+                            onTap: () => onNavigate(item.path),
+                          ),
+                        )
+                        .toList(),
                   ),
-                // Puis les emplacements système
-                ...systemItems.map(
-                  (item) => SidebarItem(
-                    label: item.label,
-                    icon: item.icon,
-                    onTap: () => onNavigate(item.path),
-                  ),
-                ),
-              ],
-            ),
 
-            // Disques (maximum 2 affichés)
-            if (volumes.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12, bottom: 4),
-                      child: Text(
-                        'DISQUES',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              letterSpacing: 1.2,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 10,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
-                            ),
-                      ),
-                    ),
-                    ...volumes.take(2).map(
-                      (volume) => _VolumeItem(
-                        volume: volume,
-                        onTap: () => onNavigate(volume.path),
-                      ),
-                    ),
-                    if (volumes.length > 2)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            foregroundColor: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.7),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            minimumSize: const Size(0, 32),
-                          ),
-                          onPressed: () => _showAllDisksDialog(
-                            context,
-                            volumes,
-                            onNavigate,
-                          ),
-                          icon: const Icon(
-                            lucide.LucideIcons.chevronRight,
-                            size: 14,
-                          ),
-                          label: Text(
-                            'Voir tous (${volumes.length})',
-                            style: const TextStyle(fontSize: 12),
-                          ),
+                  const SizedBox(height: 4),
+
+                  // Emplacements (incluant Fichiers récents)
+                  SidebarSection(
+                    title: 'Emplacements',
+                    items: [
+                      // Fichiers récents en premier si disponibles
+                      if (recentPaths.isNotEmpty)
+                        SidebarItem(
+                          label: 'Fichiers récents',
+                          icon: lucide.LucideIcons.clock,
+                          onTap: () => onNavigate(SpecialLocations.recentFiles),
+                        ),
+                      // Puis les emplacements système
+                      ...systemItems.map(
+                        (item) => SidebarItem(
+                          label: item.label,
+                          icon: item.icon,
+                          onTap: () => onNavigate(item.path),
                         ),
                       ),
-                  ],
-                ),
-              ),
-            ],
+                    ],
+                  ),
 
-            // Tags simplifiés
-            if (tags.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TAGS',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            letterSpacing: 1.2,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: tags
-                          .map(
-                            (tag) => _TagChipSimple(
-                              tag: tag,
-                              isActive: selectedTags.contains(tag.label),
-                              onTap: onTagToggle == null
-                                  ? null
-                                  : () => onTagToggle!(tag.label),
+                  // Disques (maximum 2 affichés)
+                  if (volumes.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 4),
+                            child: Text(
+                              'DISQUES',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    letterSpacing: 1.2,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(
+                                          alpha:
+                                              Theme.of(context).brightness ==
+                                                  Brightness.light
+                                              ? 0.7
+                                              : 0.4,
+                                        ),
+                                  ),
                             ),
-                          )
-                          .toList(),
+                          ),
+                          ...volumes
+                              .take(2)
+                              .map(
+                                (volume) => _VolumeItem(
+                                  volume: volume,
+                                  onTap: () => onNavigate(volume.path),
+                                ),
+                              ),
+                          if (volumes.length > 2)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.7),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  minimumSize: const Size(0, 32),
+                                ),
+                                onPressed: () => _showAllDisksDialog(
+                                  context,
+                                  volumes,
+                                  onNavigate,
+                                ),
+                                icon: const Icon(
+                                  lucide.LucideIcons.chevronRight,
+                                  size: 14,
+                                ),
+                                label: Text(
+                                  'Voir tous (${volumes.length})',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
 
-            // Contrôles de thème
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-              child: ThemeControlsV2(
-                isLight: isLight,
-                currentPalette: currentPalette,
-                onToggleLight: onToggleLight,
-                onPaletteSelected: onPaletteSelected,
-                showPalette: false,
-                showSettings: false,
-                onSettingsChanged: () {
-                  onSettingsClosed?.call();
-                },
-              ),
-            ),
+                  // Tags simplifiés
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'TAGS',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(
+                                        alpha:
+                                            Theme.of(context).brightness ==
+                                                Brightness.light
+                                            ? 0.7
+                                            : 0.4,
+                                      ),
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: tags
+                                .map(
+                                  (tag) => _TagChipSimple(
+                                    tag: tag,
+                                    isActive: selectedTags.contains(tag.label),
+                                    onTap: onTagToggle == null
+                                        ? null
+                                        : () => onTagToggle!(tag.label),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
 
-          ],
-        ),
+                  // Contrôles de thème
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+                    child: ThemeControlsV2(
+                      isLight: isLight,
+                      currentPalette: currentPalette,
+                      onToggleLight: onToggleLight,
+                      onPaletteSelected: onPaletteSelected,
+                      showPalette: false,
+                      showLightDarkToggle: false,
+                      showSettings: false,
+                      onSettingsChanged: () {
+                        onSettingsClosed?.call();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+                    child: _ThemeModeSelector(
+                      isLight: isLight,
+                      mode: themeMode,
+                      onModeSelected: themeProvider.setThemeMode,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           _SidebarFooter(
@@ -419,14 +450,12 @@ class _BottomActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = Theme.of(context)
-        .colorScheme
-        .onSurface
-        .withValues(alpha: isLight ? 0.6 : 0.65);
-    final labelColor = Theme.of(context)
-        .colorScheme
-        .onSurface
-        .withValues(alpha: isLight ? 0.55 : 0.5);
+    final iconColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: isLight ? 0.6 : 0.65);
+    final labelColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: isLight ? 0.55 : 0.5);
 
     return Material(
       color: Colors.transparent,
@@ -438,11 +467,7 @@ class _BottomActionButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: iconColor,
-              ),
+              Icon(icon, size: 20, color: iconColor),
               const SizedBox(height: 4),
               Text(
                 label,
@@ -454,6 +479,161 @@ class _BottomActionButton extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeModeSelector extends StatelessWidget {
+  const _ThemeModeSelector({
+    required this.isLight,
+    required this.mode,
+    required this.onModeSelected,
+  });
+
+  final bool isLight;
+  final settings.ThemeMode mode;
+  final Future<void> Function(settings.ThemeMode) onModeSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bgColor = isLight
+        ? Colors.black.withValues(alpha: 0.03)
+        : Colors.white.withValues(alpha: 0.04);
+    final borderColor = colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.06 : 0.08,
+    );
+    final activeColor = colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.85 : 0.9,
+    );
+    final inactiveColor = colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.4 : 0.45,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MODE THEME',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.w600,
+            fontSize: 10,
+            color: colorScheme.onSurface.withValues(alpha: isLight ? 0.7 : 0.4),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 34,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: borderColor, width: 0.5),
+          ),
+          padding: const EdgeInsets.all(2.5),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ThemeModeOption(
+                  label: 'Clair',
+                  icon: lucide.LucideIcons.sun,
+                  isActive: mode == settings.ThemeMode.light,
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                  onTap: () => onModeSelected(settings.ThemeMode.light),
+                ),
+              ),
+              const SizedBox(width: 2.5),
+              Expanded(
+                child: _ThemeModeOption(
+                  label: 'Sombre',
+                  icon: lucide.LucideIcons.moon,
+                  isActive: mode == settings.ThemeMode.dark,
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                  onTap: () => onModeSelected(settings.ThemeMode.dark),
+                ),
+              ),
+              const SizedBox(width: 2.5),
+              Expanded(
+                child: _ThemeModeOption(
+                  label: 'Auto',
+                  icon: lucide.LucideIcons.monitorSmartphone,
+                  isActive: mode == settings.ThemeMode.adaptive,
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                  onTap: () => onModeSelected(settings.ThemeMode.adaptive),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThemeModeOption extends StatelessWidget {
+  const _ThemeModeOption({
+    required this.label,
+    required this.icon,
+    required this.isActive,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final Color activeColor;
+  final Color inactiveColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.06)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: isActive ? activeColor : inactiveColor,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: 9,
+                    letterSpacing: 0.2,
+                    color: isActive ? activeColor : inactiveColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -494,18 +674,15 @@ class _SidebarFooter extends StatelessWidget {
         children: [
           Row(
             children: [
-              _BuildChip(
-                buildNumber: buildNumber,
-                isLight: isLight,
-              ),
+              _BuildChip(buildNumber: buildNumber, isLight: isLight),
               const Spacer(),
               _FooterLink(
                 label: 'CGU',
                 isLight: isLight,
                 onTap: () {
-                  Navigator.of(context).push(
-                    _noTransitionRoute(const TermsOfServicePage()),
-                  );
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const TermsOfServicePage()));
                 },
               ),
               const SizedBox(width: 6),
@@ -513,9 +690,9 @@ class _SidebarFooter extends StatelessWidget {
                 label: 'À propos',
                 isLight: isLight,
                 onTap: () {
-                  Navigator.of(context).push(
-                    _noTransitionRoute(const AboutPage()),
-                  );
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const AboutPage()));
                 },
               ),
             ],
@@ -531,7 +708,8 @@ class _SidebarFooter extends StatelessWidget {
                 onTap: () async {
                   await showDialog(
                     context: context,
-                    builder: (context) => const AppearanceSettingsDialogV2(),
+                    builder: (context) =>
+                        const settings.AppearanceSettingsDialogV2(),
                   );
                   await onSettingsClosed?.call();
                 },
@@ -552,10 +730,7 @@ class _SidebarFooter extends StatelessWidget {
 }
 
 class _BuildChip extends StatelessWidget {
-  const _BuildChip({
-    required this.buildNumber,
-    required this.isLight,
-  });
+  const _BuildChip({required this.buildNumber, required this.isLight});
 
   final String buildNumber;
   final bool isLight;
@@ -578,11 +753,11 @@ class _BuildChip extends StatelessWidget {
       child: Text(
         'BUILD $buildNumber',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-              color: textColor,
-            ),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+          color: textColor,
+        ),
       ),
     );
   }
@@ -601,10 +776,9 @@ class _FooterLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context)
-        .colorScheme
-        .onSurface
-        .withValues(alpha: isLight ? 0.6 : 0.75);
+    final color = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: isLight ? 0.6 : 0.75);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -613,11 +787,11 @@ class _FooterLink extends StatelessWidget {
         child: Text(
           label.toUpperCase(),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-                color: color,
-              ),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+            color: color,
+          ),
         ),
       ),
     );
@@ -629,7 +803,8 @@ PageRouteBuilder<T> _noTransitionRoute<T>(Widget page) {
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionDuration: Duration.zero,
     reverseTransitionDuration: Duration.zero,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        child,
   );
 }
 
@@ -667,7 +842,7 @@ class _RailButton extends StatelessWidget {
       ),
     );
   }
-}  
+}
 
 class _TagDot extends StatelessWidget {
   const _TagDot({required this.color, required this.active, this.onTap});
@@ -695,7 +870,9 @@ class _TagDot extends StatelessWidget {
             ],
           ),
           border: Border.all(
-            color: active ? onSurface.withValues(alpha: 0.8) : onSurface.withValues(alpha: 0.2),
+            color: active
+                ? onSurface.withValues(alpha: 0.8)
+                : onSurface.withValues(alpha: 0.2),
             width: active ? 1.4 : 1,
           ),
         ),
@@ -730,8 +907,10 @@ class _TagChipSimple extends StatelessWidget {
             color: isActive
                 ? tag.color.withValues(alpha: 0.2)
                 : Theme.of(context).colorScheme.onSurface.withValues(
-                      alpha: Theme.of(context).brightness == Brightness.light ? 0.08 : 0.04,
-                    ),
+                    alpha: Theme.of(context).brightness == Brightness.light
+                        ? 0.08
+                        : 0.04,
+                  ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -749,18 +928,16 @@ class _TagChipSimple extends StatelessWidget {
               Text(
                 tag.label,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontSize: 11,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive
-                          ? Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.9)
-                          : Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.65),
-                    ),
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  color: isActive
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.9)
+                      : Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.65),
+                ),
               ),
             ],
           ),
@@ -810,10 +987,10 @@ class _VolumeItem extends StatelessWidget {
                     Text(
                       volume.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withValues(alpha: 0.9),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        color: colorScheme.onSurface.withValues(alpha: 0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -823,8 +1000,9 @@ class _VolumeItem extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: volume.usage.clamp(0, 1),
                         minHeight: 3,
-                        backgroundColor:
-                            colorScheme.onSurface.withValues(alpha: 0.12),
+                        backgroundColor: colorScheme.onSurface.withValues(
+                          alpha: 0.12,
+                        ),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           colorScheme.primary.withValues(alpha: 0.8),
                         ),
@@ -837,9 +1015,9 @@ class _VolumeItem extends StatelessWidget {
               Text(
                 '$percent%',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.65),
-                      fontSize: 11,
-                    ),
+                  color: colorScheme.onSurface.withValues(alpha: 0.65),
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
@@ -954,19 +1132,23 @@ class _StatChip extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      letterSpacing: 0.4,
-                      color: colorScheme.onSurface.withValues(alpha: isLight ? 0.7 : 0.75),
-                      fontSize: 10,
-                    ),
+                  letterSpacing: 0.4,
+                  color: colorScheme.onSurface.withValues(
+                    alpha: isLight ? 0.7 : 0.75,
+                  ),
+                  fontSize: 10,
+                ),
               ),
               const SizedBox(width: 6),
               Text(
                 value,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: colorScheme.onSurface.withValues(alpha: isLight ? 0.9 : 0.85),
-                    ),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: colorScheme.onSurface.withValues(
+                    alpha: isLight ? 0.9 : 0.85,
+                  ),
+                ),
               ),
             ],
           ),
@@ -997,10 +1179,7 @@ class _PathInput extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: onSurface.withValues(alpha: 0.15),
-          width: 1,
-        ),
+        border: Border.all(color: onSurface.withValues(alpha: 0.15), width: 1),
       ),
       child: TextField(
         controller: controller,
@@ -1010,7 +1189,10 @@ class _PathInput extends StatelessWidget {
           hintText: 'Chemin du dossier',
           hintStyle: TextStyle(color: hintColor, fontSize: 13),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
           prefixIcon: Icon(
             lucide.LucideIcons.folderOpen,
             color: iconColor,
@@ -1060,10 +1242,7 @@ void _showAllDisksDialog(
         horizontal: Platform.isMacOS ? 80 : 40,
         vertical: 40,
       ),
-      child: _AllDisksDialogContent(
-        volumes: volumes,
-        onNavigate: onNavigate,
-      ),
+      child: _AllDisksDialogContent(volumes: volumes, onNavigate: onNavigate),
     ),
   );
 }
@@ -1103,11 +1282,7 @@ class _AllDisksDialogContent extends StatelessWidget {
                   );
                 }
                 if (snapshot.data == true) {
-                  return Image.asset(
-                    logo,
-                    width: 20,
-                    height: 20,
-                  );
+                  return Image.asset(logo, width: 20, height: 20);
                 }
                 return Icon(
                   lucide.LucideIcons.hardDrive,
@@ -1116,11 +1291,7 @@ class _AllDisksDialogContent extends StatelessWidget {
                 );
               },
             )
-          : Icon(
-              lucide.LucideIcons.hardDrive,
-              color: primary,
-              size: 18,
-            ),
+          : Icon(lucide.LucideIcons.hardDrive, color: primary, size: 18),
     );
   }
 
@@ -1142,7 +1313,9 @@ class _AllDisksDialogContent extends StatelessWidget {
       'mobile documents',
       'cloudstorage/icloud',
     ])) {
-      debugPrint('[Disks] Matched iCloud logo for "${volume.label}" (${volume.path})');
+      debugPrint(
+        '[Disks] Matched iCloud logo for "${volume.label}" (${volume.path})',
+      );
       return AppAssets.iCloud_logo;
     }
 
@@ -1152,19 +1325,22 @@ class _AllDisksDialogContent extends StatelessWidget {
       'cloudstorage/googledrive',
       'drivefs',
     ])) {
-      debugPrint('[Disks] Matched Google Drive logo for "${volume.label}" (${volume.path})');
+      debugPrint(
+        '[Disks] Matched Google Drive logo for "${volume.label}" (${volume.path})',
+      );
       return AppAssets.google_Drive_logo;
     }
 
-    if (match([
-      'onedrive',
-      'cloudstorage/onedrive',
-    ])) {
-      debugPrint('[Disks] Matched OneDrive logo for "${volume.label}" (${volume.path})');
+    if (match(['onedrive', 'cloudstorage/onedrive'])) {
+      debugPrint(
+        '[Disks] Matched OneDrive logo for "${volume.label}" (${volume.path})',
+      );
       return AppAssets.oneDrive_logo;
     }
 
-    debugPrint('[Disks] No cloud logo match for "${volume.label}" (${volume.path})');
+    debugPrint(
+      '[Disks] No cloud logo match for "${volume.label}" (${volume.path})',
+    );
     return null;
   }
 
@@ -1187,14 +1363,17 @@ class _AllDisksDialogContent extends StatelessWidget {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
     final onSurface = theme.colorScheme.onSurface;
-    final bgColor =
-        isLight ? Colors.white.withOpacity(0.94) : Colors.black.withOpacity(0.8);
-    final borderColor =
-        isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.1);
+    final bgColor = isLight
+        ? Colors.white.withOpacity(0.94)
+        : Colors.black.withOpacity(0.8);
+    final borderColor = isLight
+        ? Colors.black.withValues(alpha: 0.06)
+        : Colors.white.withValues(alpha: 0.1);
     final headerText = onSurface.withValues(alpha: isLight ? 0.88 : 0.94);
     final subtitleText = onSurface.withValues(alpha: isLight ? 0.58 : 0.68);
-    final tileBg =
-        isLight ? onSurface.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.05);
+    final tileBg = isLight
+        ? onSurface.withValues(alpha: 0.04)
+        : Colors.white.withValues(alpha: 0.05);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -1205,10 +1384,7 @@ class _AllDisksDialogContent extends StatelessWidget {
           decoration: BoxDecoration(
             color: bgColor,
             gradient: LinearGradient(
-              colors: [
-                bgColor,
-                bgColor.withOpacity(isLight ? 0.9 : 0.72),
-              ],
+              colors: [bgColor, bgColor.withOpacity(isLight ? 0.9 : 0.72)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1226,7 +1402,10 @@ class _AllDisksDialogContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Row(
                   children: [
                     Icon(
@@ -1237,10 +1416,10 @@ class _AllDisksDialogContent extends StatelessWidget {
                     Text(
                       'Tous les disques',
                       style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: headerText,
-                            fontSize: 18,
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: headerText,
+                        fontSize: 18,
+                      ),
                     ),
                     const Spacer(),
                     IconButton(
@@ -1248,7 +1427,10 @@ class _AllDisksDialogContent extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(),
                       color: onSurface.withValues(alpha: 0.45),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                      constraints: const BoxConstraints.tightFor(
+                        width: 32,
+                        height: 32,
+                      ),
                     ),
                   ],
                 ),
@@ -1276,7 +1458,10 @@ class _AllDisksDialogContent extends StatelessWidget {
                         },
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                             color: tileBg,
@@ -1298,7 +1483,8 @@ class _AllDisksDialogContent extends StatelessWidget {
                                       volume.label,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.titleSmall?.copyWith(
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
                                             color: headerText,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 12,
@@ -1309,7 +1495,8 @@ class _AllDisksDialogContent extends StatelessWidget {
                                       volume.path,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall?.copyWith(
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
                                             color: subtitleText,
                                             fontSize: 10.5,
                                           ),
@@ -1320,11 +1507,13 @@ class _AllDisksDialogContent extends StatelessWidget {
                                       child: LinearProgressIndicator(
                                         value: volume.usage.clamp(0, 1),
                                         minHeight: 3,
-                                        backgroundColor:
-                                            onSurface.withValues(alpha: 0.08),
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          theme.colorScheme.primary,
+                                        backgroundColor: onSurface.withValues(
+                                          alpha: 0.08,
                                         ),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              theme.colorScheme.primary,
+                                            ),
                                       ),
                                     ),
                                   ],
@@ -1337,7 +1526,8 @@ class _AllDisksDialogContent extends StatelessWidget {
                                 children: [
                                   Text(
                                     '$percent%',
-                                    style: theme.textTheme.labelMedium?.copyWith(
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
                                           color: headerText,
                                           fontWeight: FontWeight.w700,
                                           fontSize: 12,
@@ -1347,9 +1537,9 @@ class _AllDisksDialogContent extends StatelessWidget {
                                   Text(
                                     _formatBytes(volume.totalBytes),
                                     style: theme.textTheme.bodySmall?.copyWith(
-                                          color: subtitleText,
-                                          fontSize: 10.5,
-                                        ),
+                                      color: subtitleText,
+                                      fontSize: 10.5,
+                                    ),
                                   ),
                                 ],
                               ),
