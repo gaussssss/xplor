@@ -351,8 +351,10 @@ class ExplorerViewModel extends ChangeNotifier {
     if (entry.isApplication) {
       return launchApplication(entry);
     }
-    if (!entry.isDirectory) return Future.value();
-    return loadDirectory(entry.path);
+    if (entry.isDirectory) {
+      return loadDirectory(entry.path);
+    }
+    return openFile(entry);
   }
 
   Future<void> goToParent() {
@@ -688,6 +690,25 @@ class ExplorerViewModel extends ChangeNotifier {
     } catch (_) {
       _state = _state.copyWith(
         statusMessage: 'Impossible de lancer l application',
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> openFile(FileEntry entry) async {
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', [entry.path]);
+      } else if (Platform.isWindows) {
+        await Process.run('cmd', ['/c', 'start', '', entry.path]);
+      } else {
+        await Process.run('xdg-open', [entry.path]);
+      }
+      _state = _state.copyWith(statusMessage: 'Fichier ouvert');
+    } catch (_) {
+      _state = _state.copyWith(
+        statusMessage: 'Impossible d ouvrir le fichier',
       );
     } finally {
       notifyListeners();
