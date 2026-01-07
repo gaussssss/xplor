@@ -43,6 +43,8 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final buildNumber =
+        const String.fromEnvironment('BUILD_NUMBER', defaultValue: 'dev');
     if (collapsed) {
       return SizedBox(
         height: double.infinity,
@@ -198,6 +200,7 @@ class _Sidebar extends StatelessWidget {
                             currentPalette: currentPalette,
                             onToggleLight: onToggleLight,
                             onPaletteSelected: onPaletteSelected,
+                            showPalette: false,
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -215,10 +218,11 @@ class _Sidebar extends StatelessWidget {
     return GlassPanelV2(
       level: GlassPanelLevel.tertiary,
       padding: const EdgeInsets.all(0),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: SingleChildScrollView(
-          child: Column(
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
             const SizedBox(height: 8),
@@ -293,7 +297,7 @@ class _Sidebar extends StatelessWidget {
                     if (volumes.length > 2)
                       Align(
                         alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
+                        child: TextButton.icon(
                           style: TextButton.styleFrom(
                             foregroundColor: Theme.of(context)
                                 .colorScheme
@@ -375,100 +379,25 @@ class _Sidebar extends StatelessWidget {
                 currentPalette: currentPalette,
                 onToggleLight: onToggleLight,
                 onPaletteSelected: onPaletteSelected,
+                showPalette: false,
+                showSettings: false,
                 onSettingsChanged: () {
                   onSettingsClosed?.call();
                 },
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // Section Aide
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'AIDE',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: Theme.of(context).brightness == Brightness.light ? 0.7 : 0.4),
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  _HelpMenuItem(
-                    icon: lucide.LucideIcons.info,
-                    label: 'À propos',
-                    isLight: isLight,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AboutPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 4),
-                  _HelpMenuItem(
-                    icon: lucide.LucideIcons.fileText,
-                    label: 'CGU',
-                    isLight: isLight,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const TermsOfServicePage(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Boutons d'action en bas (Réglages + Replier)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Bouton Réglages
-                  _BottomActionButton(
-                    icon: lucide.LucideIcons.settings,
-                    label: 'Réglages',
-                    isLight: isLight,
-                    onTap: () async {
-                      await showDialog(
-                        context: context,
-                        builder: (context) => const AppearanceSettingsDialogV2(),
-                      );
-                      await onSettingsClosed?.call();
-                    },
-                  ),
-
-                  // Bouton Replier
-                  if (onToggleCollapse != null)
-                    _BottomActionButton(
-                      icon: lucide.LucideIcons.chevronsLeft,
-                      label: 'Replier',
-                      isLight: isLight,
-                      onTap: onToggleCollapse!,
-                    ),
-                ],
-              ),
-            ),
           ],
         ),
-        ),
+            ),
+          ),
+          _SidebarFooter(
+            buildNumber: buildNumber,
+            isLight: isLight,
+            onToggleCollapse: onToggleCollapse,
+            onSettingsClosed: onSettingsClosed,
+          ),
+        ],
       ),
     );
   }
@@ -532,62 +461,169 @@ class _BottomActionButton extends StatelessWidget {
   }
 }
 
-// Widget pour les items de menu d'aide
-class _HelpMenuItem extends StatelessWidget {
-  const _HelpMenuItem({
-    required this.icon,
+class _SidebarFooter extends StatelessWidget {
+  const _SidebarFooter({
+    required this.buildNumber,
+    required this.isLight,
+    required this.onToggleCollapse,
+    required this.onSettingsClosed,
+  });
+
+  final String buildNumber;
+  final bool isLight;
+  final VoidCallback? onToggleCollapse;
+  final Future<void> Function()? onSettingsClosed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final borderColor = onSurface.withValues(alpha: isLight ? 0.08 : 0.14);
+    final bgColor = isLight
+        ? Colors.black.withValues(alpha: 0.03)
+        : Colors.white.withValues(alpha: 0.04);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(top: BorderSide(color: borderColor, width: 0.6)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _BuildChip(
+                buildNumber: buildNumber,
+                isLight: isLight,
+              ),
+              const Spacer(),
+              _FooterLink(
+                label: 'CGU',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TermsOfServicePage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 6),
+              _FooterLink(
+                label: 'À propos',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AboutPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _BottomActionButton(
+                icon: lucide.LucideIcons.settings,
+                label: 'Réglages',
+                isLight: isLight,
+                onTap: () async {
+                  await showDialog(
+                    context: context,
+                    builder: (context) => const AppearanceSettingsDialogV2(),
+                  );
+                  await onSettingsClosed?.call();
+                },
+              ),
+              if (onToggleCollapse != null)
+                _BottomActionButton(
+                  icon: lucide.LucideIcons.chevronsLeft,
+                  label: 'Replier',
+                  isLight: isLight,
+                  onTap: onToggleCollapse!,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BuildChip extends StatelessWidget {
+  const _BuildChip({
+    required this.buildNumber,
+    required this.isLight,
+  });
+
+  final String buildNumber;
+  final bool isLight;
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final bg = isLight
+        ? Colors.black.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.06);
+    final border = onSurface.withValues(alpha: isLight ? 0.12 : 0.18);
+    final textColor = onSurface.withValues(alpha: isLight ? 0.7 : 0.8);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: border, width: 0.6),
+      ),
+      child: Text(
+        'BUILD $buildNumber',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+              color: textColor,
+            ),
+      ),
+    );
+  }
+}
+
+class _FooterLink extends StatelessWidget {
+  const _FooterLink({
     required this.label,
     required this.isLight,
     required this.onTap,
   });
 
-  final IconData icon;
   final String label;
   final bool isLight;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+    final color = Theme.of(context)
+        .colorScheme
+        .onSurface
+        .withValues(alpha: isLight ? 0.6 : 0.75);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: color,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Icon(
-                lucide.LucideIcons.chevronRight,
-                size: 14,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-            ],
-          ),
         ),
       ),
     );

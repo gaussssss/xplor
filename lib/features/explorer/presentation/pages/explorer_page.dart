@@ -90,7 +90,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
   void initState() {
     super.initState();
     // Utiliser le vrai HOME de l'utilisateur au lieu du chemin sandbox
-    final initialPath = Platform.environment['HOME'] ?? SpecialLocations.desktop;
+    final initialPath =
+        Platform.environment['HOME'] ?? SpecialLocations.desktop;
     final repository = FileSystemRepositoryImpl(LocalFileSystemDataSource());
     final searchRepository = SearchRepositoryImpl(SqliteSearchDatabase());
     _viewModel = ExplorerViewModel(
@@ -196,13 +197,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
         final theme = Theme.of(context);
         final bgColor = hasBgImage
             ? (isLight
-                ? Colors.white.withOpacity(0.7)
-                : Colors.black.withOpacity(0.5))
+                  ? Colors.white.withOpacity(0.7)
+                  : Colors.black.withOpacity(0.5))
             : theme.colorScheme.background;
         final adjustedSurface = hasBgImage
             ? (isLight
-                ? Colors.white.withOpacity(0.98)
-                : Colors.black.withOpacity(0.75))
+                  ? Colors.white.withOpacity(0.98)
+                  : Colors.black.withOpacity(0.75))
             : theme.colorScheme.surface;
         final adjustedOnSurface = hasBgImage && isLight
             ? Colors.black
@@ -315,121 +316,139 @@ class _ExplorerPageState extends State<ExplorerPage> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                      // Sidebar avec resize handle
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: _isSidebarCollapsed ? 70 : _sidebarWidth,
-                            child: _Sidebar(
-                              favoriteItems: _favoriteItems,
-                              systemItems: _systemItems,
-                              quickItems: _quickItems,
-                              tags: _tagItems,
-                              volumes: _volumes,
-                              recentPaths: state.recentPaths,
-                              selectedTags: _viewModel.selectedTags,
-                              selectedTypes: _viewModel.selectedTypes,
-                              onNavigate: _viewModel.loadDirectory,
-                              onTagToggle: _viewModel.toggleTag,
-                              onTypeToggle: _viewModel.toggleType,
-                              onToggleCollapse: () {
-                                setState(
-                                    () => _isSidebarCollapsed = !_isSidebarCollapsed);
-                              },
-                              onSettingsClosed: _loadSelectionMode,
-                              isLight: themeProvider.isLight,
-                              currentPalette: themeProvider.currentPalette,
-                              onToggleLight: themeProvider.setLightMode,
-                              onPaletteSelected: themeProvider.setPalette,
-                              collapsed: _isSidebarCollapsed,
-                            ),
-                          ),
-                          // Resize handle - seulement visible quand sidebar n'est pas collapsed
-                          if (!_isSidebarCollapsed)
-                           MouseRegion(
-                              cursor: SystemMouseCursors.resizeColumn,
-                              child: GestureDetector(
-                                onPanUpdate: (details) {
-                                  setState(() {
-                                    _sidebarWidth = (_sidebarWidth + details.delta.dx)
-                                        .clamp(180.0, 400.0); // Min 180px, Max 400px
-                                  });
-                                },
-                                onPanEnd: (_) {
-                                  // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
-                                  // TODO: Implémenter la sauvegarde de la largeur si nécessaire
-                                 },
-                                 child: Container(
-                                   width: 8,
-                                   color: Colors.transparent,
-                                   child: Center(
-                                     child: Container(
-                                       width: 2,
-                                       color: Colors.white.withValues(alpha: 0.1),
-                                     ),
-                                   ),
-                                 ),
-                             ),
-                           )
-                         else
-                            const SizedBox(width: 8),
-                       ],
-                     ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            GlassPanelV2(
-                              level: GlassPanelLevel.secondary,
-                              child: _buildToolbar(state),
-                            ),
-                            const SizedBox(height: 8),
-                            GlassPanelV2(
-                              level: GlassPanelLevel.secondary,
-                              child: _buildActionBar(state),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: GlassPanelV2(
-                                level: GlassPanelLevel.primary,
-                                padding: const EdgeInsets.all(0),
-                                child: _buildContent(state, entries),
-                              ),
-                            ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: _StatsFooter(state: state),
-                          ),
-                          const SizedBox(height: 8),
-                          GlassPanelV2(
-                            level: GlassPanelLevel.tertiary,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                BreadcrumbBar(
-                                  path: state.currentPath,
-                                  onNavigate: (path) =>
-                                      _viewModel.loadDirectory(path),
+                                // Sidebar avec resize handle
+                                Row(
+                                  children: [
+                                    SizedBox(
+                                      width: _isSidebarCollapsed
+                                          ? 70
+                                          : _sidebarWidth,
+                                      child: _Sidebar(
+                                        favoriteItems: _favoriteItems,
+                                        systemItems: _systemItems,
+                                        quickItems: _quickItems,
+                                        tags: _tagItems,
+                                        volumes: _volumes,
+                                        recentPaths: state.recentPaths,
+                                        selectedTags: _viewModel.selectedTags,
+                                        selectedTypes: _viewModel.selectedTypes,
+                                        onNavigate: _viewModel.loadDirectory,
+                                        onTagToggle: _viewModel.toggleTag,
+                                        onTypeToggle: _viewModel.toggleType,
+                                        onToggleCollapse: () {
+                                          setState(
+                                            () => _isSidebarCollapsed =
+                                                !_isSidebarCollapsed,
+                                          );
+                                        },
+                                        onSettingsClosed: _loadSelectionMode,
+                                        isLight: themeProvider.isLight,
+                                        currentPalette:
+                                            themeProvider.currentPalette,
+                                        onToggleLight:
+                                            themeProvider.setLightMode,
+                                        onPaletteSelected:
+                                            themeProvider.setPalette,
+                                        collapsed: _isSidebarCollapsed,
+                                      ),
+                                    ),
+                                    // Resize handle - seulement visible quand sidebar n'est pas collapsed
+                                    if (!_isSidebarCollapsed)
+                                      MouseRegion(
+                                        cursor: SystemMouseCursors.resizeColumn,
+                                        child: GestureDetector(
+                                          onPanUpdate: (details) {
+                                            setState(() {
+                                              _sidebarWidth =
+                                                  (_sidebarWidth +
+                                                          details.delta.dx)
+                                                      .clamp(
+                                                        180.0,
+                                                        400.0,
+                                                      ); // Min 180px, Max 400px
+                                            });
+                                          },
+                                          onPanEnd: (_) {
+                                            // Sauvegarder la largeur quand l'utilisateur termine le redimensionnement
+                                            // TODO: Implémenter la sauvegarde de la largeur si nécessaire
+                                          },
+                                          child: Container(
+                                            width: 8,
+                                            color: Colors.transparent,
+                                            child: Center(
+                                              child: Container(
+                                                width: 2,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      const SizedBox(width: 8),
+                                  ],
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      GlassPanelV2(
+                                        level: GlassPanelLevel.secondary,
+                                        child: _buildToolbar(state),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      GlassPanelV2(
+                                        level: GlassPanelLevel.secondary,
+                                        child: _buildActionBar(state),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Expanded(
+                                        child: GlassPanelV2(
+                                          level: GlassPanelLevel.primary,
+                                          padding: const EdgeInsets.all(0),
+                                          child: _buildContent(state, entries),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: _StatsFooter(state: state),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      GlassPanelV2(
+                                        level: GlassPanelLevel.tertiary,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            BreadcrumbBar(
+                                              path: state.currentPath,
+                                              onNavigate: (path) => _viewModel
+                                                  .loadDirectory(path),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ), // Row (sidebar + content)
-              ), // Expanded (wraps Row)
-            ], // Column children
-          ), // Column
-        ), // Padding
-      ), // SafeArea
-    ), // Container
+                            ), // Row (sidebar + content)
+                          ), // Expanded (wraps Row)
+                        ], // Column children
+                      ), // Column
+                    ), // Padding
+                  ), // SafeArea
+                ), // Container
                 // Zone de double-clic pour maximiser/restaurer la fenêtre (macOS/Windows)
                 // Placé à la fin du Stack pour être au-dessus du contenu
                 if (Platform.isMacOS || Platform.isWindows)
@@ -447,9 +466,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                           await windowManager.maximize();
                         }
                       },
-                      child: Container(
-                        color: Colors.transparent,
-                      ),
+                      child: Container(color: Colors.transparent),
                     ),
                   ),
               ], // Stack children
@@ -459,5 +476,4 @@ class _ExplorerPageState extends State<ExplorerPage> {
       },
     );
   }
-
 }

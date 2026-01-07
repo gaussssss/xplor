@@ -17,6 +17,8 @@ class ThemeControlsV2 extends StatelessWidget {
     required this.currentPalette,
     required this.onToggleLight,
     required this.onPaletteSelected,
+    this.showPalette = true,
+    this.showSettings = true,
     this.onSettingsChanged,
   });
 
@@ -24,6 +26,8 @@ class ThemeControlsV2 extends StatelessWidget {
   final ColorPalette currentPalette;
   final Future<void> Function(bool) onToggleLight;
   final Future<void> Function(ColorPalette) onPaletteSelected;
+  final bool showPalette;
+  final bool showSettings;
   final VoidCallback? onSettingsChanged;
 
   @override
@@ -44,29 +48,31 @@ class ThemeControlsV2 extends StatelessWidget {
         Row(
           children: [
             Text('APPARENCE', style: titleStyle),
-            const Spacer(),
-            // Bouton pour ouvrir les paramètres avancés
-            IconButton(
-              icon: Icon(
-                LucideIcons.settings2,
-                size: 14,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: isLight ? 0.6 : 0.7),
+            if (showSettings) ...[
+              const Spacer(),
+              // Bouton pour ouvrir les paramètres avancés
+              IconButton(
+                icon: Icon(
+                  LucideIcons.settings2,
+                  size: 14,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: isLight ? 0.6 : 0.7),
+                ),
+                tooltip: 'Paramètres d\'apparence',
+                onPressed: () async {
+                  await showDialog(
+                    context: context,
+                    builder: (context) => const AppearanceSettingsDialogV2(),
+                  );
+                  // Appeler le callback après la fermeture du dialogue
+                  onSettingsChanged?.call();
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-              tooltip: 'Paramètres d\'apparence',
-              onPressed: () async {
-                await showDialog(
-                  context: context,
-                  builder: (context) => const AppearanceSettingsDialogV2(),
-                );
-                // Appeler le callback après la fermeture du dialogue
-                onSettingsChanged?.call();
-              },
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
+            ],
           ],
         ),
         const SizedBox(height: 10),
@@ -75,13 +81,15 @@ class ThemeControlsV2 extends StatelessWidget {
           isLight: isLight,
           onToggle: onToggleLight,
         ),
-        const SizedBox(height: 12),
-        // Sélecteur de palette amélioré
-        _PaletteSelector(
-          currentPalette: currentPalette,
-          isLight: isLight,
-          onPaletteSelected: onPaletteSelected,
-        ),
+        if (showPalette) ...[
+          const SizedBox(height: 12),
+          // Sélecteur de palette amélioré
+          _PaletteSelector(
+            currentPalette: currentPalette,
+            isLight: isLight,
+            onPaletteSelected: onPaletteSelected,
+          ),
+        ],
       ],
     );
   }
@@ -559,12 +567,14 @@ class ThemeRailControlsV2 extends StatelessWidget {
     required this.currentPalette,
     required this.onToggleLight,
     required this.onPaletteSelected,
+    this.showPalette = true,
   });
 
   final bool isLight;
   final ColorPalette currentPalette;
   final Future<void> Function(bool) onToggleLight;
   final Future<void> Function(ColorPalette) onPaletteSelected;
+  final bool showPalette;
 
   @override
   Widget build(BuildContext context) {
@@ -575,12 +585,14 @@ class ThemeRailControlsV2 extends StatelessWidget {
           tooltip: isLight ? 'Passer en mode sombre' : 'Passer en mode clair',
           onTap: () => onToggleLight(!isLight),
         ),
-        const SizedBox(height: 6),
-        _RailThemeButton(
-          icon: LucideIcons.palette,
-          tooltip: 'Palette: ${currentPalette.displayName}',
-          onTap: () => _showPaletteDialog(context),
-        ),
+        if (showPalette) ...[
+          const SizedBox(height: 6),
+          _RailThemeButton(
+            icon: LucideIcons.palette,
+            tooltip: 'Palette: ${currentPalette.displayName}',
+            onTap: () => _showPaletteDialog(context),
+          ),
+        ],
       ],
     );
   }
