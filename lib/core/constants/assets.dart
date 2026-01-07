@@ -10,4 +10,5 @@ class AppAssets {
       'assets/images/contributors/florian_tiya.jpg';
   static const String jacobinPortrait =
       'assets/images/contributors/jacobin_fokou.jpg';
+  static const String logo = 'assets/images/png/appLogo.png';
 }

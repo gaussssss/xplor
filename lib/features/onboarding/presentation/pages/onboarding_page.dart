@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/assets.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/widgets/mini_explorer_dialog.dart';
 import '../../data/onboarding_service.dart';
@@ -33,7 +34,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   late final Animation<Offset> _slideUp;
 
   int _currentPage = 0;
-  String? _accessPath;
+  List<String> _accessPaths = [];
   bool _isRequestingAccess = false;
 
   static const List<OnboardingStep> _steps = [
@@ -43,6 +44,10 @@ class _OnboardingPageState extends State<OnboardingPage>
       description:
           "Xplor mélange élégance, vitesse et clarté pour transformer la navigation en expérience fluide.",
       icon: lucide.LucideIcons.sparkle,
+      primaryCtaLabel: 'Entrer dans Xplor',
+      primaryCtaIcon: lucide.LucideIcons.arrowRight,
+      secondaryCtaLabel: 'Voir les détails',
+      secondaryCtaIcon: lucide.LucideIcons.sparkles,
       highlights: [
         'Interface glass',
         'Navigation fluide',
@@ -67,6 +72,10 @@ class _OnboardingPageState extends State<OnboardingPage>
       description:
           'Ouvrez les archives comme des dossiers, glissez-déposez depuis votre bureau et gardez tout organisé.',
       icon: lucide.LucideIcons.archive,
+      primaryCtaLabel: 'Explorer les archives',
+      primaryCtaIcon: lucide.LucideIcons.archive,
+      secondaryCtaLabel: 'Voir le drag & drop',
+      secondaryCtaIcon: lucide.LucideIcons.mousePointer2,
       highlights: [
         'Ouvrir comme dossier',
         'Extraction rapide',
@@ -92,6 +101,10 @@ class _OnboardingPageState extends State<OnboardingPage>
       description:
           'Adaptez l\'interface, ajoutez votre fond favori et créez une ambiance qui vous ressemble.',
       icon: lucide.LucideIcons.palette,
+      primaryCtaLabel: 'Personnaliser maintenant',
+      primaryCtaIcon: lucide.LucideIcons.palette,
+      secondaryCtaLabel: 'Découvrir les thèmes',
+      secondaryCtaIcon: lucide.LucideIcons.sparkles,
       highlights: [
         'Clair & sombre',
         'Fonds personnalisés',
@@ -132,10 +145,10 @@ class _OnboardingPageState extends State<OnboardingPage>
   }
 
   Future<void> _loadAccessPath() async {
-    final stored = await OnboardingService.getPreferredRootPath();
+    final stored = await OnboardingService.getPreferredRootPaths();
     if (!mounted) return;
-    if (stored != null && stored.trim().isNotEmpty) {
-      setState(() => _accessPath = stored.trim());
+    if (stored.isNotEmpty) {
+      setState(() => _accessPaths = stored);
     }
   }
 
@@ -172,18 +185,17 @@ class _OnboardingPageState extends State<OnboardingPage>
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => MiniExplorerDialog(
-        title: 'Choisir un dossier principal',
+        title: 'Ajouter un dossier',
         mode: MiniExplorerPickerMode.directory,
-        initialPath: _accessPath ?? _homeDirectory(),
-        confirmLabel: 'Autoriser l\'accès',
+        initialPath:
+            _accessPaths.isNotEmpty ? _accessPaths.last : _homeDirectory(),
+        confirmLabel: 'Ajouter ce dossier',
       ),
     );
 
     if (!mounted) return;
     if (selected != null && selected.trim().isNotEmpty) {
-      final trimmed = selected.trim();
-      setState(() => _accessPath = trimmed);
-      await OnboardingService.setPreferredRootPath(trimmed);
+      await _addAccessPath(selected);
     }
 
     if (mounted) {
@@ -193,8 +205,24 @@ class _OnboardingPageState extends State<OnboardingPage>
 
   Future<void> _useHomeAccess() async {
     final home = _homeDirectory();
-    setState(() => _accessPath = home);
-    await OnboardingService.setPreferredRootPath(home);
+    await _addAccessPath(home);
+  }
+
+  Future<void> _addAccessPath(String path) async {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return;
+    if (_accessPaths.contains(trimmed)) {
+      return;
+    }
+    final updated = [..._accessPaths, trimmed];
+    setState(() => _accessPaths = updated);
+    await OnboardingService.setPreferredRootPaths(updated);
+  }
+
+  Future<void> _removeAccessPath(String path) async {
+    final updated = _accessPaths.where((item) => item != path).toList();
+    setState(() => _accessPaths = updated);
+    await OnboardingService.setPreferredRootPaths(updated);
   }
 
   String _homeDirectory() {
@@ -351,6 +379,9 @@ class _OnboardingPageState extends State<OnboardingPage>
         final scale = 1 - (delta * 0.06);
         final opacity = 1 - (delta * 0.25);
         final accent = _accentForIndex(theme.colorScheme, index);
+        final isActive = index == _currentPage;
+        final primaryCta =
+            index == _steps.length - 1 ? _completeOnboarding : _nextPage;
 
         return Center(
           child: AnimatedBuilder(
@@ -370,10 +401,14 @@ class _OnboardingPageState extends State<OnboardingPage>
               accent: accent,
               currentIndex: index,
               total: _steps.length,
-              accessPath: _accessPath,
+              isActive: isActive,
+              accessPaths: _accessPaths,
               isRequestingAccess: _isRequestingAccess,
               onRequestAccess: _requestAccess,
               onUseHome: _useHomeAccess,
+              onRemoveAccessPath: _removeAccessPath,
+              onPrimaryCta: primaryCta,
+              onSecondaryCta: _nextPage,
               isWide: isWide,
             ),
           ),
@@ -391,6 +426,10 @@ class OnboardingStep {
     required this.icon,
     required this.highlights,
     this.kind = OnboardingStepKind.standard,
+    this.primaryCtaLabel,
+    this.primaryCtaIcon,
+    this.secondaryCtaLabel,
+    this.secondaryCtaIcon,
   });
 
   final String title;
@@ -399,6 +438,10 @@ class OnboardingStep {
   final IconData icon;
   final List<String> highlights;
   final OnboardingStepKind kind;
+  final String? primaryCtaLabel;
+  final IconData? primaryCtaIcon;
+  final String? secondaryCtaLabel;
+  final IconData? secondaryCtaIcon;
 }
 
 class _OnboardingHeader extends StatelessWidget {
@@ -422,6 +465,7 @@ class _OnboardingHeader extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(height: 25),
             Text(
               'Xplor',
               style: GoogleFonts.fraunces(
@@ -462,32 +506,32 @@ class _BrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: 44,
-      height: 44,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.tertiary,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: isLight
+            ? Colors.white.withValues(alpha: 0.65)
+            : Colors.white.withValues(alpha: 0.12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.25),
         ),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.primary.withValues(
-              alpha: isLight ? 0.25 : 0.5,
+              alpha: isLight ? 0.18 : 0.4,
             ),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: const Icon(
-        lucide.LucideIcons.folderOpen,
-        color: Colors.white,
-        size: 22,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.asset(
+          AppAssets.logo,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
@@ -500,10 +544,14 @@ class _OnboardingCard extends StatelessWidget {
     required this.accent,
     required this.currentIndex,
     required this.total,
-    required this.accessPath,
+    required this.isActive,
+    required this.accessPaths,
     required this.isRequestingAccess,
     required this.onRequestAccess,
     required this.onUseHome,
+    required this.onRemoveAccessPath,
+    required this.onPrimaryCta,
+    required this.onSecondaryCta,
     required this.isWide,
   });
 
@@ -512,282 +560,250 @@ class _OnboardingCard extends StatelessWidget {
   final Color accent;
   final int currentIndex;
   final int total;
-  final String? accessPath;
+  final bool isActive;
+  final List<String> accessPaths;
   final bool isRequestingAccess;
   final VoidCallback onRequestAccess;
   final VoidCallback onUseHome;
+  final ValueChanged<String> onRemoveAccessPath;
+  final VoidCallback onPrimaryCta;
+  final VoidCallback onSecondaryCta;
   final bool isWide;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
+    final alignRight = currentIndex.isOdd;
+    final crossAxis =
+        alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final textAlign = alignRight ? TextAlign.right : TextAlign.left;
+    final alignment =
+        alignRight ? Alignment.centerRight : Alignment.centerLeft;
+    final titleSize = isWide ? 40.0 : 32.0;
+    final subtitleSize = isWide ? 18.0 : 16.0;
+    final bodySize = isWide ? 16.0 : 14.0;
+    final showCtas = step.kind == OnboardingStepKind.standard &&
+        (step.primaryCtaLabel != null || step.secondaryCtaLabel != null);
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 640),
-      child: _GlassPanel(
-        isLight: isLight,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-        borderRadius: 26,
-        blurSigma: 24,
-        child: Stack(
-          children: [
-            Positioned(
-              top: -50,
-              right: -40,
-              child: _GlowOrb(
-                color: accent,
-                intensity: isLight ? 0.14 : 0.26,
-                size: 150,
-              ),
+      constraints: const BoxConstraints(maxWidth: 720),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 550),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(animation);
+          final scale =
+              Tween<double>(begin: 0.96, end: 1).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: slide,
+              child: ScaleTransition(scale: scale, child: child),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 72,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    gradient: LinearGradient(
-                      colors: [
-                        accent.withValues(alpha: 0.9),
-                        accent.withValues(alpha: 0.2),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey('${step.title}-$isActive'),
+          child: Align(
+            alignment: alignment,
+            child: SizedBox(
+              width: isWide ? 560 : double.infinity,
+              child: Column(
+                crossAxisAlignment: crossAxis,
+                children: [
+                  Row(
+                    mainAxisAlignment: alignRight
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    children: alignRight
+                        ? [
+                            _StepCounter(
+                              current: currentIndex + 1,
+                              total: total,
+                              isLight: isLight,
+                            ),
+                            const SizedBox(width: 10),
+                            _IconBadge(
+                              icon: step.icon,
+                              accent: accent,
+                              isLight: isLight,
+                            ),
+                          ]
+                        : [
+                            _IconBadge(
+                              icon: step.icon,
+                              accent: accent,
+                              isLight: isLight,
+                            ),
+                            const SizedBox(width: 10),
+                            _StepCounter(
+                              current: currentIndex + 1,
+                              total: total,
+                              isLight: isLight,
+                            ),
+                          ],
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: alignRight
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Container(
+                      width: 110,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: LinearGradient(
+                          colors: [
+                            accent.withValues(alpha: 0.9),
+                            accent.withValues(alpha: 0.15),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    step.title,
+                    textAlign: textAlign,
+                    style: GoogleFonts.fraunces(
+                      fontSize: titleSize,
+                      height: 1.05,
+                      fontWeight: FontWeight.w700,
+                      color: onSurface.withValues(alpha: 0.92),
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(
+                            alpha: isLight ? 0.12 : 0.4,
+                          ),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    _IconBadge(
-                      icon: step.icon,
-                      accent: accent,
-                      isLight: isLight,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            step.title,
-                            style: GoogleFonts.fraunces(
-                              textStyle: theme.textTheme.headlineSmall,
-                              fontWeight: FontWeight.w700,
-                              color: onSurface,
+                  const SizedBox(height: 10),
+                  if (isActive)
+                    _TypewriterText(
+                      key: ValueKey('subtitle-${step.subtitle}-$isActive'),
+                      text: step.subtitle,
+                      textAlign: textAlign,
+                      style: GoogleFonts.manrope(
+                        fontSize: subtitleSize,
+                        fontWeight: FontWeight.w600,
+                        color: onSurface.withValues(alpha: 0.74),
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(
+                              alpha: isLight ? 0.1 : 0.35,
                             ),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            step.subtitle,
-                            style: GoogleFonts.manrope(
-                              textStyle: theme.textTheme.bodyMedium,
-                              fontWeight: FontWeight.w600,
-                              color: onSurface.withValues(alpha: 0.65),
+                        ],
+                      ),
+                    )
+                  else
+                    Text(
+                      step.subtitle,
+                      textAlign: textAlign,
+                      style: GoogleFonts.manrope(
+                        fontSize: subtitleSize,
+                        fontWeight: FontWeight.w600,
+                        color: onSurface.withValues(alpha: 0.74),
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(
+                              alpha: isLight ? 0.1 : 0.35,
                             ),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
                     ),
-                    _StepCounter(
-                      current: currentIndex + 1,
-                      total: total,
-                      isLight: isLight,
+                  const SizedBox(height: 12),
+                  Text(
+                    step.description,
+                    textAlign: textAlign,
+                    style: GoogleFonts.manrope(
+                      fontSize: bodySize,
+                      height: 1.6,
+                      color: onSurface.withValues(alpha: 0.72),
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(
+                            alpha: isLight ? 0.06 : 0.28,
+                          ),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  step.description,
-                  style: GoogleFonts.manrope(
-                    textStyle: theme.textTheme.bodyMedium,
-                    height: 1.6,
-                    color: onSurface.withValues(alpha: 0.76),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: step.highlights
-                      .map(
-                        (item) => _HighlightChip(
-                          label: item,
-                          accent: accent,
-                          isLight: isLight,
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
-                if (step.kind == OnboardingStepKind.access)
-                  _AccessPanel(
-                    isLight: isLight,
-                    accessPath: accessPath,
-                    isRequesting: isRequestingAccess,
-                    onRequestAccess: onRequestAccess,
-                    onUseHome: onUseHome,
-                  )
-                else
-                  _FeatureDeck(isLight: isLight, accent: accent, isWide: isWide),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FeatureDeck extends StatelessWidget {
-  const _FeatureDeck({
-    required this.isLight,
-    required this.accent,
-    required this.isWide,
-  });
-
-  final bool isLight;
-  final Color accent;
-  final bool isWide;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
-    final tiles = [
-      _MiniFeature(
-        icon: lucide.LucideIcons.layers,
-        title: 'Vue adaptée',
-        description: 'Basculez entre grille et liste selon vos tâches.',
-      ),
-      _MiniFeature(
-        icon: lucide.LucideIcons.search,
-        title: 'Recherche rapide',
-        description: 'Tapez, filtrez, trouvez instantanément.',
-      ),
-      _MiniFeature(
-        icon: lucide.LucideIcons.sparkles,
-        title: 'Design vivant',
-        description: 'Des détails glass et une lumière douce.',
-      ),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: isLight
-            ? Colors.white.withValues(alpha: 0.72)
-            : Colors.white.withValues(alpha: 0.08),
-        border: Border.all(
-          color: onSurface.withValues(alpha: isLight ? 0.12 : 0.22),
-        ),
-      ),
-      child: isWide
-          ? Row(
-              children: tiles
-                  .map(
-                    (tile) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: _FeatureTile(
-                          feature: tile,
-                          accent: accent,
-                          isLight: isLight,
-                        ),
-                      ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: alignRight
+                        ? WrapAlignment.end
+                        : WrapAlignment.start,
+                    children: step.highlights
+                        .map(
+                          (item) => _HighlightChip(
+                            label: item,
+                            accent: accent,
+                            isLight: isLight,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  if (step.kind == OnboardingStepKind.access)
+                    _AccessPanel(
+                      isLight: isLight,
+                      alignRight: alignRight,
+                      accessPaths: accessPaths,
+                      isRequesting: isRequestingAccess,
+                      onRequestAccess: onRequestAccess,
+                      onUseHome: onUseHome,
+                      onRemovePath: onRemoveAccessPath,
+                    )
+                  else if (showCtas)
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: alignRight
+                          ? WrapAlignment.end
+                          : WrapAlignment.start,
+                      children: [
+                        if (step.primaryCtaLabel != null &&
+                            step.primaryCtaIcon != null)
+                          _GradientButton(
+                            label: step.primaryCtaLabel!,
+                            icon: step.primaryCtaIcon!,
+                            isLight: isLight,
+                            onPressed: onPrimaryCta,
+                          ),
+                        if (step.secondaryCtaLabel != null)
+                          _GlassActionButton(
+                            label: step.secondaryCtaLabel!,
+                            icon: step.secondaryCtaIcon,
+                            isLight: isLight,
+                            onPressed: onSecondaryCta,
+                          ),
+                      ],
                     ),
-                  )
-                  .toList(),
-            )
-          : Column(
-              children: tiles
-                  .map(
-                    (tile) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: _FeatureTile(
-                        feature: tile,
-                        accent: accent,
-                        isLight: isLight,
-                      ),
-                    ),
-                  )
-                  .toList(),
+                ],
+              ),
             ),
-    );
-  }
-}
-
-class _MiniFeature {
-  const _MiniFeature({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-}
-
-class _FeatureTile extends StatelessWidget {
-  const _FeatureTile({
-    required this.feature,
-    required this.accent,
-    required this.isLight,
-  });
-
-  final _MiniFeature feature;
-  final Color accent;
-  final bool isLight;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: isLight
-            ? Colors.white.withValues(alpha: 0.82)
-            : Colors.black.withValues(alpha: 0.3),
-        border: Border.all(
-          color: onSurface.withValues(alpha: isLight ? 0.12 : 0.24),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: accent.withValues(alpha: isLight ? 0.18 : 0.3),
-            ),
-            child: Icon(feature.icon, size: 18, color: accent),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            feature.title,
-            style: GoogleFonts.manrope(
-              textStyle: theme.textTheme.titleSmall,
-              fontWeight: FontWeight.w700,
-              color: onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            feature.description,
-            style: GoogleFonts.manrope(
-              textStyle: theme.textTheme.bodySmall,
-              height: 1.4,
-              color: onSurface.withValues(alpha: 0.65),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -796,108 +812,203 @@ class _FeatureTile extends StatelessWidget {
 class _AccessPanel extends StatelessWidget {
   const _AccessPanel({
     required this.isLight,
-    required this.accessPath,
+    required this.alignRight,
+    required this.accessPaths,
     required this.isRequesting,
     required this.onRequestAccess,
     required this.onUseHome,
+    required this.onRemovePath,
   });
 
   final bool isLight;
-  final String? accessPath;
+  final bool alignRight;
+  final List<String> accessPaths;
   final bool isRequesting;
   final VoidCallback onRequestAccess;
   final VoidCallback onUseHome;
+  final ValueChanged<String> onRemovePath;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
-    final hasAccess = accessPath != null && accessPath!.isNotEmpty;
+    final hasAccess = accessPaths.isNotEmpty;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: isLight
-            ? Colors.white.withValues(alpha: 0.78)
-            : Colors.black.withValues(alpha: 0.4),
-        border: Border.all(
-          color: onSurface.withValues(alpha: isLight ? 0.14 : 0.24),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color: isLight
+                ? Colors.white.withValues(alpha: 0.2)
+                : Colors.white.withValues(alpha: 0.08),
+            border: Border.all(
+              color: onSurface.withValues(alpha: isLight ? 0.18 : 0.22),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment:
+                alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment:
+                    alignRight ? MainAxisAlignment.end : MainAxisAlignment.start,
+                children: [
+                  Icon(
+                    hasAccess
+                        ? lucide.LucideIcons.shieldCheck
+                        : lucide.LucideIcons.shield,
+                    color: hasAccess
+                        ? theme.colorScheme.primary
+                        : onSurface.withValues(alpha: 0.7),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    hasAccess ? 'Accès accordé' : 'Autoriser l\'accès',
+                    style: GoogleFonts.manrope(
+                      textStyle: theme.textTheme.titleSmall,
+                      fontWeight: FontWeight.w700,
+                      color: onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (hasAccess)
+                    _StatusPill(
+                      label: 'Prêt',
+                      isLight: isLight,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                hasAccess
+                    ? 'Dossiers sélectionnés :'
+                    : 'Choisissez un ou plusieurs dossiers pour explorer vos fichiers.',
+                textAlign: alignRight ? TextAlign.right : TextAlign.left,
+                style: GoogleFonts.manrope(
+                  textStyle: theme.textTheme.bodyMedium,
+                  color: onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (hasAccess)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment:
+                      alignRight ? WrapAlignment.end : WrapAlignment.start,
+                  children: accessPaths
+                      .map(
+                        (path) => _AccessPathBadge(
+                          path: path,
+                          isLight: isLight,
+                          onRemove: () => onRemovePath(path),
+                        ),
+                      )
+                      .toList(),
+                )
+              else
+                Text(
+                  'Aucun dossier ajouté pour le moment.',
+                  textAlign: alignRight ? TextAlign.right : TextAlign.left,
+                  style: GoogleFonts.manrope(
+                    textStyle: theme.textTheme.bodySmall,
+                    fontWeight: FontWeight.w600,
+                    color: onSurface.withValues(alpha: 0.55),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment:
+                    alignRight ? WrapAlignment.end : WrapAlignment.start,
+                children: [
+                  _GradientButton(
+                    label: hasAccess ? 'Ajouter un dossier' : 'Choisir un dossier',
+                    icon: lucide.LucideIcons.folderPlus,
+                    isLight: isLight,
+                    onPressed: isRequesting ? null : onRequestAccess,
+                  ),
+                  _GlassActionButton(
+                    label: 'Utiliser le dossier personnel',
+                    icon: lucide.LucideIcons.home,
+                    isLight: isLight,
+                    onPressed: onUseHome,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                hasAccess
-                    ? lucide.LucideIcons.shieldCheck
-                    : lucide.LucideIcons.shield,
-                color: hasAccess
-                    ? theme.colorScheme.primary
-                    : onSurface.withValues(alpha: 0.7),
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                hasAccess ? 'Accès accordé' : 'Autoriser l\'accès',
+    );
+  }
+}
+
+class _AccessPathBadge extends StatelessWidget {
+  const _AccessPathBadge({
+    required this.path,
+    required this.isLight,
+    required this.onRemove,
+  });
+
+  final String path;
+  final bool isLight;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: isLight
+              ? Colors.white.withValues(alpha: 0.6)
+              : Colors.white.withValues(alpha: 0.12),
+          border: Border.all(
+            color: onSurface.withValues(alpha: isLight ? 0.14 : 0.22),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              lucide.LucideIcons.folder,
+              size: 14,
+              color: onSurface.withValues(alpha: 0.75),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                path,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.manrope(
-                  textStyle: theme.textTheme.titleSmall,
-                  fontWeight: FontWeight.w700,
-                  color: onSurface,
+                  textStyle: theme.textTheme.labelMedium,
+                  fontWeight: FontWeight.w600,
+                  color: onSurface.withValues(alpha: 0.8),
                 ),
               ),
-              const Spacer(),
-              if (hasAccess)
-                _StatusPill(
-                  label: 'Prêt',
-                  isLight: isLight,
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            hasAccess
-                ? 'Dossier sélectionné :'
-                : 'Choisissez un dossier pour explorer vos fichiers.',
-            style: GoogleFonts.manrope(
-              textStyle: theme.textTheme.bodyMedium,
-              color: onSurface.withValues(alpha: 0.7),
             ),
-          ),
-          const SizedBox(height: 8),
-          if (hasAccess)
-            Text(
-              accessPath!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                textStyle: theme.textTheme.bodySmall,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onRemove,
+              child: Icon(
+                lucide.LucideIcons.x,
+                size: 14,
+                color: onSurface.withValues(alpha: 0.7),
               ),
             ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _GradientButton(
-                label: hasAccess ? 'Modifier le dossier' : 'Choisir un dossier',
-                icon: lucide.LucideIcons.folderOpen,
-                isLight: isLight,
-                onPressed: isRequesting ? null : onRequestAccess,
-              ),
-              _GlassActionButton(
-                label: 'Utiliser le dossier personnel',
-                icon: lucide.LucideIcons.home,
-                isLight: isLight,
-                onPressed: onUseHome,
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -965,14 +1076,14 @@ class _OnboardingFooter extends StatelessWidget {
             onPressed: onBack,
           )
         else
-          const SizedBox(width: 128),
+          const SizedBox(width: 90),
         const Spacer(),
         _GlassActionButton(
           label: 'Passer',
           isLight: isLight,
           onPressed: onSkip,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         _GradientButton(
           label: isLast ? 'Terminer' : 'Suivant',
           icon: isLast
@@ -1022,8 +1133,8 @@ class _GlassActionButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   color: isLight
-                      ? Colors.white.withValues(alpha: 0.78)
-                      : Colors.white.withValues(alpha: 0.1),
+                      ? Colors.white.withValues(alpha: 0.84)
+                      : Colors.white.withValues(alpha: 0.18),
                   border: Border.all(
                     color: onSurface.withValues(alpha: isLight ? 0.14 : 0.24),
                   ),
@@ -1135,6 +1246,84 @@ class _GradientButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TypewriterText extends StatefulWidget {
+  const _TypewriterText({
+    super.key,
+    required this.text,
+    required this.style,
+    this.textAlign = TextAlign.left,
+    this.speedPerChar = const Duration(milliseconds: 28),
+  });
+
+  final String text;
+  final TextStyle style;
+  final TextAlign textAlign;
+  final Duration speedPerChar;
+
+  @override
+  State<_TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<_TypewriterText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<int> _chars;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TypewriterText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text ||
+        oldWidget.speedPerChar != widget.speedPerChar) {
+      _controller.dispose();
+      _initAnimation();
+    }
+  }
+
+  void _initAnimation() {
+    final length = widget.text.length;
+    final duration = Duration(
+      milliseconds: (length * widget.speedPerChar.inMilliseconds) + 120,
+    );
+    _controller = AnimationController(vsync: this, duration: duration);
+    _chars = StepTween(begin: 0, end: length).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    if (length == 0) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = widget.text;
+    return AnimatedBuilder(
+      animation: _chars,
+      builder: (context, child) {
+        final count = _chars.value.clamp(0, text.length);
+        return Text(
+          text.substring(0, count),
+          textAlign: widget.textAlign,
+          style: widget.style,
+        );
+      },
     );
   }
 }
@@ -1513,55 +1702,6 @@ class _StepDots extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _GlassPanel extends StatelessWidget {
-  const _GlassPanel({
-    required this.isLight,
-    required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.borderRadius = 20,
-    this.blurSigma = 20,
-  });
-
-  final bool isLight;
-  final Widget child;
-  final EdgeInsets padding;
-  final double borderRadius;
-  final double blurSigma;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
-    final baseColor = isLight
-        ? Colors.white.withValues(alpha: 0.75)
-        : Colors.black.withValues(alpha: 0.55);
-    final border = onSurface.withValues(alpha: isLight ? 0.12 : 0.22);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: baseColor,
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: border, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.3),
-                blurRadius: 30,
-                offset: const Offset(0, 16),
-              ),
-            ],
-          ),
-          child: child,
-        ),
       ),
     );
   }
