@@ -11,3 +11,5 @@
 12. Rendre fonctionnel le menu de fenêtre qui s'affiche dans la barre de de statuts de MacOs
 13.  Mettre en place le système complet d’onglets dans le design permettant d'ouvrir des dossiers dans plusieurs onglets.
 14.  Indexer le fichier quand le PC est dormant (en inactivité donc par exemple détecter quand le PC est disponible); on doit donner la possibilité à l'utilisateurs de planifier l'indexation des fichiers à une fr'quence voulue
+15.  Rendre l'appllication hyper paramétrabilité (possibilité d'importer des paramètres en JSON et partager)
+16.  Possibilté de créer des plugins 

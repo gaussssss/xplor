@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../../core/constants/assets.dart';
@@ -68,6 +69,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isSearchExpanded = false;
   bool _isToastShowing = false;
   bool _isSidebarCollapsed = false;
+  bool _isMultiSelectionMode = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
   String _lastPath = ''; // Pour détecter les changements de dossier
 
@@ -107,6 +109,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _tagItems = _buildTags();
     _volumes = _readVolumes();
     _viewModel.loadDirectory(initialPath);
+    _loadSelectionMode();
   }
 
   Widget _buildSearchToggle() {
@@ -153,6 +156,21 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _searchFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSelectionMode() async {
+    bool enabled = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      enabled = prefs.getBool('multi_selection_mode') ?? false;
+    } catch (_) {
+      enabled = false;
+    }
+    if (!mounted) return;
+    if (_isMultiSelectionMode != enabled) {
+      setState(() => _isMultiSelectionMode = enabled);
+    }
+    _viewModel.setMultiSelectionEnabled(enabled);
   }
 
   @override
@@ -308,6 +326,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                 setState(
                                     () => _isSidebarCollapsed = !_isSidebarCollapsed);
                               },
+                              onSettingsClosed: _loadSelectionMode,
                               isLight: themeProvider.isLight,
                               currentPalette: themeProvider.currentPalette,
                               onToggleLight: themeProvider.setLightMode,
@@ -553,7 +572,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       );
     }
 
-    final selectionMode = true; // Multi-selection always enabled
+    final selectionMode = _isMultiSelectionMode;
     final content = entries.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -1412,13 +1431,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
               .where((e) => _viewModel.state.selectedPaths.contains(e.path))
               .toList()
         : <FileEntry>[entry];
+    final handleSelection = selectionMode
+        ? () => _viewModel.toggleSelection(entry)
+        : () => _viewModel.selectSingle(entry);
 
     final tile = FileEntryTile(
       entry: entry,
       viewMode: viewMode,
       selectionMode: selectionMode,
       isSelected: _viewModel.isSelected(entry),
-      onToggleSelection: () => _viewModel.toggleSelection(entry),
+      onToggleSelection: handleSelection,
       onOpen: () => _handleEntryTap(entry),
       onContextMenu: (position) => _showContextMenu(entry, position),
       enableDrop: !_viewModel.state.isArchiveView,
@@ -1430,7 +1452,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         viewMode: viewMode,
         selectionMode: selectionMode,
         isSelected: _viewModel.isSelected(entry),
-        onToggleSelection: () => _viewModel.toggleSelection(entry),
+        onToggleSelection: handleSelection,
         onOpen: () => _handleEntryTap(entry),
         onContextMenu: (position) => _showContextMenu(entry, position),
         enableDrop: !_viewModel.state.isArchiveView,
@@ -1920,6 +1942,7 @@ class _Sidebar extends StatelessWidget {
     this.onTagToggle,
     this.onTypeToggle,
     this.onToggleCollapse,
+    this.onSettingsClosed,
     required this.isLight,
     required this.currentPalette,
     required this.onToggleLight,
@@ -1939,6 +1962,7 @@ class _Sidebar extends StatelessWidget {
   final void Function(String tag)? onTagToggle;
   final void Function(String type)? onTypeToggle;
   final VoidCallback? onToggleCollapse;
+  final Future<void> Function()? onSettingsClosed;
   final bool collapsed;
   final bool isLight;
   final ColorPalette currentPalette;
@@ -2051,12 +2075,13 @@ class _Sidebar extends StatelessWidget {
                             child: _RailButton(
                               icon: lucide.LucideIcons.settings,
                               tooltip: 'Réglages',
-                              onTap: () {
-                                showDialog(
+                              onTap: () async {
+                                await showDialog(
                                   context: context,
                                   builder: (context) =>
                                       const AppearanceSettingsDialogV2(),
                                 );
+                                await onSettingsClosed?.call();
                               },
                             ),
                           ),
@@ -2278,6 +2303,9 @@ class _Sidebar extends StatelessWidget {
                 currentPalette: currentPalette,
                 onToggleLight: onToggleLight,
                 onPaletteSelected: onPaletteSelected,
+                onSettingsChanged: () {
+                  onSettingsClosed?.call();
+                },
               ),
             ),
 
@@ -2346,11 +2374,12 @@ class _Sidebar extends StatelessWidget {
                     icon: lucide.LucideIcons.settings,
                     label: 'Réglages',
                     isLight: isLight,
-                    onTap: () {
-                      showDialog(
+                    onTap: () async {
+                      await showDialog(
                         context: context,
                         builder: (context) => const AppearanceSettingsDialogV2(),
                       );
+                      await onSettingsClosed?.call();
                     },
                   ),
 

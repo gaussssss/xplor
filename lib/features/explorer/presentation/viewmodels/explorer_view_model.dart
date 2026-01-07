@@ -173,6 +173,7 @@ class ExplorerViewModel extends ChangeNotifier {
   late final SearchViewModel _searchViewModel;
   ExplorerViewState _state;
   List<FileEntry> _clipboard = [];
+  bool _multiSelectionEnabled = false;
   final List<String> _backStack = [];
   final List<String> _forwardStack = [];
   List<String> _recentPaths = [];
@@ -700,6 +701,10 @@ class ExplorerViewModel extends ChangeNotifier {
   }
 
   void toggleSelection(FileEntry entry) {
+    if (!_multiSelectionEnabled) {
+      selectSingle(entry);
+      return;
+    }
     final updated = <String>{..._state.selectedPaths};
     if (updated.contains(entry.path)) {
       updated.remove(entry.path);
@@ -722,6 +727,37 @@ class ExplorerViewModel extends ChangeNotifier {
       return;
     }
     _state = _state.copyWith(selectedPaths: {entry.path}, clearStatus: true);
+    notifyListeners();
+  }
+
+  void setMultiSelectionEnabled(bool enabled) {
+    if (_multiSelectionEnabled == enabled) return;
+    _multiSelectionEnabled = enabled;
+    if (!enabled) {
+      _collapseToSingleSelection();
+    }
+  }
+
+  void _collapseToSingleSelection() {
+    if (_state.selectedPaths.length <= 1) return;
+    FileEntry? keepEntry;
+    for (final entry in _state.entries) {
+      if (_state.selectedPaths.contains(entry.path)) {
+        keepEntry = entry;
+        break;
+      }
+    }
+    if (keepEntry != null) {
+      _state = _state.copyWith(
+        selectedPaths: {keepEntry.path},
+        clearStatus: true,
+      );
+    } else {
+      _state = _state.copyWith(
+        selectedPaths: <String>{},
+        clearStatus: true,
+      );
+    }
     notifyListeners();
   }
 
