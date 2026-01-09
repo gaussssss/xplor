@@ -75,6 +75,9 @@ extension _ExplorerPageNavigation on _ExplorerPageState {
       _TagItem(label: 'Bleu', color: Colors.lightBlueAccent),
       _TagItem(label: 'Violet', color: Colors.purpleAccent),
       _TagItem(label: 'Gris', color: Colors.grey),
+      _TagItem(label: 'Important', color: Colors.grey),
+      _TagItem(label: 'Bureau', color: Colors.grey),
+      _TagItem(label: 'Domicile', color: Colors.grey),
     ];
   }
 

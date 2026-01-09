@@ -689,6 +689,12 @@ class _ListViewTableState extends State<ListViewTable> {
         return Colors.purpleAccent;
       case 'Gris':
         return Colors.grey;
+      case 'Important':
+        return Colors.grey;
+      case 'Bureau':
+        return Colors.grey;
+      case 'Domicile':
+        return Colors.grey;
       default:
         return null;
     }
