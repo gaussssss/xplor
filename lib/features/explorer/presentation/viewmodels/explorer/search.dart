@@ -70,6 +70,9 @@ extension ExplorerSearchOps on ExplorerViewModel {
               isDirectory: result.isDirectory,
               size: result.size,
               lastModified: result.lastModified,
+              created: null,
+              accessed: null,
+              mode: null,
               isApplication: false,
             ),
           )

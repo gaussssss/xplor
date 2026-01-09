@@ -105,6 +105,7 @@ class _ListViewTableState extends State<ListViewTable> {
   void initState() {
     super.initState();
     _loadColumnPreferences();
+    _loadSortPreferences();
   }
 
   Future<void> _loadColumnPreferences() async {
@@ -158,6 +159,29 @@ class _ListViewTableState extends State<ListViewTable> {
     }
   }
 
+  Future<void> _loadSortPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sortColumnName = prefs.getString('list_view_sort_column');
+      final sortOrderName = prefs.getString('list_view_sort_order');
+      if (sortColumnName == null || sortOrderName == null) return;
+      final column = FileColumn.values.firstWhere(
+        (c) => c.name == sortColumnName,
+        orElse: () => FileColumn.name,
+      );
+      final order = SortOrder.values.firstWhere(
+        (o) => o.name == sortOrderName,
+        orElse: () => SortOrder.ascending,
+      );
+      if (!mounted) return;
+      setState(() {
+        _sortConfig = SortConfig(column: column, order: order);
+      });
+    } catch (_) {
+      // Ignorer les erreurs de chargement
+    }
+  }
+
   Future<void> _saveColumnPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -165,6 +189,21 @@ class _ListViewTableState extends State<ListViewTable> {
       final columnWidths = _columns.map((c) => c.width.toString()).toList();
       await prefs.setStringList('list_view_columns', columnNames);
       await prefs.setStringList('list_view_column_widths', columnWidths);
+    } catch (_) {
+      // Ignorer les erreurs de sauvegarde
+    }
+  }
+
+  Future<void> _saveSortPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_sortConfig == null) {
+        await prefs.remove('list_view_sort_column');
+        await prefs.remove('list_view_sort_order');
+        return;
+      }
+      await prefs.setString('list_view_sort_column', _sortConfig!.column.name);
+      await prefs.setString('list_view_sort_order', _sortConfig!.order.name);
     } catch (_) {
       // Ignorer les erreurs de sauvegarde
     }
@@ -201,6 +240,20 @@ class _ListViewTableState extends State<ListViewTable> {
           final bType = b.isDirectory ? 'Dossier' : _getFileType(b.name);
           comparison = aType.compareTo(bType);
           break;
+        case FileColumn.dateCreated:
+          comparison = (a.created ?? DateTime(1970))
+              .compareTo(b.created ?? DateTime(1970));
+          break;
+        case FileColumn.dateAccessed:
+          comparison = (a.accessed ?? DateTime(1970))
+              .compareTo(b.accessed ?? DateTime(1970));
+          break;
+        case FileColumn.permissions:
+          comparison = (a.mode ?? 0).compareTo(b.mode ?? 0);
+          break;
+        case FileColumn.tags:
+          comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          break;
         default:
           comparison = 0;
       }
@@ -223,6 +276,7 @@ class _ListViewTableState extends State<ListViewTable> {
         _sortConfig = SortConfig(column: column, order: SortOrder.ascending);
       }
     });
+    _saveSortPreferences();
   }
 
   void _resizeColumn(int index, double delta) {
@@ -296,6 +350,18 @@ class _ListViewTableState extends State<ListViewTable> {
     }
   }
 
+  String _formatPermissions(int? mode) {
+    if (mode == null) return '—';
+    final perms = mode & 0x1FF;
+    String triplet(int shift) {
+      final r = ((perms >> shift) & 0x4) != 0 ? 'r' : '-';
+      final w = ((perms >> shift) & 0x2) != 0 ? 'w' : '-';
+      final x = ((perms >> shift) & 0x1) != 0 ? 'x' : '-';
+      return '$r$w$x';
+    }
+    return '${triplet(6)}${triplet(3)}${triplet(0)}';
+  }
+
   String _getCellValue(FileEntry entry, FileColumn column) {
     switch (column) {
       case FileColumn.name:
@@ -306,6 +372,14 @@ class _ListViewTableState extends State<ListViewTable> {
         return _formatDate(entry.lastModified);
       case FileColumn.kind:
         return entry.isDirectory ? 'Dossier' : _getFileType(entry.name);
+      case FileColumn.dateCreated:
+        return _formatDate(entry.created);
+      case FileColumn.dateAccessed:
+        return _formatDate(entry.accessed);
+      case FileColumn.permissions:
+        return _formatPermissions(entry.mode);
+      case FileColumn.tags:
+        return '—';
       default:
         return '—';
     }

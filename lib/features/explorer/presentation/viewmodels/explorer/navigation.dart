@@ -24,6 +24,9 @@ extension ExplorerNavigationOps on ExplorerViewModel {
           name: p.basename(targetPath),
           path: targetPath,
           isDirectory: false,
+          created: null,
+          accessed: null,
+          mode: null,
         ),
         pushHistory: pushHistory,
       );
@@ -132,6 +135,9 @@ extension ExplorerNavigationOps on ExplorerViewModel {
                   isDirectory: entity is Directory,
                   size: stat.size,
                   lastModified: stat.modified,
+                  created: stat.changed,
+                  accessed: stat.accessed,
+                  mode: stat.mode,
                 ),
               );
             }

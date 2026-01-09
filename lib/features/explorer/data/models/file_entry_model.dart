@@ -9,6 +9,9 @@ class FileEntryModel extends FileEntry {
     required super.isDirectory,
     super.size,
     super.lastModified,
+    super.created,
+    super.accessed,
+    super.mode,
     super.isApplication = false,
     super.iconPath,
   });
@@ -25,6 +28,9 @@ class FileEntryModel extends FileEntry {
       isDirectory: stat.type == FileSystemEntityType.directory,
       size: stat.size,
       lastModified: stat.modified,
+      created: stat.changed,
+      accessed: stat.accessed,
+      mode: stat.mode,
       isApplication: isAppBundle,
       iconPath: isAppBundle ? _findAppIcon(entity.path) : null,
     );

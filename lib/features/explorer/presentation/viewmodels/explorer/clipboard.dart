@@ -57,6 +57,9 @@ extension ExplorerClipboardOps on ExplorerViewModel {
         isDirectory: entry.isDirectory,
         size: entry.size,
         lastModified: entry.lastModified,
+        created: entry.created,
+        accessed: entry.accessed,
+        mode: entry.mode,
         isApplication: entry.isApplication,
         iconPath: entry.iconPath,
       );

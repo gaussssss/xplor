@@ -5,6 +5,9 @@ class FileEntry {
     required this.isDirectory,
     this.size,
     this.lastModified,
+    this.created,
+    this.accessed,
+    this.mode,
     this.isApplication = false,
     this.iconPath,
   });
@@ -14,6 +17,9 @@ class FileEntry {
   final bool isDirectory;
   final int? size;
   final DateTime? lastModified;
+  final DateTime? created;
+  final DateTime? accessed;
+  final int? mode;
   final bool isApplication;
   final String? iconPath;
 }

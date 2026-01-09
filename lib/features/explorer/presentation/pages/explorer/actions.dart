@@ -709,6 +709,9 @@ extension _ExplorerPageActions on _ExplorerPageState {
       name: p.basename(path),
       path: path,
       isDirectory: Directory(path).existsSync(),
+      created: null,
+      accessed: null,
+      mode: null,
     );
     await _viewModel.openInFinder(entry);
   }

@@ -38,6 +38,9 @@ class LocalFileSystemDataSource implements FileSystemDataSource {
             isDirectory: isDir,
             size: null, // Taille inconnue
             lastModified: null, // Date inconnue
+            created: null,
+            accessed: null,
+            mode: null,
             isApplication: false,
             iconPath: null,
           ));

@@ -283,26 +283,61 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Widget _buildSearchToggle() {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final isLight = theme.brightness == Brightness.light;
+    final textColor = onSurface.withValues(alpha: isLight ? 0.9 : 0.95);
+    final hintColor = onSurface.withValues(alpha: isLight ? 0.5 : 0.6);
+    final iconColor = onSurface.withValues(alpha: isLight ? 0.75 : 0.8);
+    final bgColor = isLight
+        ? Colors.white.withValues(alpha: 0.9)
+        : Colors.black.withValues(alpha: 0.4);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: _isSearchExpanded ? 260 : 48,
       child: _isSearchExpanded
-          ? TextField(
-              focusNode: _searchFocusNode,
-              controller: _searchController,
-              onChanged: _viewModel.updateSearch,
-              onSubmitted: _viewModel.updateSearch,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(lucide.LucideIcons.search),
-                hintText: 'Recherche',
-                suffixIcon: IconButton(
-                  icon: const Icon(lucide.LucideIcons.x),
-                  onPressed: () {
-                    setState(() => _isSearchExpanded = false);
-                    _searchFocusNode.unfocus();
-                  },
-                  tooltip: 'Fermer la recherche',
+          ? Container(
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: onSurface.withValues(alpha: 0.15),
+                  width: 1,
+                ),
+              ),
+              child: TextField(
+                focusNode: _searchFocusNode,
+                controller: _searchController,
+                onChanged: _viewModel.updateSearch,
+                onSubmitted: _viewModel.updateSearch,
+                style: TextStyle(fontSize: 14, color: textColor),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(
+                    lucide.LucideIcons.search,
+                    color: iconColor,
+                    size: 18,
+                  ),
+                  hintText: 'Recherche',
+                  hintStyle: TextStyle(color: hintColor, fontSize: 13),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      lucide.LucideIcons.x,
+                      color: iconColor,
+                      size: 16,
+                    ),
+                    onPressed: () {
+                      setState(() => _isSearchExpanded = false);
+                      _searchFocusNode.unfocus();
+                    },
+                    tooltip: 'Fermer la recherche',
+                  ),
                 ),
               ),
             )
@@ -785,7 +820,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                 const SizedBox(height: 8),
                                               ],
                                               GlassPanelV2(
-                                                level: GlassPanelLevel.tertiary,
+                                                level: GlassPanelLevel.secondary,
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                       horizontal: 12,
