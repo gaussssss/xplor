@@ -1464,6 +1464,19 @@ extension _ExplorerPageActions on _ExplorerPageState {
     final isLocked = _viewModel.isLockedPath(targetPath);
     final stat = await FileStat.stat(targetPath);
     final size = entry?.size ?? (isDirectory ? null : stat.size);
+    final accessed = stat.accessed;
+    final permissionString = _formatPermissions(stat.mode);
+    int? childrenCount;
+    if (isDirectory) {
+      try {
+        childrenCount = Directory(targetPath).listSync().length;
+      } catch (_) {
+        childrenCount = null;
+      }
+    }
+    final ext = isDirectory ? '—' : p.extension(name).replaceFirst('.', '').toUpperCase();
+    final tagLabel = entry?.tag ?? _viewModel.tagForPath(targetPath);
+    final tagColor = _tagColorForLabel(tagLabel);
 
     if (!mounted) return;
     await showDialog<void>(
@@ -1486,12 +1499,67 @@ extension _ExplorerPageActions on _ExplorerPageState {
                       ? 'Fichier verrouille (.xplrlock)'
                       : 'Fichier',
                 ),
+                _buildPropertyRow('Extension', ext.isEmpty ? '—' : '.$ext'),
+                if (childrenCount != null)
+                  _buildPropertyRow(
+                    'Éléments',
+                    '$childrenCount',
+                  ),
                 _buildPropertyRow(
                   'Taille',
                   size == null ? '-' : _formatBytes(size),
                 ),
                 _buildPropertyRow('Modifie', _formatDate(stat.modified)),
                 _buildPropertyRow('Cree', _formatDate(stat.changed)),
+                _buildPropertyRow('Accede', _formatDate(accessed)),
+                _buildPropertyRow('Permissions', permissionString),
+                if (tagLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 90,
+                          child: Text(
+                            'Tag',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.7),
+                                ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: tagColor ?? Colors.grey,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.12),
+                                  width: 0.8,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              tagLabel,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 Text(
                   'Emplacement',
@@ -1500,9 +1568,24 @@ extension _ExplorerPageActions on _ExplorerPageState {
                   ),
                 ),
                 const SizedBox(height: 4),
-                SelectableText(
-                  targetPath,
-                  style: Theme.of(context).textTheme.bodySmall,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        targetPath,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Copier le chemin',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: targetPath));
+                        _showToast('Chemin copie');
+                      },
+                      icon: const Icon(lucide.LucideIcons.copy, size: 16),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1565,6 +1648,39 @@ extension _ExplorerPageActions on _ExplorerPageState {
     final two = (int v) => v.toString().padLeft(2, '0');
     return '${local.year}-${two(local.month)}-${two(local.day)} '
         '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  String _formatPermissions(int mode) {
+    final perms = mode & 0x1FF;
+    String triplet(int shift) {
+      final r = ((perms >> shift) & 0x4) != 0 ? 'r' : '-';
+      final w = ((perms >> shift) & 0x2) != 0 ? 'w' : '-';
+      final x = ((perms >> shift) & 0x1) != 0 ? 'x' : '-';
+      return '$r$w$x';
+    }
+
+    return '${triplet(6)} ${triplet(3)} ${triplet(0)}';
+  }
+
+  Color? _tagColorForLabel(String? tag) {
+    switch (tag) {
+      case 'Rouge':
+        return Colors.redAccent;
+      case 'Orange':
+        return Colors.orangeAccent;
+      case 'Jaune':
+        return Colors.amberAccent;
+      case 'Vert':
+        return Colors.lightGreenAccent;
+      case 'Bleu':
+        return Colors.lightBlueAccent;
+      case 'Violet':
+        return Colors.purpleAccent;
+      case 'Gris':
+        return Colors.grey;
+      default:
+        return null;
+    }
   }
 
   Future<void> _lockEntry(FileEntry entry) async {

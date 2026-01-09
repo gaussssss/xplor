@@ -9,6 +9,7 @@ DONE
 10. Ajouter une demande d'accès aux fichiers (comme la demande d'accès aux notifications sur mobile)
 11. Gérer le système de tags (si possible en exploitant le système de tags d'Apple existant)
 
+
 TO-DO
 
 1.  Permettre le drag and drop de l'application vers d'autres systèmes comme finder, ou autres

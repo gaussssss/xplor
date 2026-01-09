@@ -917,8 +917,11 @@ class _BuildChipState extends State<_BuildChip> {
     try {
       final info = await PackageInfo.fromPlatform();
       if (!mounted) return;
+      final version = info.version;
+      final build = info.buildNumber;
+      final normalized = build == version ? version : '$version+$build';
       setState(() {
-        _label = '${info.version}+${info.buildNumber}';
+        _label = normalized;
       });
     } catch (_) {
       if (!mounted) return;
