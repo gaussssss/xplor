@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -397,16 +396,16 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
-    final bgPath = themeProvider.backgroundImagePath;
-    final hasImage = bgPath != null && File(bgPath).existsSync();
+    final hasImage = themeProvider.hasBackgroundImage;
+    final bgImage = themeProvider.backgroundImageProvider;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: Stack(
         children: [
-          if (hasImage)
+          if (hasImage && bgImage != null)
             Positioned.fill(
-              child: Image.file(File(bgPath!), fit: BoxFit.cover),
+              child: Image(image: bgImage, fit: BoxFit.cover),
             ),
           const Positioned(top: -140, left: -120, child: _HelpGlow(size: 360)),
           const Positioned(

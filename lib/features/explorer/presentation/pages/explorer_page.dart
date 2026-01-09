@@ -503,9 +503,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
       animation: _viewModel,
       builder: (context, _) {
         final themeProvider = context.watch<ThemeProvider>();
-        final bgImagePath = themeProvider.backgroundImagePath;
-        final hasBgImage =
-            bgImagePath != null && File(bgImagePath).existsSync();
+        final hasBgImage = themeProvider.hasBackgroundImage;
+        final bgImage = themeProvider.backgroundImageProvider;
         final isLight = themeProvider.isLight;
         final theme = Theme.of(context);
         final bgColor = hasBgImage
@@ -605,11 +604,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     body: Stack(
                       children: [
                         // Background image
-                        if (hasBgImage)
+                        if (hasBgImage && bgImage != null)
                           Container(
                             decoration: BoxDecoration(
                               image: DecorationImage(
-                                image: FileImage(File(bgImagePath)),
+                                image: bgImage,
                                 fit: BoxFit.cover,
                               ),
                             ),

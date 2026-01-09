@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -152,17 +151,17 @@ class _HelpPageState extends State<HelpPage>
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final isLight = themeProvider.isLight;
-    final bgImagePath = themeProvider.backgroundImagePath;
-    final hasBgImage = bgImagePath != null && File(bgImagePath).existsSync();
+    final hasBgImage = themeProvider.hasBackgroundImage;
+    final bgImage = themeProvider.backgroundImageProvider;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          if (hasBgImage)
+          if (hasBgImage && bgImage != null)
             Positioned.fill(
-              child: Image.file(File(bgImagePath), fit: BoxFit.cover),
+              child: Image(image: bgImage, fit: BoxFit.cover),
             ),
           if (hasBgImage)
             Positioned.fill(

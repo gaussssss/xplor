@@ -1,9 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/widgets/appearance_settings_dialog_v2.dart' as settings;
@@ -29,8 +31,8 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const String _paletteKey = 'selected_color_palette';
   static const String _backgroundColorKey = 'selected_background_color';
   static const String _backgroundImageKey = 'selected_background_image';
-  static const String _backgroundFolderKey = 'selected_background_folder';
-  static const String _backgroundTypeKey = 'background_type';
+  static const String _backgroundThemeKey = 'background_theme_id';
+  static const String _backgroundImageIndexKey = 'background_image_index';
   static const String _backgroundRefreshPeriodKey = 'background_refresh_period';
   static const String _lastBackgroundChangeKey = 'last_background_change';
   static const String _themeModeKey = 'theme_mode';
@@ -38,21 +40,26 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const String _useGlassmorphismKey = 'use_glassmorphism';
   static const String _blurIntensityKey = 'blur_intensity';
   static const String _showAnimationsKey = 'show_animations';
-  static const String _mockBackgroundFolder = '/Volumes/Datas/Backgrounds';
+  static const String _defaultThemeId = 'green';
+  static const String _backgroundThemesAsset =
+      'assets/themes/background_themes.json';
 
   /// Palette actuellement active
   ColorPalette _currentPalette = ColorPalette.warmSunset;
   Color _backgroundColor = DesignTokens.background;
   String? _backgroundImagePath;
-  String? _backgroundFolderPath;
+  String? _backgroundImageAttribution;
+  List<BackgroundTheme> _backgroundThemes = [];
+  String? _backgroundThemeId;
+  int _backgroundImageIndex = 0;
   bool _isLight = false;
   BackgroundRefreshPeriod _backgroundRefreshPeriod =
       BackgroundRefreshPeriod.none;
   DateTime? _lastBackgroundChange;
+  Timer? _backgroundRefreshTimer;
 
   /// Nouveaux paramètres d'apparence
   settings.ThemeMode _themeModePreference = settings.ThemeMode.adaptive;
-  settings.BackgroundType _backgroundType = settings.BackgroundType.none;
   bool _useGlassmorphism = true;
   double _blurIntensity = 10.0;
   bool _showAnimations = true;
@@ -82,6 +89,25 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Image de fond locale copiée dans l'app (si présente)
   String? get backgroundImagePath => _backgroundImagePath;
+  String? get backgroundImageAttribution => _backgroundImageAttribution;
+
+  bool get hasBackgroundImage =>
+      _backgroundImagePath != null &&
+      (_backgroundImagePath!.startsWith('assets/') ||
+          File(_backgroundImagePath!).existsSync());
+
+  ImageProvider? get backgroundImageProvider {
+    final path = _backgroundImagePath;
+    if (path == null) return null;
+    if (path.startsWith('assets/')) {
+      return AssetImage(path);
+    }
+    final file = File(path);
+    if (file.existsSync()) {
+      return FileImage(file);
+    }
+    return null;
+  }
 
   /// Mode clair ou non
   bool get isLight => _isLight;
@@ -108,8 +134,16 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Nouveaux getters pour les paramètres d'apparence
   settings.ThemeMode get themeModePreference => _themeModePreference;
-  settings.BackgroundType get backgroundType => _backgroundType;
-  String? get backgroundFolderPath => _backgroundFolderPath;
+  List<BackgroundTheme> get backgroundThemes => _backgroundThemes;
+  String? get backgroundThemeId => _backgroundThemeId;
+  int get backgroundImageIndex => _backgroundImageIndex;
+  BackgroundTheme? get selectedBackgroundTheme {
+    for (final theme in _backgroundThemes) {
+      if (theme.id == _backgroundThemeId) return theme;
+    }
+    return null;
+  }
+
   bool get useGlassmorphism => _useGlassmorphism;
   double get blurIntensity => _blurIntensity;
   bool get showAnimations => _showAnimations;
@@ -180,36 +214,16 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     await prefs.setInt(_backgroundColorKey, color.value);
   }
 
-  Future<void> setBackgroundImage(File file) async {
-    try {
-      final supportDir = await getApplicationSupportDirectory();
-      final bgDir = Directory('${supportDir.path}/backgrounds');
-      if (!bgDir.existsSync()) {
-        bgDir.createSync(recursive: true);
-      }
-      final name = file.uri.pathSegments.isNotEmpty
-          ? file.uri.pathSegments.last
-          : 'bg';
-      final dest = File(
-        '${bgDir.path}/bg_${DateTime.now().millisecondsSinceEpoch}_$name',
-      );
-      await file.copy(dest.path);
-      _backgroundImagePath = dest.path;
-      _lastBackgroundChange = DateTime.now();
-      notifyListeners();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_backgroundImageKey, dest.path);
-      await _saveLastBackgroundChange();
-    } catch (e) {
-      debugPrint('❌ ThemeProvider: error copying background image: $e');
-    }
-  }
-
   Future<void> clearBackgroundImage() async {
     _backgroundImagePath = null;
+    _backgroundImageAttribution = null;
+    _backgroundThemeId = null;
+    _backgroundImageIndex = 0;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_backgroundImageKey);
+    await prefs.remove(_backgroundThemeKey);
+    await prefs.remove(_backgroundImageIndexKey);
   }
 
   Future<void> setLightMode(bool value) async {
@@ -255,39 +269,68 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _backgroundRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  Future<void> setBackgroundType(settings.BackgroundType type) async {
-    if (_backgroundType == type) return;
-    _backgroundType = type;
+  Future<void> setBackgroundTheme(String? themeId) async {
+    if (_backgroundThemeId == themeId) return;
+    _backgroundThemeId = themeId;
+    _backgroundImageIndex = 0;
+    _applyThemeImage();
+    _lastBackgroundChange = DateTime.now();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_backgroundTypeKey, type.index);
+    if (themeId == null) {
+      await prefs.remove(_backgroundThemeKey);
+      await prefs.remove(_backgroundImageIndexKey);
+    } else {
+      await prefs.setString(_backgroundThemeKey, themeId);
+      await prefs.setInt(_backgroundImageIndexKey, _backgroundImageIndex);
+    }
+    await _saveLastBackgroundChange();
+    _scheduleBackgroundRefreshTimer();
   }
 
-  Future<void> setBackgroundFolder(String folderPath) async {
-    _backgroundFolderPath = folderPath;
+  Future<void> setBackgroundImageIndex(int index) async {
+    final theme = selectedBackgroundTheme;
+    if (theme == null) return;
+    final nextIndex = index.clamp(0, theme.images.length - 1);
+    if (_backgroundImageIndex == nextIndex) return;
+    _backgroundImageIndex = nextIndex;
+    _applyThemeImage();
+    _lastBackgroundChange = DateTime.now();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_backgroundFolderKey, folderPath);
+    await prefs.setInt(_backgroundImageIndexKey, _backgroundImageIndex);
+    await _saveLastBackgroundChange();
+    _scheduleBackgroundRefreshTimer();
+  }
 
-    // Charger une image aléatoire depuis le dossier
-    await _applyRandomBackgroundFromFolder(folderPath);
+  Future<void> applyRandomThemeImage(String themeId) async {
+    final theme = _findThemeById(themeId);
+    if (theme == null || theme.images.isEmpty) return;
+    _backgroundThemeId = themeId;
+    _backgroundImageIndex = Random().nextInt(theme.images.length);
+    _applyThemeImage();
+    _lastBackgroundChange = DateTime.now();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_backgroundThemeKey, themeId);
+    await prefs.setInt(_backgroundImageIndexKey, _backgroundImageIndex);
+    await _saveLastBackgroundChange();
+    _scheduleBackgroundRefreshTimer();
   }
 
   /// Force un nouvel arrière-plan aléatoire.
   /// - Si un dossier est configuré, on pioche dedans.
   /// - Sinon on tente le dossier mock si présent.
   Future<void> refreshRandomBackground() async {
-    if (_backgroundFolderPath != null) {
-      await _applyRandomBackgroundFromFolder(_backgroundFolderPath!);
-      _lastBackgroundChange = DateTime.now();
-      await _saveLastBackgroundChange();
-    } else {
-      await _applyRandomMockBackgroundIfPresent();
-    }
+    final theme = selectedBackgroundTheme;
+    if (theme == null || theme.images.isEmpty) return;
+    final randomIndex = Random().nextInt(theme.images.length);
+    await setBackgroundImageIndex(randomIndex);
   }
 
   Future<void> setUseGlassmorphism(bool value) async {
@@ -323,13 +366,13 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_backgroundRefreshPeriodKey, period.index);
     await checkAndRefreshBackgroundIfDue();
+    _scheduleBackgroundRefreshTimer();
   }
 
   /// Vérifie si la période est dépassée et relance un fond aléatoire si besoin.
   Future<void> checkAndRefreshBackgroundIfDue() async {
-    if (_backgroundType != settings.BackgroundType.imageFolder ||
-        _backgroundFolderPath == null)
-      return;
+    final theme = selectedBackgroundTheme;
+    if (theme == null || theme.images.isEmpty) return;
     if (_backgroundRefreshPeriod == BackgroundRefreshPeriod.none) return;
 
     final now = DateTime.now();
@@ -337,7 +380,8 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     final duration = _periodToDuration(_backgroundRefreshPeriod);
 
     if (last == null || now.difference(last) >= duration) {
-      await refreshRandomBackground();
+      final nextIndex = (_backgroundImageIndex + 1) % theme.images.length;
+      await setBackgroundImageIndex(nextIndex);
     }
   }
 
@@ -408,10 +452,6 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       if (savedBg != null) {
         _backgroundColor = Color(savedBg);
       }
-      final savedImage = prefs.getString(_backgroundImageKey);
-      if (savedImage != null && savedImage.isNotEmpty) {
-        _backgroundImagePath = savedImage;
-      }
       final savedLight = prefs.getBool(_lightModeKey);
       if (savedLight != null) {
         _isLight = savedLight;
@@ -430,15 +470,22 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         _themeModePreference = settings.ThemeMode.values[savedThemeMode];
       }
 
-      final savedBackgroundType = prefs.getInt(_backgroundTypeKey);
-      if (savedBackgroundType != null &&
-          savedBackgroundType < settings.BackgroundType.values.length) {
-        _backgroundType = settings.BackgroundType.values[savedBackgroundType];
+      await _loadBackgroundThemes();
+      final savedThemeId = prefs.getString(_backgroundThemeKey);
+      if (savedThemeId != null &&
+          _backgroundThemes.any((theme) => theme.id == savedThemeId)) {
+        _backgroundThemeId = savedThemeId;
+      } else if (_backgroundThemes.any(
+        (theme) => theme.id == _defaultThemeId,
+      )) {
+        _backgroundThemeId = _defaultThemeId;
+      } else if (_backgroundThemes.isNotEmpty) {
+        _backgroundThemeId = _backgroundThemes.first.id;
       }
 
-      final savedBackgroundFolder = prefs.getString(_backgroundFolderKey);
-      if (savedBackgroundFolder != null && savedBackgroundFolder.isNotEmpty) {
-        _backgroundFolderPath = savedBackgroundFolder;
+      final savedImageIndex = prefs.getInt(_backgroundImageIndexKey);
+      if (savedImageIndex != null) {
+        _backgroundImageIndex = savedImageIndex;
       }
 
       final savedRefreshPeriod = prefs.getInt(_backgroundRefreshPeriodKey);
@@ -481,20 +528,11 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
             : _backgroundFor(_currentPalette);
       }
 
-      // Appliquer le fond selon le type configuré
-      if (_backgroundType == settings.BackgroundType.imageFolder &&
-          _backgroundFolderPath != null) {
-        await _applyRandomBackgroundFromFolder(_backgroundFolderPath!);
-        _lastBackgroundChange ??= DateTime.now();
-        await _saveLastBackgroundChange();
-        await checkAndRefreshBackgroundIfDue();
-      } else if (_backgroundType == settings.BackgroundType.none ||
-          _backgroundImagePath == null) {
-        // Si aucun fond configuré et aucune image, tenter le dossier mock (pour tests)
-        if (_backgroundType == settings.BackgroundType.none) {
-          await _applyRandomMockBackgroundIfPresent();
-        }
-      }
+      _applyThemeImage();
+      _lastBackgroundChange ??= DateTime.now();
+      await _saveLastBackgroundChange();
+      await checkAndRefreshBackgroundIfDue();
+      _scheduleBackgroundRefreshTimer();
     } catch (e) {
       debugPrint('❌ ThemeProvider: Error loading palette: $e');
       // En cas d'erreur, garder la palette par défaut
@@ -518,65 +556,60 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Charge aléatoirement une image depuis le dossier mock s'il existe
-  Future<void> _applyRandomMockBackgroundIfPresent() async {
+  Future<void> _loadBackgroundThemes() async {
     try {
-      final dir = Directory(_mockBackgroundFolder);
-      if (!dir.existsSync()) return;
-      final images = dir.listSync().whereType<File>().where((f) {
-        final lower = f.path.toLowerCase();
-        return lower.endsWith('.jpg') ||
-            lower.endsWith('.jpeg') ||
-            lower.endsWith('.png') ||
-            lower.endsWith('.webp');
-      }).toList();
-      if (images.isEmpty) return;
-      final file = images[Random().nextInt(images.length)];
-      await setBackgroundImage(file);
-      if (FeatureFlags.debugThemeChanges) {
-        debugPrint(
-          '🖼️ ThemeProvider: mock background applied from ${file.path}',
-        );
-      }
+      final raw = await rootBundle.loadString(_backgroundThemesAsset);
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final themesJson = decoded['themes'] as List<dynamic>? ?? const [];
+      _backgroundThemes = themesJson
+          .map((item) => BackgroundTheme.fromJson(item as Map<String, dynamic>))
+          .where((theme) => theme.images.isNotEmpty)
+          .toList();
     } catch (e) {
-      debugPrint('❌ ThemeProvider: Error applying mock background: $e');
+      debugPrint('❌ ThemeProvider: Error loading background themes: $e');
+      _backgroundThemes = [];
     }
   }
 
-  /// Charge aléatoirement une image depuis un dossier personnalisé
-  Future<void> _applyRandomBackgroundFromFolder(String folderPath) async {
-    try {
-      final dir = Directory(folderPath);
-      if (!dir.existsSync()) {
-        debugPrint('❌ ThemeProvider: Folder does not exist: $folderPath');
-        return;
-      }
-
-      final images = dir.listSync().whereType<File>().where((f) {
-        final lower = f.path.toLowerCase();
-        return lower.endsWith('.jpg') ||
-            lower.endsWith('.jpeg') ||
-            lower.endsWith('.png') ||
-            lower.endsWith('.webp') ||
-            lower.endsWith('.gif');
-      }).toList();
-
-      if (images.isEmpty) {
-        debugPrint('❌ ThemeProvider: No images found in folder: $folderPath');
-        return;
-      }
-
-      final file = images[Random().nextInt(images.length)];
-      await setBackgroundImage(file);
-
-      if (FeatureFlags.debugThemeChanges) {
-        debugPrint(
-          '🖼️ ThemeProvider: Random background from folder: ${file.path}',
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ ThemeProvider: Error applying random background: $e');
+  void _applyThemeImage() {
+    final theme = selectedBackgroundTheme;
+    if (theme == null || theme.images.isEmpty) {
+      _backgroundImagePath = null;
+      _backgroundImageAttribution = null;
+      return;
     }
+    final index = _backgroundImageIndex.clamp(0, theme.images.length - 1);
+    final image = theme.images[index];
+    _backgroundImagePath = image.path;
+    _backgroundImageAttribution = image.attribution;
+  }
+
+  void _scheduleBackgroundRefreshTimer() {
+    _backgroundRefreshTimer?.cancel();
+    if (_backgroundRefreshPeriod == BackgroundRefreshPeriod.none) return;
+    final theme = selectedBackgroundTheme;
+    if (theme == null || theme.images.isEmpty) return;
+
+    final duration = _periodToDuration(_backgroundRefreshPeriod);
+    if (duration == Duration.zero) return;
+
+    final last = _lastBackgroundChange ?? DateTime.now();
+    var delay = duration - DateTime.now().difference(last);
+    if (delay.isNegative) {
+      delay = Duration.zero;
+    }
+
+    _backgroundRefreshTimer = Timer(delay, () async {
+      await checkAndRefreshBackgroundIfDue();
+      _scheduleBackgroundRefreshTimer();
+    });
+  }
+
+  BackgroundTheme? _findThemeById(String themeId) {
+    for (final theme in _backgroundThemes) {
+      if (theme.id == themeId) return theme;
+    }
+    return null;
   }
 
   Future<void> _saveLastBackgroundChange() async {
@@ -603,5 +636,49 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       default:
         return Duration.zero;
     }
+  }
+}
+
+class BackgroundThemeImage {
+  const BackgroundThemeImage({required this.path, required this.attribution});
+
+  final String path;
+  final String attribution;
+
+  factory BackgroundThemeImage.fromJson(Map<String, dynamic> json) {
+    return BackgroundThemeImage(
+      path: json['path'] as String? ?? '',
+      attribution: json['attribution'] as String? ?? '',
+    );
+  }
+}
+
+class BackgroundTheme {
+  const BackgroundTheme({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.images,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final List<BackgroundThemeImage> images;
+
+  factory BackgroundTheme.fromJson(Map<String, dynamic> json) {
+    final imagesJson = json['images'] as List<dynamic>? ?? const [];
+    return BackgroundTheme(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      images: imagesJson
+          .map(
+            (item) =>
+                BackgroundThemeImage.fromJson(item as Map<String, dynamic>),
+          )
+          .where((image) => image.path.isNotEmpty)
+          .toList(),
+    );
   }
 }

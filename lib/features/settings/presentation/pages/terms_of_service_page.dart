@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -72,15 +71,13 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
       parent: _controller,
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     );
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.12, 1.0, curve: Curves.easeOutCubic),
-      ),
-    );
+    _slideUp = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.12, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
     _bounce = Tween<double>(begin: 0.9, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
@@ -100,14 +97,14 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
-    final bgImagePath = themeProvider.backgroundImagePath;
-    final hasBgImage = bgImagePath != null && File(bgImagePath).existsSync();
+    final hasBgImage = themeProvider.hasBackgroundImage;
+    final bgImage = themeProvider.backgroundImageProvider;
     final isLight = themeProvider.isLight;
 
     final adjustedSurface = hasBgImage
         ? (isLight
-            ? Colors.white.withValues(alpha: 0.9)
-            : Colors.black.withValues(alpha: 0.7))
+              ? Colors.white.withValues(alpha: 0.9)
+              : Colors.black.withValues(alpha: 0.7))
         : theme.colorScheme.surface;
     final adjustedOnSurface = hasBgImage && isLight
         ? Colors.black
@@ -146,13 +143,10 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
                   ),
                 ),
               ),
-            if (hasBgImage)
+            if (hasBgImage && bgImage != null)
               Container(
                 decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: FileImage(File(bgImagePath)),
-                    fit: BoxFit.cover,
-                  ),
+                  image: DecorationImage(image: bgImage, fit: BoxFit.cover),
                 ),
               ),
             if (hasBgImage)
@@ -164,7 +158,10 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
             _DecorativeBackdrop(isLight: isLight),
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 980),
@@ -183,7 +180,8 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
                             Expanded(
                               child: SingleChildScrollView(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     ScaleTransition(
                                       scale: _bounce,
@@ -238,10 +236,7 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
 }
 
 class _TermsSection {
-  const _TermsSection({
-    required this.title,
-    required this.body,
-  });
+  const _TermsSection({required this.title, required this.body});
 
   final String title;
   final String body;
@@ -309,10 +304,7 @@ class _HeaderBar extends StatelessWidget {
 }
 
 class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({
-    required this.isLight,
-    required this.lastUpdated,
-  });
+  const _HeroPanel({required this.isLight, required this.lastUpdated});
 
   final bool isLight;
   final String lastUpdated;
@@ -389,10 +381,7 @@ class _HeroPanel extends StatelessWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.section,
-    required this.isLight,
-  });
+  const _SectionCard({required this.section, required this.isLight});
 
   final _TermsSection section;
   final bool isLight;
@@ -467,10 +456,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _ActionBar extends StatelessWidget {
-  const _ActionBar({
-    required this.isLight,
-    required this.onClose,
-  });
+  const _ActionBar({required this.isLight, required this.onClose});
 
   final bool isLight;
   final VoidCallback onClose;

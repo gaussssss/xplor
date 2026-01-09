@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -8,13 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/theme_provider.dart';
 import '../theme/color_palettes.dart';
-import 'mini_explorer_dialog.dart';
 
 /// Mode de thème (clair, sombre, adaptatif)
 enum ThemeMode { light, dark, adaptive }
-
-/// Type de fond (aucun, couleur, image, dossier d'images)
-enum BackgroundType { none, color, singleImage, imageFolder }
 
 /// Dialog moderne et responsive pour configurer l'apparence
 class AppearanceSettingsDialogV2 extends StatefulWidget {
@@ -28,15 +25,19 @@ class AppearanceSettingsDialogV2 extends StatefulWidget {
 class _AppearanceSettingsDialogV2State
     extends State<AppearanceSettingsDialogV2> {
   late ThemeMode _themeMode;
-  late BackgroundType _backgroundType;
-  String? _backgroundImagePath;
-  String? _backgroundFolderPath;
+  String? _selectedThemeId;
   late bool _useGlassmorphism;
   late double _blurIntensity;
   late bool _showAnimations;
   late BackgroundRefreshPeriod _backgroundRefreshPeriod;
   bool _isMultiSelectionMode = false;
-  bool _hoverChangeImage = false;
+  final PageController _previewController = PageController(
+    viewportFraction: 0.85,
+  );
+  Timer? _previewTimer;
+  int _previewIndex = 0;
+  String? _previewThemeId;
+  int _previewLength = 0;
 
   @override
   void initState() {
@@ -44,9 +45,7 @@ class _AppearanceSettingsDialogV2State
     final themeProvider = context.read<ThemeProvider>();
 
     _themeMode = themeProvider.themeModePreference;
-    _backgroundType = themeProvider.backgroundType;
-    _backgroundImagePath = themeProvider.backgroundImagePath;
-    _backgroundFolderPath = themeProvider.backgroundFolderPath;
+    _selectedThemeId = themeProvider.backgroundThemeId;
     _useGlassmorphism = themeProvider.useGlassmorphism;
     _blurIntensity = themeProvider.blurIntensity;
     _showAnimations = themeProvider.showAnimations;
@@ -54,6 +53,13 @@ class _AppearanceSettingsDialogV2State
 
     // Charger le mode de sélection depuis SharedPreferences
     _loadSelectionMode();
+  }
+
+  @override
+  void dispose() {
+    _previewTimer?.cancel();
+    _previewController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSelectionMode() async {
@@ -157,9 +163,7 @@ class _AppearanceSettingsDialogV2State
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.15),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -388,52 +392,153 @@ class _AppearanceSettingsDialogV2State
     Color textColor,
     Color subtleTextColor,
   ) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final themes = themeProvider.backgroundThemes;
+    final hasThemes = themes.isNotEmpty;
+    final selectedTheme = themes.firstWhere(
+      (theme) => theme.id == _selectedThemeId,
+      orElse: () => themes.isNotEmpty
+          ? themes.first
+          : const BackgroundTheme(
+              id: '',
+              name: '',
+              description: '',
+              images: [],
+            ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle('Arrière-plan', LucideIcons.image, textColor),
         const SizedBox(height: 12),
-        _buildBackgroundTypeOption(
-          BackgroundType.none,
-          'Aucun',
-          'Fond uni sans image',
-          LucideIcons.ban,
-          isLight,
-          textColor,
-          subtleTextColor,
+        _buildThemePicker(
+          themes: themes,
+          selectedTheme: _selectedThemeId,
+          isLight: isLight,
+          textColor: textColor,
+          subtleTextColor: subtleTextColor,
         ),
-        const SizedBox(height: 8),
-        _buildBackgroundTypeOption(
-          BackgroundType.singleImage,
-          'Image unique',
-          'Une seule image en arrière-plan',
-          LucideIcons.image,
-          isLight,
-          textColor,
-          subtleTextColor,
-        ),
-        const SizedBox(height: 8),
-        _buildBackgroundTypeOption(
-          BackgroundType.imageFolder,
-          'Dossier d\'images',
-          'Images aléatoires depuis un dossier',
-          LucideIcons.folderOpen,
-          isLight,
-          textColor,
-          subtleTextColor,
-        ),
-        if (_backgroundType == BackgroundType.singleImage) ...[
+        if (hasThemes && _selectedThemeId != null) ...[
           const SizedBox(height: 12),
-          _buildImagePicker(isLight, textColor),
-        ],
-        if (_backgroundType == BackgroundType.imageFolder) ...[
-          const SizedBox(height: 12),
-          _buildFolderPicker(isLight, textColor),
+          _buildThemePreview(
+            theme: selectedTheme,
+            isLight: isLight,
+            textColor: textColor,
+            subtleTextColor: subtleTextColor,
+          ),
           const SizedBox(height: 12),
           _buildRefreshPeriodPicker(isLight, textColor, subtleTextColor),
         ],
       ],
     );
+  }
+
+  Widget _buildThemePicker({
+    required List<BackgroundTheme> themes,
+    required String? selectedTheme,
+    required bool isLight,
+    required Color textColor,
+    required Color subtleTextColor,
+  }) {
+    final selection = themes.firstWhere(
+      (theme) => theme.id == selectedTheme,
+      orElse: () => const BackgroundTheme(
+        id: '',
+        name: 'Aucun',
+        description: 'Fond uni sans image',
+        images: [],
+      ),
+    );
+    return InkWell(
+      onTap: () => _openThemePickerDialog(
+        themes: themes,
+        isLight: isLight,
+        textColor: textColor,
+        subtleTextColor: subtleTextColor,
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isLight
+              ? Colors.white.withValues(alpha: 0.8)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isLight
+                ? Colors.black.withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              LucideIcons.image,
+              size: 18,
+              color: textColor.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    selection.name.isEmpty ? 'Aucun' : selection.name,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  Text(
+                    selection.name.isEmpty
+                        ? 'Fond uni sans image'
+                        : selection.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: subtleTextColor),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              selectedTheme == null ? 'Aucun' : 'Thème',
+              style: TextStyle(fontSize: 11, color: subtleTextColor),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              LucideIcons.chevronDown,
+              size: 16,
+              color: textColor.withValues(alpha: 0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openThemePickerDialog({
+    required List<BackgroundTheme> themes,
+    required bool isLight,
+    required Color textColor,
+    required Color subtleTextColor,
+  }) async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return _ThemePickerDialog(
+          themes: themes,
+          selectedTheme: _selectedThemeId,
+          isLight: isLight,
+          textColor: textColor,
+          subtleTextColor: subtleTextColor,
+        );
+      },
+    );
+
+    if (selected == null) return;
+    setState(() => _selectedThemeId = selected.isEmpty ? null : selected);
   }
 
   Widget _buildAdvancedSection(
@@ -650,19 +755,19 @@ class _AppearanceSettingsDialogV2State
     );
   }
 
-  Widget _buildBackgroundTypeOption(
-    BackgroundType type,
-    String title,
-    String description,
-    IconData icon,
-    bool isLight,
-    Color textColor,
-    Color subtleTextColor,
-  ) {
-    final isSelected = _backgroundType == type;
-
+  Widget _buildThemeOption({
+    required String title,
+    required String description,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isLight,
+    required Color textColor,
+    required Color subtleTextColor,
+    String? trailing,
+  }) {
     return InkWell(
-      onTap: () => setState(() => _backgroundType = type),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -670,18 +775,14 @@ class _AppearanceSettingsDialogV2State
           color: isSelected
               ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
               : (isLight
-                    ? Colors.white.withValues(
-                        alpha: 0.8,
-                      ) // Fond blanc semi-opaque en mode clair
+                    ? Colors.white.withValues(alpha: 0.8)
                     : Colors.white.withValues(alpha: 0.04)),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
                 : (isLight
-                      ? Colors.black.withValues(
-                          alpha: 0.15,
-                        ) // Border plus visible en mode clair
+                      ? Colors.black.withValues(alpha: 0.15)
                       : Colors.white.withValues(alpha: 0.12)),
             width: isSelected ? 2 : 1,
           ),
@@ -717,11 +818,21 @@ class _AppearanceSettingsDialogV2State
                 ],
               ),
             ),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                trailing,
+                style: TextStyle(fontSize: 11, color: subtleTextColor),
+              ),
+            ],
             if (isSelected)
-              Icon(
-                LucideIcons.check,
-                size: 18,
-                color: Theme.of(context).colorScheme.primary,
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(
+                  LucideIcons.check,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
           ],
         ),
@@ -729,149 +840,141 @@ class _AppearanceSettingsDialogV2State
     );
   }
 
-  Widget _buildImagePicker(bool isLight, Color textColor) {
+  Widget _buildThemePreview({
+    required BackgroundTheme theme,
+    required bool isLight,
+    required Color textColor,
+    required Color subtleTextColor,
+  }) {
+    final previewImages = theme.images.take(3).toList();
+    if (previewImages.isEmpty) {
+      return Text(
+        'Aucune image de prévisualisation disponible.',
+        style: TextStyle(fontSize: 12, color: subtleTextColor),
+      );
+    }
+
+    if (_previewThemeId != theme.id) {
+      _previewThemeId = theme.id;
+      _previewIndex = 0;
+      if (_previewController.hasClients) {
+        _previewController.jumpToPage(0);
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_previewController.hasClients) {
+            _previewController.jumpToPage(0);
+          }
+        });
+      }
+    }
+    _ensurePreviewTimer(previewImages.length);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_backgroundImagePath != null) ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isLight
-                  ? Colors.white.withValues(
-                      alpha: 0.7,
-                    ) // Fond blanc semi-opaque en mode clair
-                  : Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  LucideIcons.fileImage,
-                  size: 16,
-                  color: textColor.withValues(alpha: 0.6),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _backgroundImagePath!.split('/').last,
-                    style: TextStyle(fontSize: 12, color: textColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        Text(
+          'Aperçu du thème',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 86,
+          child: PageView.builder(
+            itemCount: previewImages.length,
+            controller: _previewController,
+            onPageChanged: (index) => setState(() => _previewIndex = index),
+            itemBuilder: (context, index) {
+              final image = previewImages[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(image.path, fit: BoxFit.cover),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withValues(alpha: 0.15),
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.35),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 10,
+                        bottom: 8,
+                        child: Text(
+                          theme.name,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    LucideIcons.x,
-                    size: 14,
-                    color: textColor.withValues(alpha: 0.5),
-                  ),
-                  onPressed: () => setState(() => _backgroundImagePath = null),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
+              );
+            },
           ),
-          const SizedBox(height: 8),
-        ],
-        MouseRegion(
-          onEnter: (_) => setState(() => _hoverChangeImage = true),
-          onExit: (_) => setState(() => _hoverChangeImage = false),
-          child: AnimatedScale(
-            scale: _hoverChangeImage ? 1.02 : 1.0,
-            duration: const Duration(milliseconds: 120),
-            child: ElevatedButton.icon(
-              onPressed: _pickBackgroundImage,
-              icon: const Icon(LucideIcons.upload, size: 16),
-              label: Text(
-                _backgroundImagePath == null
-                    ? 'Choisir une image'
-                    : 'Changer l\'image',
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(previewImages.length, (index) {
+            final isActive = index == _previewIndex;
+            return InkWell(
+              onTap: () => _previewController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
               ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                height: 6,
+                width: isActive ? 16 : 6,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.15),
-                foregroundColor: Theme.of(context).colorScheme.primary,
-                overlayColor: Colors.transparent,
-                shadowColor: Colors.transparent,
               ),
-            ),
-          ),
+            );
+          }),
         ),
       ],
     );
   }
 
-  Widget _buildFolderPicker(bool isLight, Color textColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (_backgroundFolderPath != null) ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isLight
-                  ? Colors.white.withValues(
-                      alpha: 0.7,
-                    ) // Fond blanc semi-opaque en mode clair
-                  : Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  LucideIcons.folder,
-                  size: 16,
-                  color: textColor.withValues(alpha: 0.6),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _backgroundFolderPath!,
-                    style: TextStyle(fontSize: 12, color: textColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    LucideIcons.x,
-                    size: 14,
-                    color: textColor.withValues(alpha: 0.5),
-                  ),
-                  onPressed: () => setState(() => _backgroundFolderPath = null),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        ElevatedButton.icon(
-          onPressed: _pickBackgroundFolder,
-          icon: const Icon(LucideIcons.folderOpen, size: 16),
-          label: Text(
-            _backgroundFolderPath == null
-                ? 'Choisir un dossier'
-                : 'Changer le dossier',
-          ),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.15),
-            foregroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      ],
-    );
+  void _ensurePreviewTimer(int length) {
+    if (_previewLength == length && _previewTimer != null) return;
+    _previewTimer?.cancel();
+    _previewLength = length;
+    if (length <= 1) return;
+    _previewTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_previewController.hasClients) return;
+      final next = (_previewIndex + 1) % length;
+      _previewController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   Widget _buildToggleOption(
@@ -1049,60 +1152,13 @@ class _AppearanceSettingsDialogV2State
     );
   }
 
-  Future<void> _pickBackgroundImage() async {
-    final initialPath = _backgroundImagePath ??
-        (_backgroundFolderPath != null
-            ? Directory(_backgroundFolderPath!).path
-            : Directory.current.path);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => MiniExplorerDialog(
-        title: 'Choisir une image',
-        mode: MiniExplorerPickerMode.file,
-        initialPath: initialPath,
-        allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'],
-        confirmLabel: 'Choisir l\'image',
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() => _backgroundImagePath = result);
-    }
-  }
-
-  Future<void> _pickBackgroundFolder() async {
-    final initialPath = _backgroundFolderPath ??
-        (_backgroundImagePath != null
-            ? Directory(_backgroundImagePath!).parent.path
-            : Directory.current.path);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => MiniExplorerDialog(
-        title: 'Choisir un dossier d\'images',
-        mode: MiniExplorerPickerMode.directory,
-        initialPath: initialPath,
-        showFiles: false,
-        confirmLabel: 'Choisir ce dossier',
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() => _backgroundFolderPath = result);
-    }
-  }
-
   Future<void> _applySettings() async {
     final themeProvider = context.read<ThemeProvider>();
 
     await themeProvider.setThemeMode(_themeMode);
-    await themeProvider.setBackgroundType(_backgroundType);
+    await themeProvider.setBackgroundTheme(_selectedThemeId);
     await themeProvider.setBackgroundRefreshPeriod(_backgroundRefreshPeriod);
-
-    if (_backgroundType == BackgroundType.singleImage &&
-        _backgroundImagePath != null) {
-      await themeProvider.setBackgroundImage(File(_backgroundImagePath!));
-    } else if (_backgroundType == BackgroundType.imageFolder &&
-        _backgroundFolderPath != null) {
-      await themeProvider.setBackgroundFolder(_backgroundFolderPath!);
-    } else if (_backgroundType == BackgroundType.none) {
+    if (_selectedThemeId == null) {
       await themeProvider.clearBackgroundImage();
     }
 
@@ -1154,6 +1210,254 @@ class _ColorDot extends StatelessWidget {
             spreadRadius: 0,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ThemePickerDialog extends StatefulWidget {
+  const _ThemePickerDialog({
+    required this.themes,
+    required this.selectedTheme,
+    required this.isLight,
+    required this.textColor,
+    required this.subtleTextColor,
+  });
+
+  final List<BackgroundTheme> themes;
+  final String? selectedTheme;
+  final bool isLight;
+  final Color textColor;
+  final Color subtleTextColor;
+
+  @override
+  State<_ThemePickerDialog> createState() => _ThemePickerDialogState();
+}
+
+class _ThemePickerDialogState extends State<_ThemePickerDialog> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filtered = widget.themes.where((item) {
+      if (_query.isEmpty) return true;
+      final q = _query.toLowerCase();
+      return item.name.toLowerCase().contains(q) ||
+          item.description.toLowerCase().contains(q);
+    }).toList();
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            width: 420,
+            constraints: const BoxConstraints(maxHeight: 520),
+            decoration: BoxDecoration(
+              color: widget.isLight
+                  ? Colors.white.withValues(alpha: 0.92)
+                  : Colors.black.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: widget.isLight
+                    ? Colors.black.withValues(alpha: 0.08)
+                    : Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Choisir un thème',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: widget.textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        onChanged: (value) =>
+                            setState(() => _query = value.trim()),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: 'Rechercher un thème',
+                          prefixIcon: const Icon(LucideIcons.search, size: 16),
+                          filled: true,
+                          fillColor: widget.isLight
+                              ? Colors.black.withValues(alpha: 0.04)
+                              : Colors.white.withValues(alpha: 0.06),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: widget.isLight
+                                  ? Colors.black.withValues(alpha: 0.1)
+                                  : Colors.white.withValues(alpha: 0.1),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    children: [
+                      _ThemePickerTile(
+                        title: 'Aucun',
+                        description: 'Fond uni sans image',
+                        isSelected: widget.selectedTheme == null,
+                        onTap: () => Navigator.of(context).pop(''),
+                        textColor: widget.textColor,
+                        subtleTextColor: widget.subtleTextColor,
+                      ),
+                      const SizedBox(height: 6),
+                      ...filtered.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _ThemePickerTile(
+                            title: item.name,
+                            description: item.description,
+                            trailing: '${item.images.length} images',
+                            isSelected: widget.selectedTheme == item.id,
+                            onTap: () => Navigator.of(context).pop(item.id),
+                            textColor: widget.textColor,
+                            subtleTextColor: widget.subtleTextColor,
+                          ),
+                        ),
+                      ),
+                      if (filtered.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'Aucun thème ne correspond à votre recherche.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: widget.subtleTextColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'Fermer',
+                          style: TextStyle(color: widget.textColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemePickerTile extends StatelessWidget {
+  const _ThemePickerTile({
+    required this.title,
+    required this.description,
+    required this.isSelected,
+    required this.onTap,
+    required this.textColor,
+    required this.subtleTextColor,
+    this.trailing,
+  });
+
+  final String title;
+  final String description;
+  final String? trailing;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color textColor;
+  final Color subtleTextColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? accent.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? accent.withValues(alpha: 0.4)
+                : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              LucideIcons.image,
+              size: 16,
+              color: isSelected ? accent : textColor.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                  Text(
+                    description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: subtleTextColor),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null)
+              Text(
+                trailing!,
+                style: TextStyle(fontSize: 11, color: subtleTextColor),
+              ),
+            if (isSelected)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(LucideIcons.check, size: 16, color: accent),
+              ),
+          ],
+        ),
       ),
     );
   }

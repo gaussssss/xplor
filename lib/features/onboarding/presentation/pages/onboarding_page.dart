@@ -143,6 +143,9 @@ class _OnboardingPageState extends State<OnboardingPage>
         );
     _introController.forward();
     _loadAccessPath();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyGreenOnboardingBackground();
+    });
   }
 
   @override
@@ -157,6 +160,17 @@ class _OnboardingPageState extends State<OnboardingPage>
     if (!mounted) return;
     if (stored.isNotEmpty) {
       setState(() => _accessPaths = stored);
+    }
+  }
+
+  Future<void> _applyGreenOnboardingBackground() async {
+    final themeProvider = context.read<ThemeProvider>();
+    for (var attempt = 0; attempt < 5; attempt += 1) {
+      if (themeProvider.backgroundThemes.isNotEmpty) {
+        await themeProvider.applyRandomThemeImage('green');
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
     }
   }
 
@@ -250,8 +264,8 @@ class _OnboardingPageState extends State<OnboardingPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
-    final bgImagePath = themeProvider.backgroundImagePath;
-    final hasBgImage = bgImagePath != null && File(bgImagePath).existsSync();
+    final hasBgImage = themeProvider.hasBackgroundImage;
+    final bgImage = themeProvider.backgroundImageProvider;
     final isLight = themeProvider.isLight;
     final pageValue = _pageController.hasClients
         ? _pageController.page ?? _currentPage.toDouble()
@@ -273,13 +287,10 @@ class _OnboardingPageState extends State<OnboardingPage>
                 ),
               ),
             ),
-          if (hasBgImage)
+          if (hasBgImage && bgImage != null)
             Container(
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: FileImage(File(bgImagePath)),
-                  fit: BoxFit.cover,
-                ),
+                image: DecorationImage(image: bgImage, fit: BoxFit.cover),
               ),
             ),
           if (hasBgImage)

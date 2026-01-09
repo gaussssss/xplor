@@ -84,6 +84,9 @@ flutter:
 
   assets:
     - assets/
+    - assets/themes/
+    - assets/images/Backgrounds/
+    - assets/images/Backgrounds/Green/
     - assets/images/contributors/
     - assets/images/png/Google_Drive_logo.png
     - assets/images/png/ICloud_logo.png
@@ -93,6 +96,7 @@ flutter:
     - assets/images/svg/OneDrive_logo.svg
     - assets/images/png/appLogo.png
     - assets/help/help_content.json
+    - assets/themes/background_themes.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:ui';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,7 +40,8 @@ class _GithubRepoStats {
       stars: json['stargazers_count'] as int? ?? 0,
       forks: json['forks_count'] as int? ?? 0,
       issues: json['open_issues_count'] as int? ?? 0,
-      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ??
+      updatedAt:
+          DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
     );
   }
@@ -107,15 +108,13 @@ class _AboutPageState extends State<AboutPage>
       parent: _controller,
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     );
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.15, 1.0, curve: Curves.easeOutCubic),
-      ),
-    );
+    _slideUp = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.15, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
     _bounce = Tween<double>(begin: 0.9, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
@@ -136,14 +135,15 @@ class _AboutPageState extends State<AboutPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
-    final bgImagePath = themeProvider.backgroundImagePath;
-    final hasBgImage = bgImagePath != null && File(bgImagePath).existsSync();
+    final hasBgImage = themeProvider.hasBackgroundImage;
+    final bgImage = themeProvider.backgroundImageProvider;
+    final bgAttribution = themeProvider.backgroundImageAttribution;
     final isLight = themeProvider.isLight;
 
     final adjustedSurface = hasBgImage
         ? (isLight
-            ? Colors.white.withValues(alpha: 0.9)
-            : Colors.black.withValues(alpha: 0.7))
+              ? Colors.white.withValues(alpha: 0.9)
+              : Colors.black.withValues(alpha: 0.7))
         : theme.colorScheme.surface;
     final adjustedOnSurface = hasBgImage && isLight
         ? Colors.black
@@ -184,13 +184,10 @@ class _AboutPageState extends State<AboutPage>
                     ),
                   ),
                 ),
-              if (hasBgImage)
+              if (hasBgImage && bgImage != null)
                 Container(
                   decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: FileImage(File(bgImagePath)),
-                      fit: BoxFit.cover,
-                    ),
+                    image: DecorationImage(image: bgImage, fit: BoxFit.cover),
                   ),
                 ),
               if (hasBgImage)
@@ -200,10 +197,32 @@ class _AboutPageState extends State<AboutPage>
                       : Colors.black.withValues(alpha: 0.4),
                 ),
               _DecorativeBackdrop(isLight: isLight),
+              if (hasBgImage &&
+                  bgAttribution != null &&
+                  bgAttribution.trim().isNotEmpty)
+                Positioned(
+                  right: 20,
+                  bottom: 16,
+                  child: Text(
+                    bgAttribution,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      shadows: [
+                        Shadow(
+                          blurRadius: 8,
+                          color: Colors.black.withValues(alpha: 0.35),
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               SafeArea(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1140),
@@ -223,15 +242,12 @@ class _AboutPageState extends State<AboutPage>
                               Expanded(
                                 child: LayoutBuilder(
                                   builder: (context, constraints) {
-                                    final isWide =
-                                        constraints.maxWidth > 980;
+                                    final isWide = constraints.maxWidth > 980;
                                     final hero = _HeroCard(
                                       isLight: isLight,
                                       bounce: _bounce,
-                                      onCopyRepo: () => _copyLink(
-                                        context,
-                                        _githubRepoUrl,
-                                      ),
+                                      onCopyRepo: () =>
+                                          _copyLink(context, _githubRepoUrl),
                                     );
                                     final contributors = _SectionCard(
                                       title: 'Contributeurs',
@@ -241,10 +257,9 @@ class _AboutPageState extends State<AboutPage>
                                       child: LayoutBuilder(
                                         builder: (context, inner) {
                                           final maxWidth = inner.maxWidth;
-                                          final cardWidth =
-                                              maxWidth >= 520
-                                                  ? (maxWidth - 12) / 2
-                                                  : maxWidth;
+                                          final cardWidth = maxWidth >= 520
+                                              ? (maxWidth - 12) / 2
+                                              : maxWidth;
                                           return Wrap(
                                             spacing: 12,
                                             runSpacing: 12,
@@ -257,9 +272,9 @@ class _AboutPageState extends State<AboutPage>
                                                       isLight: isLight,
                                                       onCopy: (url) =>
                                                           _copyLink(
-                                                        context,
-                                                        url,
-                                                      ),
+                                                            context,
+                                                            url,
+                                                          ),
                                                     ),
                                                   ),
                                                 )
@@ -475,8 +490,9 @@ class _AboutPageState extends State<AboutPage>
                               Text(
                                 '© 2026 Xplor. Sous licence MIT.',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.5),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  ),
                                 ),
                               ),
                             ],
@@ -701,10 +717,7 @@ class _BrandBadge extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.tertiary,
-          ],
+          colors: [theme.colorScheme.primary, theme.colorScheme.tertiary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -963,11 +976,7 @@ class _SectionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),
                 ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
+                child: Icon(icon, size: 18, color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1041,11 +1050,7 @@ class _ValueTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 color: theme.colorScheme.primary.withValues(alpha: 0.18),
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
+              child: Icon(icon, size: 18, color: theme.colorScheme.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1077,10 +1082,7 @@ class _ValueTile extends StatelessWidget {
 }
 
 class _SideNotePanel extends StatelessWidget {
-  const _SideNotePanel({
-    required this.isLight,
-    required this.onCopy,
-  });
+  const _SideNotePanel({required this.isLight, required this.onCopy});
 
   final bool isLight;
   final VoidCallback onCopy;
@@ -1400,9 +1402,7 @@ class _StatTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 item.label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: labelColor,
-                ),
+                style: theme.textTheme.labelSmall?.copyWith(color: labelColor),
               ),
             ],
           ),
@@ -1413,10 +1413,7 @@ class _StatTile extends StatelessWidget {
 }
 
 class _StatsError extends StatelessWidget {
-  const _StatsError({
-    required this.isLight,
-    required this.onCopy,
-  });
+  const _StatsError({required this.isLight, required this.onCopy});
 
   final bool isLight;
   final VoidCallback onCopy;
@@ -1453,10 +1450,7 @@ class _StatsError extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
-            onPressed: onCopy,
-            child: const Text('Copier le lien'),
-          ),
+          TextButton(onPressed: onCopy, child: const Text('Copier le lien')),
         ],
       ),
     );
@@ -1464,10 +1458,7 @@ class _StatsError extends StatelessWidget {
 }
 
 class _AvatarBadge extends StatelessWidget {
-  const _AvatarBadge({
-    required this.name,
-    required this.assetPath,
-  });
+  const _AvatarBadge({required this.name, required this.assetPath});
 
   final String name;
   final String assetPath;
@@ -1512,10 +1503,7 @@ class _InitialsAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.secondary,
-          ],
+          colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

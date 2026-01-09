@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "green",
+      "name": "Green",
+      "description": "Végétal, lumineux, apaisant. Un thème naturel pour un espace de travail calme.",
+      "images": [
+        {
+          "path": "assets/images/Backgrounds/Green/foad-roshan-TtDNu-Heh3Y-unsplash.jpg",
+          "attribution": "Photo by Foad Roshan on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/evie-s-kqJfP-lrl-8-unsplash.jpg",
+          "attribution": "Photo by Evie S. on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/elyssa-MF16lGb95WY-unsplash.jpg",
+          "attribution": "Photo by Elyssa on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/tomoko-uji-v4bkVOl1sTI-unsplash.jpg",
+          "attribution": "Photo by Tomoko Uji on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/corinne-kutz-7ZtPwmSKj6U-unsplash.jpg",
+          "attribution": "Photo by Corinne Kutz on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/sarah-dorweiler-9Z1KRIfpBTM-unsplash.jpg",
+          "attribution": "Photo by Sarah Dorweiler on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/annie-spratt-hX_hf2lPpUU-unsplash.jpg",
+          "attribution": "Photo by Annie Spratt on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/pawel-czerwinski-lWBZ01XRRoI-unsplash.jpg",
+          "attribution": "Photo by Pawel Czerwinski on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/igor-son-FV_PxCqgtwc-unsplash.jpg",
+          "attribution": "Photo by Igor Son on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/moutain-et-le-premier-plan-du-lac.jpg",
+          "attribution": "Designed by brgfx / Freepik"
+        }
+      ]
+    }
+  ]
+}
