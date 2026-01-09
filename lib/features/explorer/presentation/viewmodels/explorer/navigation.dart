@@ -81,6 +81,7 @@ extension ExplorerNavigationOps on ExplorerViewModel {
       );
     } finally {
       notifyListeners();
+      unawaited(_cleanupStagedArchiveRoots());
     }
   }
 

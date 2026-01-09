@@ -295,7 +295,9 @@ extension ExplorerArchiveOps on ExplorerViewModel {
         await dir.delete(recursive: true);
       }
     } catch (_) {
-      // Ignorer les erreurs de nettoyage
+      if (!_stagedArchiveRoots.contains(root)) {
+        _stagedArchiveRoots.add(root);
+      }
     }
   }
 

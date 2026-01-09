@@ -184,18 +184,31 @@ class _Sidebar extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.1,
-                                          ),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(
+                                                alpha: isLight ? 0.12 : 0.18,
+                                              ),
                                           width: 0.5,
                                         ),
+                                        color: isLight
+                                            ? Colors.black.withValues(
+                                                alpha: 0.04,
+                                              )
+                                            : Colors.white.withValues(
+                                                alpha: 0.06,
+                                              ),
                                       ),
                                       child: Icon(
                                         lucide.LucideIcons.chevronsRight,
                                         size: 18,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.7,
-                                        ),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(
+                                              alpha: isLight ? 0.7 : 0.75,
+                                            ),
                                       ),
                                     ),
                                   ),
@@ -434,9 +447,31 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-// Widget pour les boutons d'action en bas du menu (icône + label)
-class _BottomActionButton extends StatelessWidget {
-  const _BottomActionButton({
+class _FooterSectionLabel extends StatelessWidget {
+  const _FooterSectionLabel({required this.label, required this.isLight});
+
+  final String label;
+  final bool isLight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      label.toUpperCase(),
+      style: theme.textTheme.labelSmall?.copyWith(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.8,
+        color: theme.colorScheme.onSurface.withValues(
+          alpha: isLight ? 0.45 : 0.6,
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterActionItem extends StatelessWidget {
+  const _FooterActionItem({
     required this.icon,
     required this.label,
     required this.isLight,
@@ -450,31 +485,102 @@ class _BottomActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: isLight ? 0.6 : 0.65);
-    final labelColor = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: isLight ? 0.55 : 0.5);
-
+    final theme = Theme.of(context);
+    final iconColor = theme.colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.7 : 0.65,
+    );
+    final textColor = theme.colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.75 : 0.7,
+    );
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isLight
+                ? Colors.black.withValues(alpha: 0.03)
+                : Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: isLight ? 0.08 : 0.12,
+              ),
+              width: 0.6,
+            ),
+          ),
+          child: Row(
             children: [
-              Icon(icon, size: 20, color: iconColor),
-              const SizedBox(height: 4),
+              Icon(icon, size: 16, color: iconColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+              ),
+              Icon(lucide.LucideIcons.chevronRight, size: 14, color: iconColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterMiniButton extends StatelessWidget {
+  const _FooterMiniButton({
+    required this.icon,
+    required this.label,
+    required this.isLight,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isLight;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.7 : 0.65,
+    );
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: isLight
+                ? Colors.black.withValues(alpha: 0.04)
+                : Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: isLight ? 0.1 : 0.12,
+              ),
+              width: 0.6,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: labelColor,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
                   letterSpacing: 0.2,
                 ),
               ),
@@ -672,62 +778,77 @@ class _SidebarFooter extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              //_BuildChip(buildNumber: buildNumber, isLight: isLight),
-              _FooterLink(
-                label: 'CGU',
-                isLight: isLight,
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(_noTransitionRoute(const TermsOfServicePage()));
-                },
-              ),
-              _FooterLink(label: "Aide", isLight: isLight, onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(_noTransitionRoute(const HelpCenterPage()));
-                }),
-              _FooterLink(
-                label: 'À propos',
-                isLight: isLight,
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(_noTransitionRoute(const AboutPage()));
-                },
-              ),
+              _FooterSectionLabel(label: 'Support', isLight: isLight),
+              const Spacer(),
+              _BuildChip(buildNumber: buildNumber, isLight: isLight),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          _FooterActionItem(
+            icon: lucide.LucideIcons.helpCircle,
+            label: 'Aide',
+            isLight: isLight,
+            onTap: () {
+              Navigator.of(
+                context,
+              ).push(_noTransitionRoute(const HelpCenterPage()));
+            },
+          ),
+          const SizedBox(height: 6),
+          _FooterActionItem(
+            icon: lucide.LucideIcons.fileText,
+            label: 'CGU',
+            isLight: isLight,
+            onTap: () {
+              Navigator.of(
+                context,
+              ).push(_noTransitionRoute(const TermsOfServicePage()));
+            },
+          ),
+          const SizedBox(height: 6),
+          _FooterActionItem(
+            icon: lucide.LucideIcons.info,
+            label: 'À propos',
+            isLight: isLight,
+            onTap: () {
+              Navigator.of(context).push(_noTransitionRoute(const AboutPage()));
+            },
+          ),
+          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [_FooterSectionLabel(label: 'Système', isLight: isLight)],
+          ),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              
-              _BottomActionButton(
-                icon: lucide.LucideIcons.settings,
-                label: 'Réglages',
-                isLight: isLight,
-                onTap: () async {
-                  await showDialog(
-                    context: context,
-                    builder: (context) =>
-                        const settings.AppearanceSettingsDialogV2(),
-                  );
-                  await onSettingsClosed?.call();
-                },
-              ),
-              if (onToggleCollapse != null)
-                _BottomActionButton(
-                  icon: lucide.LucideIcons.chevronsLeft,
-                  label: 'Replier',
+              Expanded(
+                child: _FooterMiniButton(
+                  icon: lucide.LucideIcons.settings,
+                  label: 'Réglages',
                   isLight: isLight,
-                  onTap: onToggleCollapse!,
+                  onTap: () async {
+                    await showDialog(
+                      context: context,
+                      builder: (context) =>
+                          const settings.AppearanceSettingsDialogV2(),
+                    );
+                    await onSettingsClosed?.call();
+                  },
                 ),
+              ),
+              if (onToggleCollapse != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _FooterMiniButton(
+                    icon: lucide.LucideIcons.chevronsLeft,
+                    label: 'Replier',
+                    isLight: isLight,
+                    onTap: onToggleCollapse!,
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -764,41 +885,6 @@ class _BuildChip extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
           color: textColor,
-        ),
-      ),
-    );
-  }
-}
-
-class _FooterLink extends StatelessWidget {
-  const _FooterLink({
-    required this.label,
-    required this.isLight,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool isLight;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: isLight ? 0.6 : 0.75);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Text(
-          label.toUpperCase(),
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-            color: color,
-          ),
         ),
       ),
     );

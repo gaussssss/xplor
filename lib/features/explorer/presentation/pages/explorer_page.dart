@@ -776,7 +776,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                       CrossAxisAlignment.start,
                                                   children: [
                                                     BreadcrumbBar(
-                                                      path: state.currentPath,
+                                                      path: _viewModel
+                                                          .displayPath,
                                                       onNavigate: (path) =>
                                                           _viewModel
                                                               .loadDirectory(
