@@ -104,6 +104,20 @@ class SpecialLocations {
     return path;
   }
 
+  /// Normalise un chemin et retombe sur un fallback si l'emplacement est manquant
+  static String normalizePath(String path, {String? fallback}) {
+    if (isSpecialLocation(path)) return path;
+    final resolved = resolveSystemPath(path);
+    final dir = Directory(resolved);
+    if (dir.existsSync()) {
+      return resolved;
+    }
+    if (fallback != null && fallback.trim().isNotEmpty) {
+      return fallback;
+    }
+    return Platform.environment['HOME'] ?? resolved;
+  }
+
   /// Obtient tous les emplacements spéciaux disponibles
   static List<SpecialLocationInfo> getAllSpecialLocations() {
     return [
@@ -113,27 +127,27 @@ class SpecialLocations {
         isVirtual: true,
       ),
       SpecialLocationInfo(
-        code: downloads,
+        code: normalizePath(downloads),
         displayName: 'Téléchargements',
         isVirtual: false,
       ),
       SpecialLocationInfo(
-        code: documents,
+        code: normalizePath(documents),
         displayName: 'Documents',
         isVirtual: false,
       ),
       SpecialLocationInfo(
-        code: desktop,
+        code: normalizePath(desktop),
         displayName: 'Bureau',
         isVirtual: false,
       ),
       SpecialLocationInfo(
-        code: pictures,
+        code: normalizePath(pictures),
         displayName: 'Images',
         isVirtual: false,
       ),
       SpecialLocationInfo(
-        code: applications,
+        code: normalizePath(applications),
         displayName: 'Applications',
         isVirtual: false,
       ),

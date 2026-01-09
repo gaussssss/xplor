@@ -2,7 +2,8 @@ part of '../explorer_view_model.dart';
 
 extension ExplorerNavigationOps on ExplorerViewModel {
   Future<void> loadDirectory(String path, {bool pushHistory = true}) async {
-    final targetPath = path.trim().isEmpty ? _state.currentPath : path.trim();
+    var targetPath = path.trim().isEmpty ? _state.currentPath : path.trim();
+    targetPath = SpecialLocations.resolveSystemPath(targetPath);
     if (pushHistory && targetPath == _state.currentPath) return;
     final wasArchiveView = _state.isArchiveView;
     final archivePath = _state.archivePath;
@@ -100,11 +101,14 @@ extension ExplorerNavigationOps on ExplorerViewModel {
     );
     notifyListeners();
 
+    final resolvedLocation = SpecialLocations.isSpecialLocation(locationCode)
+        ? locationCode
+        : SpecialLocations.normalizePath(locationCode);
     try {
       List<FileEntry> entries = [];
 
       // Charger les fichiers recents
-      if (locationCode == SpecialLocations.recentFiles) {
+      if (resolvedLocation == SpecialLocations.recentFiles) {
         // Creer des entrees virtuelles pour chaque chemin recent
         for (final recentPath in _recentPaths) {
           try {

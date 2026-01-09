@@ -45,7 +45,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final buildNumber = const String.fromEnvironment(
       'BUILD_NUMBER',
-      defaultValue: 'dev',
+      defaultValue: '1.0.0',
     );
     final themeProvider = context.watch<ThemeProvider>();
     final themeMode = themeProvider.themeModePreference;
@@ -672,10 +672,12 @@ class _SidebarFooter extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _BuildChip(buildNumber: buildNumber, isLight: isLight),
-              const Spacer(),
+              //_BuildChip(buildNumber: buildNumber, isLight: isLight),
               _FooterLink(
                 label: 'CGU',
                 isLight: isLight,
@@ -685,7 +687,11 @@ class _SidebarFooter extends StatelessWidget {
                   ).push(_noTransitionRoute(const TermsOfServicePage()));
                 },
               ),
-              const SizedBox(width: 6),
+              _FooterLink(label: "Aide", isLight: isLight, onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const HelpCenterPage()));
+                }),
               _FooterLink(
                 label: 'À propos',
                 isLight: isLight,
@@ -699,8 +705,9 @@ class _SidebarFooter extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              
               _BottomActionButton(
                 icon: lucide.LucideIcons.settings,
                 label: 'Réglages',

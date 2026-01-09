@@ -50,6 +50,7 @@ import '../../../../core/widgets/appearance_settings_dialog_v2.dart'
     as settings;
 import '../../../settings/presentation/pages/about_page.dart';
 import '../../../settings/presentation/pages/terms_of_service_page.dart';
+import '../../../help/presentation/pages/help_page.dart';
 import '../../domain/entities/duplicate_action.dart';
 import '../services/volume_info_service.dart';
 import '../../../onboarding/data/onboarding_service.dart';

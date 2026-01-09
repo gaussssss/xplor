@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "title": "Centre d'aide",
+  "subtitle": "Documentation utilisateur",
+  "categories": [
+    {
+      "title": "Démarrage",
+      "subtitle": "Tout comprendre dès la première minute.",
+      "icon": "rocket",
+      "blocks": [
+        {
+          "title": "Interface principale",
+          "description": "L'interface de Xplor est conçue pour une navigation intuitive et efficace. La barre latérale constitue le point d'entrée principal, offrant un accès direct aux emplacements fréquemment utilisés, aux disques montés sur votre système, et à vos favoris personnalisés. Cette organisation vous permet de naviguer rapidement sans jamais perdre votre contexte de travail, même lors de transitions entre différents dossiers ou volumes.",
+          "bullets": [
+            "Le fil d'Ariane (breadcrumb) situé en haut de la fenêtre vous permet de remonter dans l'arborescence d'un simple clic, ou d'entrer manuellement un chemin complet pour accéder instantanément à n'importe quel emplacement.",
+            "Basculez facilement entre l'affichage grille (pour une vue visuelle avec miniatures) et l'affichage liste (pour une densité d'information maximale avec détails des fichiers) selon vos besoins.",
+            "Le panneau d'actions contextuel s'adapte intelligemment à votre sélection actuelle, n'affichant que les actions pertinentes pour les éléments sélectionnés."
+          ],
+          "tip": "Astuce : double-cliquez pour ouvrir un dossier ou un fichier avec l'application par défaut de votre système."
+        },
+        {
+          "title": "Emplacements spéciaux",
+          "description": "Xplor intègre des raccourcis système intelligents qui restent toujours accessibles dans la barre latérale, même si le système d'exploitation déplace physiquement ces dossiers. Ces emplacements spéciaux sont automatiquement détectés et résolus, garantissant un accès fiable à vos dossiers essentiels indépendamment des changements de configuration système.",
+          "bullets": [
+            "Accédez rapidement aux dossiers système : Récents, Bureau, Documents, Téléchargements, Images, Musique, Vidéos.",
+            "Les liens symboliques et les chemins système sont automatiquement résolus en temps réel si le système déplace ou renomme un emplacement, assurant une navigation sans interruption."
+          ]
+        },
+        {
+          "title": "Recherche instantanée",
+          "description": "La fonctionnalité de recherche instantanée vous permet de filtrer le contenu du dossier actuel en temps réel, sans avoir besoin de quitter votre vue ni d'ouvrir une fenêtre de recherche séparée. Les résultats s'affichent immédiatement au fur et à mesure de votre saisie, offrant une expérience de recherche fluide et réactive.",
+          "bullets": [
+            "Tapez simplement un mot-clé dans le champ de recherche pour filtrer instantanément les fichiers et dossiers affichés.",
+            "Combinez la recherche textuelle avec les filtres par tags et types de fichiers pour affiner précisément vos résultats et retrouver rapidement ce que vous cherchez."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Fichiers & dossiers",
+      "subtitle": "Organiser, sélectionner et agir rapidement.",
+      "icon": "folder",
+      "blocks": [
+        {
+          "title": "Sélection",
+          "description": "Le système de sélection de Xplor est flexible et s'adapte à vos préférences. Par défaut, la sélection simple fonctionne d'un seul clic, tandis que la sélection multiple peut être activée dans les paramètres selon votre flux de travail. Des indicateurs visuels clairs vous montrent en permanence combien d'éléments sont sélectionnés et quelles actions sont disponibles pour votre sélection actuelle.",
+          "bullets": [
+            "Cliquez une fois sur un fichier ou dossier pour le sélectionner et afficher les actions disponibles dans le panneau contextuel.",
+            "Utilisez la sélection multiple (si activée dans les paramètres) pour effectuer des opérations groupées sur plusieurs éléments simultanément en maintenant Cmd/Ctrl.",
+            "Les badges de sélection affichent clairement le nombre d'éléments sélectionnés, vous permettant de suivre votre sélection lors de navigations complexes."
+          ]
+        },
+        {
+          "title": "Menu contextuel",
+          "description": "Le menu contextuel accessible par clic droit offre un accès rapide à toutes les actions essentielles sans avoir à quitter votre vue actuelle ou à naviguer dans des menus complexes. Ce menu s'adapte intelligemment au type d'élément sélectionné et à votre contexte de travail, n'affichant que les actions pertinentes et disponibles.",
+          "bullets": [
+            "Accédez aux actions de base : ouvrir avec l'application par défaut, renommer, déplacer vers un autre dossier, supprimer (avec confirmation).",
+            "Prévisualisez le contenu des fichiers directement depuis le menu contextuel lorsque le format est supporté par QuickLook.",
+            "Utilisez les opérations de presse-papier classiques : copier, couper, coller, ainsi que la duplication rapide pour créer instantanément une copie dans le même dossier."
+          ]
+        },
+        {
+          "title": "Drag & drop",
+          "description": "Le glisser-déposer (drag & drop) vous permet de déplacer ou réorganiser vos fichiers et dossiers de manière visuelle et intuitive, sans perdre vos repères dans l'arborescence. Cette fonctionnalité préserve intelligemment la structure interne des dossiers lors des déplacements, garantissant l'intégrité de votre organisation.",
+          "bullets": [
+            "Glissez un ou plusieurs fichiers vers un dossier cible visible dans la vue actuelle ou dans la barre latérale pour les déplacer rapidement.",
+            "L'opération de drop conserve automatiquement toute la structure interne des dossiers déplacés, y compris les sous-dossiers et leur contenu, maintenant votre organisation intacte."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Prévisualisation & médias",
+      "subtitle": "Aperçu rapide avant ouverture.",
+      "icon": "playCircle",
+      "blocks": [
+        {
+          "title": "Prévisualiser",
+          "description": "La fonctionnalité de prévisualisation s'appuie sur QuickLook, la technologie native de macOS, pour afficher un aperçu rapide de vos fichiers sans avoir à les ouvrir dans leur application associée. Cette fonction est accessible directement depuis le menu contextuel et supporte une large gamme de formats courants, vous permettant de vérifier le contenu d'un fichier en quelques secondes.",
+          "bullets": [
+            "Prévisualisez instantanément documents texte, PDF, images (JPEG, PNG, GIF), fichiers audio (MP3, AAC, WAV) et vidéos (MP4, MOV, AVI).",
+            "L'aperçu s'ouvre dans un panneau dédié superposé à l'interface, vous permettant de consulter le contenu sans quitter votre vue actuelle.",
+            "En mode liste, l'icône de chaque fichier reflète automatiquement l'application par défaut configurée sur votre système pour ce type de fichier."
+          ]
+        },
+        {
+          "title": "Audio",
+          "description": "Pour les fichiers audio, Xplor extrait et affiche automatiquement les pochettes d'album (cover art) lorsqu'elles sont disponibles dans les métadonnées du fichier. Cette fonctionnalité permet une identification visuelle rapide de vos morceaux et albums, rendant la navigation dans vos bibliothèques musicales plus intuitive et agréable.",
+          "bullets": [
+            "Les pochettes des fichiers MP3 sont extraites automatiquement depuis les métadonnées ID3 embarquées dans le fichier.",
+            "Si aucune pochette n'est trouvée dans les métadonnées, Xplor utilise QuickLook comme solution de repli pour tenter de générer une miniature.",
+            "Une mini-icône distinctive est superposée à la pochette ou à l'icône pour indiquer clairement qu'il s'agit d'un fichier audio."
+          ]
+        },
+        {
+          "title": "Vidéo",
+          "description": "Les fichiers vidéo bénéficient d'une génération automatique de miniatures représentatives, vous permettant d'identifier visuellement le contenu d'une vidéo avant de l'ouvrir. Cette fonctionnalité est particulièrement utile pour parcourir rapidement de grandes collections de vidéos et retrouver celle que vous recherchez.",
+          "bullets": [
+            "QuickLook génère automatiquement des miniatures représentatives pour les formats vidéo courants, généralement en capturant une frame significative du début de la vidéo.",
+            "Double-cliquez sur n'importe quel fichier vidéo pour l'ouvrir directement dans votre lecteur vidéo par défaut (VLC, QuickTime Player, etc.)."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Archives & compression",
+      "subtitle": "Explorer, extraire et créer des archives.",
+      "icon": "archive",
+      "blocks": [
+        {
+          "title": "Ouvrir une archive",
+          "description": "Xplor traite les archives (ZIP, RAR, 7Z, etc.) comme des dossiers ordinaires, vous permettant de naviguer directement dans leur contenu sans avoir à les extraire préalablement sur votre disque. Cette approche vous fait gagner du temps et de l'espace disque en permettant l'accès en lecture directe au contenu compressé.",
+          "bullets": [
+            "Double-cliquez sur une archive pour l'ouvrir et explorer son contenu exactement comme vous le feriez avec un dossier normal, en naviguant dans l'arborescence interne.",
+            "Copiez ou extrayez sélectivement un ou plusieurs fichiers spécifiques depuis l'archive sans avoir besoin d'extraire l'intégralité du contenu, économisant temps et espace."
+          ]
+        },
+        {
+          "title": "Extraction",
+          "description": "L'extraction d'archives dans Xplor offre un contrôle précis sur le processus et la destination des fichiers. Le système gère intelligemment les conflits de noms lors de l'extraction, vous permettant de choisir la meilleure stratégie selon votre situation. Des options de confort comme l'ouverture automatique du dossier de destination facilitent votre flux de travail.",
+          "bullets": [
+            "En cas de conflit avec des fichiers existants, choisissez entre : dupliquer (créer une copie numérotée), remplacer (écraser l'ancien), ou conserver les deux versions avec renommage automatique.",
+            "Activez l'option pour ouvrir automatiquement le dossier de destination une fois l'extraction terminée, vous permettant d'accéder immédiatement aux fichiers extraits.",
+            "Le système se rappelle automatiquement du dernier dossier de destination utilisé pour vos extractions, accélérant les opérations répétitives."
+          ]
+        },
+        {
+          "title": "Compression",
+          "description": "Créez rapidement des archives ZIP à partir de n'importe quelle sélection de fichiers et dossiers directement depuis l'interface de Xplor. Cette fonctionnalité est idéale pour préparer des fichiers à partager, à archiver ou à transférer, en réduisant leur taille et en les regroupant dans un seul fichier pratique.",
+          "bullets": [
+            "Sélectionnez un ou plusieurs éléments (fichiers et/ou dossiers) que vous souhaitez compresser ensemble dans une archive.",
+            "L'archive ZIP est automatiquement créée dans le dossier courant avec un nom généré basé sur la date et l'heure, ou sur le nom du premier élément sélectionné."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Sécurité & chiffrement",
+      "subtitle": "Protégez vos fichiers et dossiers.",
+      "icon": "lock",
+      "blocks": [
+        {
+          "title": "Verrouiller",
+          "description": "Le verrouillage chiffre vos fichiers et dossiers sensibles à l'aide d'un algorithme de chiffrement robuste, les rendant inaccessibles sans la clé appropriée. Ce processus transforme le contenu en données illisibles, garantissant que même si quelqu'un accède physiquement au fichier, il ne pourra pas en consulter le contenu sans posséder votre clé de déchiffrement.",
+          "bullets": [
+            "Choisissez une clé de chiffrement forte et mémorable (minimum 4 caractères, idéalement plus longue avec mélange de caractères), confirmez-la pour éviter les erreurs de frappe, puis verrouillez l'élément sélectionné.",
+            "La clé n'est jamais stockée ni affichée en clair dans l'interface ou sur le disque, garantissant que vous seul la connaissez. Conservez-la précieusement car il n'existe aucun moyen de récupération.",
+            "Une icône de cadenas distinctive apparaît sur les éléments verrouillés dans la vue, vous permettant d'identifier rapidement les fichiers et dossiers protégés. Les dossiers entiers peuvent également être chiffrés récursivement."
+          ]
+        },
+        {
+          "title": "Déverrouiller",
+          "description": "Le déverrouillage inverse le processus de chiffrement en utilisant votre clé pour restaurer le fichier ou dossier dans son état original non chiffré. Cette opération nécessite impérativement la clé exacte qui a été utilisée lors du verrouillage, sans aucune possibilité de contournement ou de récupération en cas d'oubli.",
+          "bullets": [
+            "Saisissez exactement la même clé que celle utilisée lors du verrouillage pour déchiffrer et restaurer l'accès au contenu. Attention : aucune récupération n'est possible si vous oubliez ou perdez cette clé.",
+            "Une fois déverrouillé, le fichier retrouve immédiatement son état d'origine non chiffré, avec son contenu parfaitement intact et identique à celui d'avant le verrouillage."
+          ]
+        },
+        {
+          "title": "Conseils",
+          "description": "La sécurité de vos fichiers chiffrés repose entièrement sur la robustesse et la confidentialité de votre clé de chiffrement. Il est absolument crucial de choisir une clé forte et de la conserver en sécurité, car la perte de cette clé signifie la perte définitive et irréversible de l'accès à vos données chiffrées.",
+          "bullets": [
+            "Utilisez une clé d'au moins 4 caractères, mais préférez des clés plus longues (8-16 caractères) combinant lettres majuscules et minuscules, chiffres et symboles pour une sécurité maximale.",
+            "Notez ou copiez votre clé immédiatement après l'avoir créée, et envisagez de la partager de manière sécurisée (message chiffré, en personne) si d'autres personnes doivent accéder au fichier.",
+            "Conservez vos clés importantes dans un gestionnaire de mots de passe sécurisé (1Password, Bitwarden, KeePass) pour éviter tout risque d'oubli ou de perte définitive."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Cloud & réseau",
+      "subtitle": "Accéder aux drives et dossiers réseau.",
+      "icon": "cloud",
+      "blocks": [
+        {
+          "title": "Google Drive / OneDrive",
+          "description": "Pour accéder à vos espaces de stockage cloud (Google Drive, OneDrive, Dropbox, iCloud Drive) directement depuis Xplor, vous devez préalablement installer l'application de bureau officielle fournie par chaque service. Ces applications créent un point de montage local qui synchronise automatiquement vos fichiers cloud avec votre système, les rendant accessibles comme n'importe quel dossier local.",
+          "bullets": [
+            "Téléchargez et installez Google Drive Desktop depuis google.com/drive pour créer un disque virtuel local qui synchronise automatiquement vos fichiers Google Drive.",
+            "OneDrive (office.com), Dropbox (dropbox.com) et iCloud Drive fonctionnent selon le même principe : installer l'application officielle pour monter un volume local synchronisé.",
+            "Une fois l'application installée et configurée, le dossier ou disque cloud apparaît automatiquement dans la section Disques de Xplor, prêt à être exploré comme n'importe quel emplacement local."
+          ]
+        },
+        {
+          "title": "Partages réseau",
+          "description": "Les partages réseau (SMB, AFP, NFS) vous permettent d'accéder à des dossiers situés sur d'autres ordinateurs ou serveurs de votre réseau local ou distant. Une fois montés au niveau du système d'exploitation, ces volumes réseau apparaissent automatiquement dans Xplor et peuvent être explorés exactement comme des dossiers locaux.",
+          "bullets": [
+            "Sur macOS : ouvrez le Finder, utilisez le menu Aller > Se connecter au serveur (Cmd+K), puis entrez l'adresse du partage (smb://serveur/partage ou afp://serveur/volume).",
+            "Sur Windows : utilisez l'Explorateur de fichiers, cliquez sur 'Ce PC' puis 'Connecter un lecteur réseau', et suivez l'assistant pour mapper un volume distant vers une lettre de lecteur.",
+            "Une fois le volume réseau monté avec succès au niveau système, il apparaît automatiquement dans la section Disques de Xplor et reste accessible tant que la connexion réseau est maintenue."
+          ],
+          "tip": "Astuce : avant de monter un partage réseau, vérifiez que vous êtes bien connecté au réseau approprié (VPN si nécessaire) et que le serveur distant est accessible. Testez avec un ping si nécessaire."
+        }
+      ],
+      "cta": "Pour les drives cloud, installez les applications de bureau officielles : Google Drive (google.com/drive/download), OneDrive (office.com), Dropbox (dropbox.com/install), ou activez iCloud Drive dans les Préférences Système."
+    },
+    {
+      "title": "Personnalisation",
+      "subtitle": "Adaptez l'apparence à votre style.",
+      "icon": "palette",
+      "blocks": [
+        {
+          "title": "Mode clair, sombre, auto",
+          "description": "Xplor offre trois modes d'apparence pour s'adapter à vos préférences visuelles et à votre environnement de travail. Le mode automatique synchronise intelligemment l'apparence avec les réglages système de votre ordinateur, tandis que les modes clair et sombre permettent un contrôle manuel indépendant des paramètres système.",
+          "bullets": [
+            "Le mode automatique suit fidèlement le thème système de macOS/Windows, basculant automatiquement entre clair et sombre selon l'heure de la journée ou vos préférences système.",
+            "Les modes clair et sombre manuels sont enregistrés et persistent entre les sessions, vous permettant de maintenir votre préférence indépendamment du thème système."
+          ]
+        },
+        {
+          "title": "Arrière-plans",
+          "description": "Personnalisez l'atmosphère visuelle de Xplor en définissant des images d'arrière-plan personnalisées. Vous pouvez choisir une seule image fixe ou configurer un dossier entier pour une rotation automatique, créant ainsi une expérience visuelle dynamique et adaptée à vos goûts. L'opacité est ajustable pour trouver le parfait équilibre entre esthétique et lisibilité.",
+          "bullets": [
+            "Sélectionnez n'importe quelle image locale depuis votre ordinateur pour l'utiliser comme arrière-plan personnalisé, ou choisissez un dossier entier contenant plusieurs images.",
+            "La rotation automatique change l'image d'arrière-plan à intervalles configurables (toutes les minutes, heures, ou à chaque lancement), offrant une expérience visuelle renouvelée.",
+            "Ajustez finement l'opacité de l'arrière-plan dans les réglages avancés pour optimiser le contraste et garantir une lisibilité parfaite du texte et des icônes, quel que soit l'arrière-plan choisi."
+          ]
+        },
+        {
+          "title": "Animations",
+          "description": "Les animations d'interface contribuent à rendre l'expérience utilisateur plus fluide et agréable, mais peuvent être désactivées selon vos préférences ou pour améliorer les performances sur les machines moins puissantes. Ce réglage vous permet de choisir entre une interface animée et réactive ou une expérience plus sobre et directe.",
+          "bullets": [
+            "L'option d'activation/désactivation des animations est disponible dans la section réglages avancés de l'application, accessible depuis le menu latéral.",
+            "Désactiver les animations peut améliorer significativement la réactivité et les performances sur des machines plus anciennes ou lors de manipulation de dossiers contenant des milliers de fichiers."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Raccourcis & productivité",
+      "subtitle": "Gagnez du temps sur chaque action.",
+      "icon": "keyboard",
+      "blocks": [
+        {
+          "title": "Raccourcis essentiels",
+          "description": "Maîtriser les raccourcis clavier est essentiel pour maximiser votre productivité et votre vitesse de travail dans Xplor. Ces combinaisons de touches vous permettent d'effectuer les actions les plus courantes sans jamais quitter le clavier ni toucher la souris, réduisant considérablement le temps nécessaire pour accomplir vos tâches quotidiennes.",
+          "bullets": [
+            "Utilisez Cmd+C (macOS) / Ctrl+C (Windows) pour copier, Cmd+V / Ctrl+V pour coller, et Cmd+X / Ctrl+X pour couper des fichiers et dossiers dans le presse-papier système.",
+            "Activez la recherche instantanée avec Cmd+F / Ctrl+F pour filtrer rapidement le contenu du dossier actuel sans ouvrir de fenêtre séparée.",
+            "Appuyez sur la touche Retour arrière (Backspace) ou Cmd+Flèche haut pour remonter rapidement d'un niveau dans l'arborescence de dossiers."
+          ]
+        },
+        {
+          "title": "Navigation rapide",
+          "description": "Xplor mémorise votre historique de navigation et vos emplacements fréquemment visités pour vous permettre de revenir instantanément vers des dossiers récents sans avoir à re-parcourir toute l'arborescence. Ces fonctionnalités de navigation intelligente réduisent drastiquement le nombre de clics nécessaires pour se déplacer entre différents emplacements de travail.",
+          "bullets": [
+            "La section Récents dans la barre latérale conserve un historique intelligent de tous les dossiers que vous avez récemment visités, classés chronologiquement.",
+            "Le bouton 'Dernier emplacement' (généralement symbolisé par une flèche de retour) vous ramène instantanément au dossier précédemment consulté, comme le bouton 'Précédent' d'un navigateur web."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Dépannage",
+      "subtitle": "Solutions aux problèmes courants.",
+      "icon": "lifeBuoy",
+      "blocks": [
+        {
+          "title": "Aperçus indisponibles",
+          "description": "Certains formats de fichiers, notamment les formats propriétaires ou moins courants, ne supportent pas nativement la génération de miniatures ou d'aperçus via QuickLook. Dans ces situations, Xplor affiche une icône générique basée sur l'extension du fichier et l'application associée, plutôt qu'un aperçu du contenu réel.",
+          "bullets": [
+            "Si l'aperçu QuickLook ne fonctionne pas, essayez d'ouvrir le fichier directement avec son application par défaut en double-cliquant dessus.",
+            "Vérifiez que QuickLook fonctionne correctement au niveau système en testant l'aperçu dans le Finder (touche Espace sur un fichier sélectionné).",
+            "Si QuickLook ne fonctionne pas du tout, envisagez de mettre à jour macOS vers la dernière version disponible, ou d'installer des plugins QuickLook tiers pour les formats exotiques."
+          ]
+        },
+        {
+          "title": "Accès refusé",
+          "description": "Les systèmes d'exploitation modernes (macOS 10.14+ et Windows 10+) implémentent des protections strictes de confidentialité qui peuvent bloquer l'accès de Xplor à certains dossiers sensibles comme Documents, Bureau, Téléchargements, ou disques externes. Ces restrictions nécessitent une autorisation explicite de votre part dans les paramètres système.",
+          "bullets": [
+            "Sur macOS, ouvrez Préférences Système > Sécurité et confidentialité > Confidentialité > Accès complet au disque, puis ajoutez Xplor à la liste des applications autorisées en cliquant sur le cadenas et le bouton +.",
+            "Après avoir accordé les autorisations nécessaires dans les réglages système, redémarrez complètement Xplor pour que les nouvelles permissions prennent effet et que l'accès aux dossiers soit débloqué."
+          ]
+        },
+        {
+          "title": "Indexation",
+          "description": "La recherche instantanée s'appuie sur un index interne qui doit être construit et maintenu à jour au fur et à mesure que les dossiers changent. Dans certaines situations, particulièrement après des modifications massives de fichiers ou lors du premier accès à un dossier volumineux, l'indexation peut nécessiter quelques instants.",
+          "bullets": [
+            "Utilisez le bouton de rafraîchissement (icône de rotation) pour forcer la réindexation du dossier actif si les résultats de recherche semblent incomplets ou obsolètes.",
+            "Lorsque vous ouvrez un très grand dossier pour la première fois, patientez quelques secondes pendant que l'indexation s'effectue en arrière-plan avant de lancer une recherche pour obtenir des résultats complets."
+          ]
+        }
+      ]
+    }
+  ]
+}
