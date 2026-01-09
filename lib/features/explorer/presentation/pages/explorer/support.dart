@@ -13,6 +13,7 @@ class _ContextMenuEntry {
     required this.id,
     required this.label,
     this.icon,
+    this.iconColor,
     this.enabled = true,
     this.destructive = false,
     this.shortcut,
@@ -24,6 +25,7 @@ class _ContextMenuEntry {
       : id = '',
         label = '',
         icon = null,
+        iconColor = null,
         enabled = false,
         destructive = false,
         shortcut = null,
@@ -33,6 +35,7 @@ class _ContextMenuEntry {
   final String id;
   final String label;
   final IconData? icon;
+  final Color? iconColor;
   final bool enabled;
   final bool destructive;
   final String? shortcut;
@@ -318,7 +321,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                                     Icon(
                                       item.icon,
                                       size: 16,
-                                      color: labelColor,
+                                      color: item.iconColor ?? labelColor,
                                     )
                                   else
                                     const SizedBox(width: 16),

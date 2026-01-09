@@ -10,6 +10,7 @@ class FileEntry {
     this.mode,
     this.isApplication = false,
     this.iconPath,
+    this.tag,
   });
 
   final String name;
@@ -22,4 +23,5 @@ class FileEntry {
   final int? mode;
   final bool isApplication;
   final String? iconPath;
+  final String? tag; // tag label (persisted)
 }

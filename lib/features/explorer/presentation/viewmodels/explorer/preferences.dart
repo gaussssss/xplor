@@ -2,6 +2,7 @@ part of '../explorer_view_model.dart';
 
 const String _recentKey = 'recent_paths';
 const String _lastPathKey = 'last_opened_path';
+const String _entryTagsKey = 'entry_tags_map';
 
 extension ExplorerPreferencesOps on ExplorerViewModel {
   void setViewMode(ExplorerViewMode mode) async {
@@ -25,6 +26,19 @@ extension ExplorerPreferencesOps on ExplorerViewModel {
     try {
       final prefs = await SharedPreferences.getInstance();
       _recentPaths = prefs.getStringList(_recentKey) ?? [];
+      final tagMap = prefs.getString(_entryTagsKey);
+      if (tagMap != null && tagMap.isNotEmpty) {
+        try {
+          final decoded = json.decode(tagMap) as Map<String, dynamic>;
+          _entryTags
+            ..clear()
+            ..addAll(
+              decoded.map((key, value) => MapEntry(key, value as String)),
+            );
+        } catch (_) {
+          // ignore parse errors
+        }
+      }
 
       // Charger le mode de vue sauvegarde
       final savedViewMode = prefs.getString('view_mode');
@@ -102,5 +116,41 @@ extension ExplorerPreferencesOps on ExplorerViewModel {
     } catch (_) {
       // ignore persistence errors
     }
+  }
+
+  Future<void> _saveEntryTags() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_entryTagsKey, json.encode(_entryTags));
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> setEntryTag(String path, String? tag) async {
+    if (tag == null || tag.isEmpty) {
+      _entryTags.remove(path);
+    } else {
+      _entryTags[path] = tag;
+    }
+    final List<FileEntry> updatedEntries = _state.entries.map<FileEntry>((e) {
+      if (e.path != path) return e;
+      return FileEntry(
+        name: e.name,
+        path: e.path,
+        isDirectory: e.isDirectory,
+        size: e.size,
+        lastModified: e.lastModified,
+        created: e.created,
+        accessed: e.accessed,
+        mode: e.mode,
+        isApplication: e.isApplication,
+        iconPath: e.iconPath,
+        tag: tag,
+      );
+    }).toList();
+    _state = _state.copyWith(entries: updatedEntries);
+    notifyListeners();
+    await _saveEntryTags();
   }
 }

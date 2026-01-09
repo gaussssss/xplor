@@ -78,6 +78,14 @@ extension _ExplorerPageNavigation on _ExplorerPageState {
     ];
   }
 
+  Color? _tagColorForPath(String path) {
+    final tag = _viewModel.tagForPath(path);
+    if (tag == null) return null;
+    final match =
+        _tagItems.firstWhere((t) => t.label == tag, orElse: () => _TagItem(label: '', color: Colors.transparent));
+    return match.label.isEmpty ? null : match.color;
+  }
+
   String _join(String base, String child) {
     if (base.endsWith(Platform.pathSeparator)) return '$base$child';
     return '$base${Platform.pathSeparator}$child';

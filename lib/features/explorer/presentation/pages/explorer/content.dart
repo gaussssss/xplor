@@ -295,6 +295,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
     final audioArtFuture = _viewModel.isAudioFile(entry.path)
         ? _viewModel.resolveAudioArtwork(entry.path)
         : null;
+    final tagColor = _tagColorForPath(entry.path);
 
     final tile = FileEntryTile(
       entry: entry,
@@ -309,6 +310,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
       onOpen: () => _handleEntryTap(entry),
       onContextMenu: (position) => _showContextMenu(entry, position),
       enableDrop: !_viewModel.state.isArchiveView,
+      tagColor: tagColor,
     );
     final draggingTile = Opacity(
       opacity: 0.35,
@@ -325,6 +327,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
         onOpen: () => _handleEntryTap(entry),
         onContextMenu: (position) => _showContextMenu(entry, position),
         enableDrop: !_viewModel.state.isArchiveView,
+        tagColor: tagColor,
       ),
     );
 

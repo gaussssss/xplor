@@ -202,6 +202,7 @@ class ExplorerViewModel extends ChangeNotifier {
   final Map<String, String?> _previewCache = {};
   final Map<String, String?> _mediaPreviewCache = {};
   final Map<String, Uint8List?> _audioArtCache = {};
+  final Map<String, String> _entryTags = {};
 
   ExplorerViewState get state => _state;
   bool get isArchiveView => _state.isArchiveView;
@@ -209,6 +210,7 @@ class ExplorerViewModel extends ChangeNotifier {
   Set<String> get selectedTypes => _state.selectedTypes;
   List<String> get recentPaths => _state.recentPaths;
   List<FileEntry> get clipboardEntries => List.unmodifiable(_clipboard);
+  String? tagForPath(String path) => _entryTags[path];
 
   void clearStatus() {
     if (_state.statusMessage == null) return;

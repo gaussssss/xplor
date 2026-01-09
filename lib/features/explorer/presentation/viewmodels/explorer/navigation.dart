@@ -51,7 +51,8 @@ extension ExplorerNavigationOps on ExplorerViewModel {
     notifyListeners();
 
     try {
-      final entries = await _listDirectoryEntries(targetPath);
+      var entries = await _listDirectoryEntries(targetPath);
+      entries = entries.map(_withTag).toList();
       _state = _state.copyWith(
         currentPath: targetPath,
         entries: entries,
@@ -129,15 +130,17 @@ extension ExplorerNavigationOps on ExplorerViewModel {
               final name = segments.isNotEmpty ? segments.last : recentPath;
 
               entries.add(
-                FileEntry(
-                  name: name,
-                  path: recentPath,
-                  isDirectory: entity is Directory,
-                  size: stat.size,
-                  lastModified: stat.modified,
-                  created: stat.changed,
-                  accessed: stat.accessed,
-                  mode: stat.mode,
+                _withTag(
+                  FileEntry(
+                    name: name,
+                    path: recentPath,
+                    isDirectory: entity is Directory,
+                    size: stat.size,
+                    lastModified: stat.modified,
+                    created: stat.changed,
+                    accessed: stat.accessed,
+                    mode: stat.mode,
+                  ),
                 ),
               );
             }
@@ -149,7 +152,9 @@ extension ExplorerNavigationOps on ExplorerViewModel {
       if (resolvedLocation == SpecialLocations.trash) {
         final trashDir = Directory(SpecialLocations.trashPath);
         if (await trashDir.exists()) {
-          entries = await _listDirectoryEntries(trashDir.path);
+          entries = (await _listDirectoryEntries(trashDir.path))
+              .map(_withTag)
+              .toList();
         }
       }
 
@@ -214,6 +219,24 @@ extension ExplorerNavigationOps on ExplorerViewModel {
 
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
+
+  FileEntry _withTag(FileEntry entry) {
+    final tag = _entryTags[entry.path];
+    if (tag == null) return entry;
+    return FileEntry(
+      name: entry.name,
+      path: entry.path,
+      isDirectory: entry.isDirectory,
+      size: entry.size,
+      lastModified: entry.lastModified,
+      created: entry.created,
+      accessed: entry.accessed,
+      mode: entry.mode,
+      isApplication: entry.isApplication,
+      iconPath: entry.iconPath,
+      tag: tag,
+    );
+  }
 
   Future<void> goBack() async {
     if (_backStack.isEmpty) return;

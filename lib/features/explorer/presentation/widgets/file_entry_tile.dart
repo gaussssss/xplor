@@ -27,6 +27,7 @@ class FileEntryTile extends StatelessWidget {
     this.previewFuture,
     this.audioArtFuture,
     this.enableDrop = true,
+    this.tagColor,
   });
 
   final FileEntry entry;
@@ -41,6 +42,7 @@ class FileEntryTile extends StatelessWidget {
   final Future<String?>? previewFuture;
   final Future<Uint8List?>? audioArtFuture;
   final bool enableDrop;
+  final Color? tagColor;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +58,7 @@ class FileEntryTile extends StatelessWidget {
             appIconFuture: appIconFuture,
             audioArtFuture: audioArtFuture,
             enableDrop: enableDrop,
+            tagColor: tagColor,
           )
         : _GridEntry(
             entry: entry,
@@ -69,6 +72,7 @@ class FileEntryTile extends StatelessWidget {
             previewFuture: previewFuture,
             audioArtFuture: audioArtFuture,
             enableDrop: enableDrop,
+            tagColor: tagColor,
           );
   }
 }
@@ -85,6 +89,7 @@ class _ListEntry extends StatefulWidget {
     this.appIconFuture,
     this.audioArtFuture,
     required this.enableDrop,
+    this.tagColor,
   });
 
   final FileEntry entry;
@@ -97,6 +102,7 @@ class _ListEntry extends StatefulWidget {
   final Future<String?>? appIconFuture;
   final Future<Uint8List?>? audioArtFuture;
   final bool enableDrop;
+  final Color? tagColor;
 
   @override
   State<_ListEntry> createState() => _ListEntryState();
@@ -148,6 +154,7 @@ class _ListEntryState extends State<_ListEntry> {
             color: iconColor,
             size: DesignTokens.iconSizeSmall,
             showLock: widget.isLocked,
+            tagColor: widget.tagColor,
           );
 
     if (!widget.selectionMode && !widget.entry.isDirectory) {
@@ -261,6 +268,7 @@ class _GridEntry extends StatefulWidget {
     this.previewFuture,
     this.audioArtFuture,
     required this.enableDrop,
+    this.tagColor,
   });
 
   final FileEntry entry;
@@ -274,6 +282,7 @@ class _GridEntry extends StatefulWidget {
   final Future<String?>? previewFuture;
   final Future<Uint8List?>? audioArtFuture;
   final bool enableDrop;
+  final Color? tagColor;
 
   @override
   State<_GridEntry> createState() => _GridEntryState();
@@ -388,6 +397,23 @@ class _GridEntryState extends State<_GridEntry> {
               Stack(
                 children: [
                   previewWidget,
+                  if (widget.tagColor != null)
+                    Positioned(
+                      top: -2,
+                      left: -2,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.tagColor,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (!widget.entry.isDirectory)
                     Positioned(
                       left: -2,
@@ -835,6 +861,7 @@ class _EntryIconWithBadge extends StatelessWidget {
     required this.color,
     required this.size,
     required this.showLock,
+    this.tagColor,
   });
 
   final FileEntry entry;
@@ -842,6 +869,7 @@ class _EntryIconWithBadge extends StatelessWidget {
   final Color color;
   final double size;
   final bool showLock;
+  final Color? tagColor;
 
   @override
   Widget build(BuildContext context) {
@@ -859,6 +887,23 @@ class _EntryIconWithBadge extends StatelessWidget {
               size: size,
             ),
           ),
+          if (tagColor != null)
+            Positioned(
+              top: -2,
+              left: -2,
+              child: Container(
+                width: (size * 0.35).clamp(8.0, 12.0),
+                height: (size * 0.35).clamp(8.0, 12.0),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: tagColor,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
           if (showLock)
             Positioned(
               right: -2,

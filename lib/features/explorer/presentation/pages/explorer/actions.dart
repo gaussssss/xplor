@@ -716,6 +716,16 @@ extension _ExplorerPageActions on _ExplorerPageState {
     await _viewModel.openInFinder(entry);
   }
 
+  Future<void> _applyTagToSelection(String? tag) async {
+    final selected = _viewModel.state.entries
+        .where((e) => _viewModel.state.selectedPaths.contains(e.path))
+        .toList();
+    if (selected.isEmpty) return;
+    for (final entry in selected) {
+      await _viewModel.setEntryTag(entry.path, tag);
+    }
+  }
+
   Future<void> _pasteClipboardWithRename([String? destinationPath]) async {
     if (!_viewModel.canPaste) return;
     final targetPath = destinationPath ?? _viewModel.state.currentPath;
@@ -963,6 +973,31 @@ extension _ExplorerPageActions on _ExplorerPageState {
                 : 'Afficher dans Finder',
             icon: lucide.LucideIcons.search,
             enabled: true,
+          ),
+        ],
+      ),
+    );
+
+    // Tags
+    items.add(
+      _ContextMenuEntry(
+        id: 'tagsMenu',
+        label: 'Tags',
+        icon: lucide.LucideIcons.palette,
+        children: [
+          ..._tagItems.map(
+            (tag) => _ContextMenuEntry(
+              id: 'tag:${tag.label}',
+              label: tag.label,
+              icon: lucide.LucideIcons.circle,
+              iconColor: tag.color,
+            ),
+          ),
+          const _ContextMenuEntry.separator(),
+          const _ContextMenuEntry(
+            id: 'tag:clear',
+            label: 'Effacer le tag',
+            icon: lucide.LucideIcons.x,
           ),
         ],
       ),
@@ -1248,6 +1283,11 @@ extension _ExplorerPageActions on _ExplorerPageState {
       case 'unlock':
         if (entry != null) await _unlockEntry(entry);
         break;
+      default:
+        if (selected != null && selected.startsWith('tag:')) {
+          final label = selected.substring(4);
+          await _applyTagToSelection(label == 'clear' ? null : label);
+        }
     }
   }
 
@@ -1881,6 +1921,8 @@ class _MediaPreviewDialogState extends State<_MediaPreviewDialog> {
   late final bool _isAudio;
   late final bool _isImage;
   late final bool _isSvg;
+  late final bool _isText;
+  Future<String>? _textPreviewFuture;
 
   @override
   void initState() {
@@ -1912,6 +1954,18 @@ class _MediaPreviewDialogState extends State<_MediaPreviewDialog> {
       '.m4a',
       '.wma',
     }.contains(ext);
+    _isText = const {
+      '.txt',
+      '.md',
+      '.json',
+      '.yaml',
+      '.yml',
+      '.csv',
+      '.log',
+      '.ini',
+      '.conf',
+      '.xml',
+    }.contains(ext);
 
     if (_isVideo) {
       _videoController = VideoPlayerController.file(File(widget.entry.path))
@@ -1929,6 +1983,8 @@ class _MediaPreviewDialogState extends State<_MediaPreviewDialog> {
       _docPreviewFuture = widget.viewModel.resolvePreviewThumbnail(
         widget.entry.path,
       );
+    } else if (_isText) {
+      _textPreviewFuture = _loadTextPreview(widget.entry.path);
     }
   }
 
@@ -2089,6 +2145,36 @@ class _MediaPreviewDialogState extends State<_MediaPreviewDialog> {
       );
     }
 
+    if (_isText && _textPreviewFuture != null) {
+      return FutureBuilder<String>(
+        future: _textPreviewFuture,
+        builder: (context, snapshot) {
+          final content = snapshot.data ?? 'Aperçu indisponible';
+          return Container(
+            width: 360,
+            constraints: const BoxConstraints(maxHeight: 260),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                content,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontFamily: 'Menlo',
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     final previewFuture = _docPreviewFuture;
     if (previewFuture == null) {
       return _buildFallbackIcon(theme);
@@ -2168,5 +2254,21 @@ class _MediaPreviewDialogState extends State<_MediaPreviewDialog> {
         color: theme.colorScheme.onSurfaceVariant,
       ),
     );
+  }
+
+  Future<String> _loadTextPreview(String path) async {
+    try {
+      final file = File(path);
+      if (!await file.exists()) return 'Aperçu indisponible';
+      final stream = file.openRead(0, 12 * 1024);
+      final chunks = await stream.toList();
+      final bytes = chunks.expand((b) => b).toList();
+      final decoded = utf8.decode(bytes, allowMalformed: true);
+      final lines = decoded.split('\n');
+      final limited = lines.take(120).join('\n');
+      return limited;
+    } catch (e) {
+      return 'Aperçu indisponible: $e';
+    }
   }
 }

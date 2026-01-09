@@ -176,14 +176,8 @@ extension ExplorerSearchOps on ExplorerViewModel {
   bool _matchesTag(FileEntry entry) {
     final tags = _state.selectedTags;
     if (tags.isEmpty) return true;
-    final lower = entry.name.toLowerCase();
-    for (final tag in tags) {
-      final extensions = _tagExtensions[tag] ?? [];
-      if (extensions.contains('*')) return true;
-      if (extensions.any((ext) => lower.endsWith(ext))) {
-        return true;
-      }
-    }
+    final entryTag = entry.tag;
+    if (entryTag != null && tags.contains(entryTag)) return true;
     return false;
   }
 

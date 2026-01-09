@@ -379,7 +379,7 @@ class _ListViewTableState extends State<ListViewTable> {
       case FileColumn.permissions:
         return _formatPermissions(entry.mode);
       case FileColumn.tags:
-        return '—';
+        return entry.tag ?? '—';
       default:
         return '—';
     }
@@ -602,6 +602,61 @@ class _ListViewTableState extends State<ListViewTable> {
   }
 
   Widget _buildCell(FileEntry entry, ColumnConfig column, bool isLight) {
+    if (column.column == FileColumn.tags) {
+      final color = _tagColorForLabel(entry.tag);
+      return SizedBox(
+        width: column.width,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: color == null
+                ? Text(
+                    '—',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isLight
+                          ? Colors.black54
+                          : Colors.white.withValues(alpha: 0.7),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isLight
+                                ? Colors.black.withValues(alpha: 0.1)
+                                : Colors.white.withValues(alpha: 0.12),
+                            width: 0.8,
+                          ),
+                        ),
+                      ),
+                      if (entry.tag != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          entry.tag!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isLight
+                                ? Colors.black87
+                                : Colors.white.withValues(alpha: 0.85),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       width: column.width,
       child: Padding(
@@ -616,6 +671,27 @@ class _ListViewTableState extends State<ListViewTable> {
         ),
       ),
     );
+  }
+
+  Color? _tagColorForLabel(String? tag) {
+    switch (tag) {
+      case 'Rouge':
+        return Colors.redAccent;
+      case 'Orange':
+        return Colors.orangeAccent;
+      case 'Jaune':
+        return Colors.amberAccent;
+      case 'Vert':
+        return Colors.lightGreenAccent;
+      case 'Bleu':
+        return Colors.lightBlueAccent;
+      case 'Violet':
+        return Colors.purpleAccent;
+      case 'Gris':
+        return Colors.grey;
+      default:
+        return null;
+    }
   }
 }
 
