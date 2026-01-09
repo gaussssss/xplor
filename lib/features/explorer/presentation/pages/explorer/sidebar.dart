@@ -43,10 +43,6 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buildNumber = const String.fromEnvironment(
-      'BUILD_NUMBER',
-      defaultValue: '1.0.0',
-    );
     final themeProvider = context.watch<ThemeProvider>();
     final themeMode = themeProvider.themeModePreference;
     if (collapsed) {
@@ -396,7 +392,6 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
           _SidebarFooter(
-            buildNumber: buildNumber,
             isLight: isLight,
             onToggleCollapse: onToggleCollapse,
             onSettingsClosed: onSettingsClosed,
@@ -794,13 +789,11 @@ class _ThemeModeOption extends StatelessWidget {
 
 class _SidebarFooter extends StatelessWidget {
   const _SidebarFooter({
-    required this.buildNumber,
     required this.isLight,
     required this.onToggleCollapse,
     required this.onSettingsClosed,
   });
 
-  final String buildNumber;
   final bool isLight;
   final VoidCallback? onToggleCollapse;
   final Future<void> Function()? onSettingsClosed;
@@ -827,7 +820,7 @@ class _SidebarFooter extends StatelessWidget {
             children: [
               _FooterSectionLabel(label: 'Support', isLight: isLight),
               const Spacer(),
-              _BuildChip(buildNumber: buildNumber, isLight: isLight),
+              _BuildChip(isLight: isLight),
             ],
           ),
           const SizedBox(height: 6),
@@ -902,20 +895,52 @@ class _SidebarFooter extends StatelessWidget {
   }
 }
 
-class _BuildChip extends StatelessWidget {
-  const _BuildChip({required this.buildNumber, required this.isLight});
+class _BuildChip extends StatefulWidget {
+  const _BuildChip({required this.isLight});
 
-  final String buildNumber;
   final bool isLight;
+
+  @override
+  State<_BuildChip> createState() => _BuildChipState();
+}
+
+class _BuildChipState extends State<_BuildChip> {
+  String? _label;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() {
+        _label = '${info.version}+${info.buildNumber}';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _label = null;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
-    final bg = isLight
+    final bg = widget.isLight
         ? Colors.black.withValues(alpha: 0.05)
         : Colors.white.withValues(alpha: 0.06);
-    final border = onSurface.withValues(alpha: isLight ? 0.12 : 0.18);
-    final textColor = onSurface.withValues(alpha: isLight ? 0.7 : 0.8);
+    final border = onSurface.withValues(
+      alpha: widget.isLight ? 0.12 : 0.18,
+    );
+    final textColor = onSurface.withValues(
+      alpha: widget.isLight ? 0.7 : 0.8,
+    );
+    final label = _label ?? '—';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -924,7 +949,7 @@ class _BuildChip extends StatelessWidget {
         border: Border.all(color: border, width: 0.6),
       ),
       child: Text(
-        'BUILD $buildNumber',
+        'BUILD $label',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontSize: 10,
           fontWeight: FontWeight.w700,

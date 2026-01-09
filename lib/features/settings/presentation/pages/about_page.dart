@@ -5,20 +5,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/assets.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/widgets/animated_background.dart';
 
-const String _appVersion = String.fromEnvironment(
-  'APP_VERSION',
-  defaultValue: '1.0.0',
-);
-const String _buildNumber = String.fromEnvironment(
-  'BUILD_NUMBER',
-  defaultValue: 'dev',
-);
 const String _githubRepoUrl = 'https://github.com/gaussssss/xplor';
 const String _githubRepoLabel = 'github.com/gaussssss/xplor';
 const String _githubApiUrl = 'https://api.github.com/repos/gaussssss/xplor';
@@ -78,6 +71,8 @@ class _AboutPageState extends State<AboutPage>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<Offset> _slideUp;
+  String _appVersion = '1.0.0';
+  String _buildNumber = 'dev';
   late final Animation<double> _bounce;
   late final Future<_GithubRepoStats> _githubStatsFuture;
 
@@ -101,6 +96,7 @@ class _AboutPageState extends State<AboutPage>
   @override
   void initState() {
     super.initState();
+    _loadPackageInfo();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -124,6 +120,17 @@ class _AboutPageState extends State<AboutPage>
     );
     _githubStatsFuture = _fetchGithubStats();
     _controller.forward();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() {
+        _appVersion = info.version;
+        _buildNumber = info.buildNumber;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -244,6 +251,8 @@ class _AboutPageState extends State<AboutPage>
                                     final hero = _HeroCard(
                                       isLight: isLight,
                                       bounce: _bounce,
+                                      appVersion: _appVersion,
+                                      buildNumber: _buildNumber,
                                       onCopyRepo: () =>
                                           _copyLink(context, _githubRepoUrl),
                                     );
@@ -753,11 +762,15 @@ class _HeroCard extends StatelessWidget {
   const _HeroCard({
     required this.isLight,
     required this.bounce,
+    required this.appVersion,
+    required this.buildNumber,
     required this.onCopyRepo,
   });
 
   final bool isLight;
   final Animation<double> bounce;
+  final String appVersion;
+  final String buildNumber;
   final VoidCallback onCopyRepo;
 
   @override
@@ -833,13 +846,13 @@ class _HeroCard extends StatelessWidget {
                             children: [
                               _MetaPill(
                                 icon: lucide.LucideIcons.badgeCheck,
-                                label: 'Version $_appVersion',
+                                label: 'Version $appVersion',
                                 isLight: isLight,
                               ),
                               const SizedBox(height: 8),
                               _MetaPill(
                                 icon: lucide.LucideIcons.cog,
-                                label: 'Build $_buildNumber',
+                                label: 'Build $buildNumber',
                                 isLight: isLight,
                               ),
                             ],
@@ -883,12 +896,12 @@ class _HeroCard extends StatelessWidget {
                         if (isNarrow) ...[
                           _MetaPill(
                             icon: lucide.LucideIcons.badgeCheck,
-                            label: 'Version $_appVersion',
+                            label: 'Version $appVersion',
                             isLight: isLight,
                           ),
                           _MetaPill(
                             icon: lucide.LucideIcons.cog,
-                            label: 'Build $_buildNumber',
+                            label: 'Build $buildNumber',
                             isLight: isLight,
                           ),
                         ],

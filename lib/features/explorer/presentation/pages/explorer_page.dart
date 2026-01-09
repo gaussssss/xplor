@@ -11,6 +11,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
@@ -63,6 +64,15 @@ part 'explorer/dialogs.dart';
 part 'explorer/actions.dart';
 part 'explorer/content.dart';
 part 'explorer/navigation.dart';
+
+const String _fallbackAppVersion = String.fromEnvironment(
+  'APP_VERSION',
+  defaultValue: '1.0.0',
+);
+const String _fallbackBuildNumber = String.fromEnvironment(
+  'BUILD_NUMBER',
+  defaultValue: 'dev',
+);
 
 class ExplorerPage extends StatefulWidget {
   const ExplorerPage({super.key});
@@ -227,6 +237,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   bool _isSidebarCollapsed = false;
   bool _isMultiSelectionMode = false;
   bool _didInitialAutoRefresh = false;
+  bool _hasLoggedVersion = false;
   double _sidebarWidth = 240.0; // Largeur du sidebar (redimensionnable)
   String _lastPath = ''; // Pour détecter les changements de dossier
 
@@ -267,6 +278,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
     _tagItems = _buildTags();
     _volumeInfoService = VolumeInfoService();
     _volumes = _volumeInfoService.readVolumes();
+    _logVersionInfo();
     _initializeExplorer(initialPath);
     _loadSelectionMode();
     _loadPreferredRootPath();
@@ -403,6 +415,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
     setState(() {
       _volumes = _volumeInfoService.readVolumes();
     });
+  }
+
+  Future<void> _logVersionInfo() async {
+    if (_hasLoggedVersion) return;
+    _hasLoggedVersion = true;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      debugPrint('[Xplor] version ${info.version}+${info.buildNumber}');
+    } catch (e) {
+      debugPrint(
+        '[Xplor] package_info_plus unavailable, using fallback: $_fallbackAppVersion+$_fallbackBuildNumber',
+      );
+      debugPrint('[Xplor] version $_fallbackAppVersion+$_fallbackBuildNumber');
+    }
   }
 
   bool _isTextInputFocused() {
