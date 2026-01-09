@@ -228,7 +228,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
               isActive: !state.isLoading && _viewModel.canPaste,
               onPressed: state.isLoading || !_viewModel.canPaste
                   ? null
-                  : _viewModel.pasteClipboard,
+                  : _pasteClipboardWithRename,
             ),
             const SizedBox(width: 12),
 
@@ -319,7 +319,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
               isActive: !state.isLoading && selectionCount > 0,
               onPressed: state.isLoading || selectionCount == 0
                   ? null
-                  : _viewModel.restoreSelectedFromTrash,
+                  : _confirmRestoreFromTrash,
             ),
             const SizedBox(width: 8),
             ToolbarButton(
@@ -620,6 +620,211 @@ extension _ExplorerPageActions on _ExplorerPageState {
     }
   }
 
+  Future<void> _confirmRestoreFromTrash() async {
+    final entries = _viewModel.state.entries
+        .where((entry) => _viewModel.state.selectedPaths.contains(entry.path))
+        .toList();
+    if (entries.isEmpty) return;
+    final lockedCount = entries.where(_viewModel.isLockedEntry).length;
+    final title = 'Restaurer';
+    final baseMessage =
+        'Restaurer ${entries.length} element(s) vers leur emplacement d origine ?';
+    final lockedMessage = lockedCount == 0
+        ? null
+        : '$lockedCount fichier(s) verrouille(s) (.xplrlock) resteront chiffré(s) et seront replacés à leur emplacement d origine.';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            title: Text(title),
+            content: Text(
+              lockedMessage == null
+                  ? baseMessage
+                  : '$baseMessage\n\n$lockedMessage',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Restaurer'),
+              ),
+            ],
+          ),
+          maxWidth: 380,
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+    final restoredPaths = await _viewModel.restoreSelectedFromTrash();
+    if (restoredPaths.isEmpty) return;
+
+    final shouldOpen = await _showOpenRestoredPrompt(restoredPaths.length);
+    if (shouldOpen == true) {
+      await _openRestoredLocation(restoredPaths.first);
+    }
+  }
+
+  Future<bool?> _showOpenRestoredPrompt(int restoredCount) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            title: const Text('Restauration terminee'),
+            content: Text(
+              restoredCount == 1
+                  ? 'Ouvrir l emplacement du fichier restauré ?'
+                  : 'Ouvrir l emplacement d un des fichiers restaurés ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Plus tard'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Ouvrir'),
+              ),
+            ],
+          ),
+          maxWidth: 360,
+        );
+      },
+    );
+  }
+
+  Future<void> _openRestoredLocation(String path) async {
+    final entry = FileEntry(
+      name: p.basename(path),
+      path: path,
+      isDirectory: Directory(path).existsSync(),
+    );
+    await _viewModel.openInFinder(entry);
+  }
+
+  Future<void> _pasteClipboardWithRename([String? destinationPath]) async {
+    if (!_viewModel.canPaste) return;
+    final targetPath = destinationPath ?? _viewModel.state.currentPath;
+    final entries = _viewModel.clipboardEntries;
+    if (entries.isEmpty) return;
+
+    final renameMap = <String, String>{};
+    for (final entry in entries) {
+      final target = p.join(targetPath, entry.name);
+      if (_pathExists(target)) {
+        final suggested = _generateUniqueName(entry.name, targetPath);
+        final renamed = await _promptRenameOnPaste(
+          entry.name,
+          suggested,
+          targetPath,
+        );
+        if (renamed == null) return;
+        renameMap[entry.path] = renamed;
+      }
+    }
+
+    if (renameMap.isEmpty) {
+      await _viewModel.pasteClipboard(targetPath);
+    } else {
+      await _viewModel.pasteClipboardWithRename(renameMap, targetPath);
+    }
+  }
+
+  bool _pathExists(String targetPath) {
+    return FileSystemEntity.typeSync(targetPath) !=
+        FileSystemEntityType.notFound;
+  }
+
+  String _generateUniqueName(String fileName, String targetDir) {
+    final ext = p.extension(fileName);
+    final base = ext.isEmpty
+        ? fileName
+        : p.basenameWithoutExtension(fileName);
+    var counter = 1;
+    while (true) {
+      final candidate =
+          ext.isEmpty ? '$base ($counter)' : '$base ($counter)$ext';
+      final candidatePath = p.join(targetDir, candidate);
+      if (!_pathExists(candidatePath)) return candidate;
+      counter++;
+    }
+  }
+
+  Future<String?> _promptRenameOnPaste(
+    String currentName,
+    String suggestedName,
+    String targetDir,
+  ) {
+    final controller = TextEditingController(text: suggestedName);
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            title: const Text('Renommer le fichier'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Un fichier nommé "$currentName" existe déjà.',
+                ),
+                const SizedBox(height: 8),
+                const Text('Choisissez un nouveau nom.'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nouveau nom',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final value = controller.text.trim();
+                  if (value.isEmpty) {
+                    Navigator.of(context).pop(null);
+                    return;
+                  }
+                  final candidatePath = p.join(targetDir, value);
+                  if (_pathExists(candidatePath)) {
+                    final fallback = _generateUniqueName(value, targetDir);
+                    Navigator.of(context).pop(fallback);
+                    return;
+                  }
+                  Navigator.of(context).pop(value);
+                },
+                child: const Text('Renommer'),
+              ),
+            ],
+          ),
+          maxWidth: 380,
+        );
+      },
+    );
+  }
+
   Future<void> _showContextMenu(FileEntry? entry, Offset globalPosition) async {
     if (_contextMenuOpen) return;
     _contextMenuOpen = true;
@@ -634,6 +839,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
         ? entry.path
         : null;
     final canPaste = _viewModel.canPaste && !isArchiveView;
+    final isTrash = _viewModel.state.currentPath == SpecialLocations.trash;
     final isLocked = entry != null && _viewModel.isLockedEntry(entry);
     final canPreview =
         entry != null &&
@@ -878,18 +1084,36 @@ extension _ExplorerPageActions on _ExplorerPageState {
         ),
       );
       if (!isArchiveView) {
-        items.add(
-          const _ContextMenuEntry(
-            id: 'delete',
-            label: 'Supprimer',
-            icon: lucide.LucideIcons.trash2,
-            destructive: true,
-          ),
-        );
+        if (isTrash) {
+          items.add(
+            const _ContextMenuEntry(
+              id: 'restore',
+              label: 'Restaurer',
+              icon: lucide.LucideIcons.undo2,
+            ),
+          );
+          items.add(
+            const _ContextMenuEntry(
+              id: 'delete',
+              label: 'Supprimer definitivement',
+              icon: lucide.LucideIcons.trash2,
+              destructive: true,
+            ),
+          );
+        } else {
+          items.add(
+            const _ContextMenuEntry(
+              id: 'delete',
+              label: 'Supprimer',
+              icon: lucide.LucideIcons.trash2,
+              destructive: true,
+            ),
+          );
+        }
       }
     } else {
       items.add(const _ContextMenuEntry.separator());
-      if (!isArchiveView) {
+      if (!isArchiveView && !isTrash) {
         items.add(
           const _ContextMenuEntry(
             id: 'newFolder',
@@ -977,7 +1201,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
         _viewModel.cutSelectionToClipboard();
         break;
       case 'paste':
-        await _viewModel.pasteClipboard(pasteDestination);
+        await _pasteClipboardWithRename(pasteDestination);
         break;
       case 'duplicate':
         await _viewModel.duplicateSelected();
@@ -990,6 +1214,9 @@ extension _ExplorerPageActions on _ExplorerPageState {
         break;
       case 'delete':
         await _confirmDeletion();
+        break;
+      case 'restore':
+        await _confirmRestoreFromTrash();
         break;
       case 'newFolder':
         await _promptCreateFolder();
@@ -1576,20 +1803,40 @@ extension _ExplorerPageActions on _ExplorerPageState {
     try {
       _isToastShowing = true;
       final theme = Theme.of(context);
-      Flushbar(
-        message: message,
-        maxWidth: 360,
-        margin: const EdgeInsets.only(left: 12, bottom: 8, right: 300),
+      final isDark = theme.brightness == Brightness.dark;
+      final surface = theme.colorScheme.surface;
+      final onSurface = theme.colorScheme.onSurface;
+      final borderColor = theme.colorScheme.outlineVariant.withValues(
+        alpha: isDark ? 0.35 : 0.6,
+      );
+      final flushbar = Flushbar(
+        maxWidth: 420,
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
         borderRadius: BorderRadius.circular(14),
-        backgroundColor: theme.colorScheme.surface.withOpacity(0.9),
+        backgroundColor: surface.withValues(alpha: isDark ? 0.88 : 0.94),
         duration: const Duration(milliseconds: 1700),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         icon: Icon(
           lucide.LucideIcons.info,
           size: 22,
-          color: theme.colorScheme.primary,
+          color: theme.colorScheme.primary.withValues(alpha: 0.9),
         ),
-        leftBarIndicatorColor: theme.colorScheme.primary,
+        messageText: Text(
+          message,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: onSurface.withValues(alpha: 0.9),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        borderColor: borderColor,
+        borderWidth: 1,
+        boxShadows: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
         shouldIconPulse: false,
         flushbarPosition: FlushbarPosition.BOTTOM,
         onStatusChanged: (status) {
@@ -1598,13 +1845,16 @@ extension _ExplorerPageActions on _ExplorerPageState {
             _isToastShowing = false;
           }
         },
-      ).show(context);
+      );
+      flushbar.show(context).whenComplete(() {
+        _isToastShowing = false;
+      });
     } catch (_) {
       _isToastShowing = false;
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) return;
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     }
   }
 }

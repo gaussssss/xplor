@@ -36,6 +36,39 @@ extension ExplorerClipboardOps on ExplorerViewModel {
 
   Future<void> pasteClipboard([String? destinationPath]) async {
     if (_clipboard.isEmpty) return;
+    await _pasteEntries(_clipboard, destinationPath);
+  }
+
+  Future<void> pasteClipboardWithRename(
+    Map<String, String> renameMap, [
+    String? destinationPath,
+  ]) async {
+    if (_clipboard.isEmpty) return;
+    if (renameMap.isEmpty) {
+      await pasteClipboard(destinationPath);
+      return;
+    }
+    final entries = _clipboard.map((entry) {
+      final newName = renameMap[entry.path];
+      if (newName == null || newName.trim().isEmpty) return entry;
+      return FileEntry(
+        name: newName.trim(),
+        path: entry.path,
+        isDirectory: entry.isDirectory,
+        size: entry.size,
+        lastModified: entry.lastModified,
+        isApplication: entry.isApplication,
+        iconPath: entry.iconPath,
+      );
+    }).toList();
+    await _pasteEntries(entries, destinationPath);
+  }
+
+  Future<void> _pasteEntries(
+    List<FileEntry> entries, [
+    String? destinationPath,
+  ]) async {
+    if (entries.isEmpty) return;
     final targetPath = destinationPath ?? _state.currentPath;
     if (_state.isArchiveView || _isWithinArchive(targetPath)) {
       _state = _state.copyWith(
@@ -53,14 +86,14 @@ extension ExplorerClipboardOps on ExplorerViewModel {
     notifyListeners();
     try {
       if (_state.isCutOperation) {
-        await _moveEntries(_clipboard, targetPath);
+        await _moveEntries(entries, targetPath);
       } else {
-        await _copyEntries(_clipboard, targetPath);
+        await _copyEntries(entries, targetPath);
       }
       await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage:
-            '${_clipboard.length} element(s) ${_state.isCutOperation ? 'deplaces' : 'colles'}',
+            '${entries.length} element(s) ${_state.isCutOperation ? 'deplaces' : 'colles'}',
         isLoading: false,
         isCutOperation: false,
         clipboardCount: 0,

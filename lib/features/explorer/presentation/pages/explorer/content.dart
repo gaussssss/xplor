@@ -43,6 +43,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => _viewModel.loadDirectory(state.currentPath),
+                style: FilledButton.styleFrom(foregroundColor: Colors.white),
                 child: const Text('Reessayer'),
               ),
             ],
@@ -276,9 +277,10 @@ extension _ExplorerPageContent on _ExplorerPageState {
               .where((e) => _viewModel.state.selectedPaths.contains(e.path))
               .toList()
         : <FileEntry>[entry];
-    final handleSelection = selectionMode
-        ? () => _viewModel.toggleSelection(entry)
-        : () => _viewModel.selectSingle(entry);
+    final handleSelection = () => _handleEntrySingleTap(
+      entry,
+      selectionMode: selectionMode,
+    );
     final appIconFuture = entry.isDirectory
         ? null
         : _viewModel.resolveDefaultAppIconPath(entry.path);
@@ -385,11 +387,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
       scrollController: _scrollController,
       isSelected: (entry) => _viewModel.isSelected(entry),
       onEntryTap: (entry) {
-        if (selectionMode) {
-          _viewModel.toggleSelection(entry);
-        } else {
-          _viewModel.selectSingle(entry);
-        }
+        _handleEntrySingleTap(entry, selectionMode: selectionMode);
       },
       onEntryDoubleTap: (entry) => _handleEntryTap(entry),
       onEntrySecondaryTap: (entry, offset) {
@@ -430,5 +428,26 @@ extension _ExplorerPageContent on _ExplorerPageState {
         );
       },
     );
+  }
+
+  void _handleEntrySingleTap(
+    FileEntry entry, {
+    required bool selectionMode,
+  }) {
+    if (selectionMode) {
+      _viewModel.toggleSelection(entry);
+      return;
+    }
+    final isTrash = _viewModel.state.currentPath == SpecialLocations.trash;
+    final isArchive = _viewModel.state.isArchiveView;
+    final selectedPaths = _viewModel.state.selectedPaths;
+    final isSingleSelected =
+        selectedPaths.length == 1 && selectedPaths.contains(entry.path);
+
+    if (isSingleSelected && !isTrash && !isArchive) {
+      _promptRename();
+      return;
+    }
+    _viewModel.selectSingle(entry);
   }
 }

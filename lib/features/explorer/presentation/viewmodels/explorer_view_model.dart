@@ -208,6 +208,7 @@ class ExplorerViewModel extends ChangeNotifier {
   Set<String> get selectedTags => _state.selectedTags;
   Set<String> get selectedTypes => _state.selectedTypes;
   List<String> get recentPaths => _state.recentPaths;
+  List<FileEntry> get clipboardEntries => List.unmodifiable(_clipboard);
 
   void clearStatus() {
     if (_state.statusMessage == null) return;

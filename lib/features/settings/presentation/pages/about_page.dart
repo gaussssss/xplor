@@ -281,82 +281,74 @@ class _AboutPageState extends State<AboutPage>
                                         },
                                       ),
                                     );
-                                    final stats = _SectionCard(
-                                      title: 'Statistiques GitHub',
-                                      subtitle: _githubRepoLabel,
-                                      icon: lucide.LucideIcons.github,
-                                      isLight: isLight,
-                                      child: FutureBuilder<_GithubRepoStats>(
-                                        future: _githubStatsFuture,
-                                        builder: (context, snapshot) {
-                                          if (snapshot.connectionState !=
-                                              ConnectionState.done) {
-                                            return _StatsWrap(
-                                              isLight: isLight,
-                                              items: _buildStatItems(null),
-                                              isPlaceholder: true,
-                                            );
-                                          }
-
-                                          if (!snapshot.hasData) {
-                                            return _StatsError(
-                                              isLight: isLight,
-                                              onCopy: () => _copyLink(
-                                                context,
-                                                _githubRepoUrl,
-                                              ),
-                                            );
-                                          }
-
-                                          return _StatsWrap(
-                                            isLight: isLight,
-                                            items: _buildStatItems(
-                                              snapshot.data,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    );
                                     final values = _SectionCard(
                                       title: 'Notre ADN',
                                       subtitle:
                                           'Ce qui façonne l’expérience Xplor',
                                       icon: lucide.LucideIcons.sparkles,
                                       isLight: isLight,
-                                      child: Wrap(
-                                        spacing: 12,
-                                        runSpacing: 12,
-                                        children: [
-                                          _ValueTile(
-                                            icon: lucide.LucideIcons.lock,
-                                            title: 'Local-first',
-                                            description:
-                                                'Vos données restent sur votre machine.',
-                                            isLight: isLight,
-                                          ),
-                                          _ValueTile(
-                                            icon: lucide.LucideIcons.archive,
-                                            title: 'Archives fluides',
-                                            description:
-                                                'Ouvrir, explorer et extraire sans friction.',
-                                            isLight: isLight,
-                                          ),
-                                          _ValueTile(
-                                            icon: lucide.LucideIcons.palette,
-                                            title: 'Personnalisation',
-                                            description:
-                                                'Thèmes, fonds, raccourcis, tout est modulable.',
-                                            isLight: isLight,
-                                          ),
-                                          _ValueTile(
-                                            icon:
-                                                lucide.LucideIcons.shieldCheck,
-                                            title: 'Confiance',
-                                            description:
-                                                'Open-source MIT et transparence totale.',
-                                            isLight: isLight,
-                                          ),
-                                        ],
+                                      child: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final isWideCard =
+                                              constraints.maxWidth > 520;
+                                          final tiles = [
+                                            _ValueTile(
+                                              icon: lucide.LucideIcons.lock,
+                                              title: 'Local-first',
+                                              description:
+                                                  'Vos données restent sur votre machine.',
+                                              isLight: isLight,
+                                            ),
+                                            _ValueTile(
+                                              icon: lucide.LucideIcons.archive,
+                                              title: 'Archives fluides',
+                                              description:
+                                                  'Ouvrir, explorer et extraire sans friction.',
+                                              isLight: isLight,
+                                            ),
+                                            _ValueTile(
+                                              icon: lucide.LucideIcons.palette,
+                                              title: 'Personnalisation',
+                                              description:
+                                                  'Thèmes, fonds, raccourcis, tout est modulable.',
+                                              isLight: isLight,
+                                            ),
+                                            _ValueTile(
+                                              icon:
+                                                  lucide.LucideIcons.shieldCheck,
+                                              title: 'Confiance',
+                                              description:
+                                                  'Open-source MIT et transparence totale.',
+                                              isLight: isLight,
+                                            ),
+                                          ];
+                                          if (!isWideCard) {
+                                            return Column(
+                                              children: [
+                                                for (int i = 0;
+                                                    i < tiles.length;
+                                                    i++) ...[
+                                                  if (i > 0)
+                                                    const SizedBox(height: 12),
+                                                  tiles[i],
+                                                ],
+                                              ],
+                                            );
+                                          }
+                                          final tileWidth =
+                                              (constraints.maxWidth - 12) / 2;
+                                          return Wrap(
+                                            spacing: 12,
+                                            runSpacing: 12,
+                                            children: [
+                                              for (final tile in tiles)
+                                                SizedBox(
+                                                  width: tileWidth,
+                                                  child: tile,
+                                                ),
+                                            ],
+                                          );
+                                        },
                                       ),
                                     );
                                     final links = _SectionCard(
@@ -409,7 +401,7 @@ class _AboutPageState extends State<AboutPage>
                                               CrossAxisAlignment.stretch,
                                           children: [
                                             hero,
-                                            const SizedBox(height: 20),
+                                            const SizedBox(height: 16),
                                             Row(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
@@ -420,13 +412,9 @@ class _AboutPageState extends State<AboutPage>
                                                     children: [
                                                       contributors,
                                                       const SizedBox(
-                                                        height: 16,
+                                                        height: 12,
                                                       ),
                                                       values,
-                                                      const SizedBox(
-                                                        height: 16,
-                                                      ),
-                                                      links,
                                                     ],
                                                   ),
                                                 ),
@@ -435,17 +423,7 @@ class _AboutPageState extends State<AboutPage>
                                                   flex: 2,
                                                   child: Column(
                                                     children: [
-                                                      stats,
-                                                      const SizedBox(
-                                                        height: 16,
-                                                      ),
-                                                      _SideNotePanel(
-                                                        isLight: isLight,
-                                                        onCopy: () => _copyLink(
-                                                          context,
-                                                          _githubRepoUrl,
-                                                        ),
-                                                      ),
+                                                      links,
                                                     ],
                                                   ),
                                                 ),
@@ -465,19 +443,8 @@ class _AboutPageState extends State<AboutPage>
                                           const SizedBox(height: 18),
                                           contributors,
                                           const SizedBox(height: 16),
-                                          stats,
-                                          const SizedBox(height: 16),
                                           values,
-                                          const SizedBox(height: 16),
                                           links,
-                                          const SizedBox(height: 16),
-                                          _SideNotePanel(
-                                            isLight: isLight,
-                                            onCopy: () => _copyLink(
-                                              context,
-                                              _githubRepoUrl,
-                                            ),
-                                          ),
                                         ],
                                       ),
                                     );

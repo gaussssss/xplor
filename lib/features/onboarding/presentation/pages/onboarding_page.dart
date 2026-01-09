@@ -366,7 +366,6 @@ class _OnboardingPageState extends State<OnboardingPage>
                             isLight: isLight,
                             onBack: _previousPage,
                             onNext: _nextPage,
-                            onSkip: _completeOnboarding,
                           ),
                         ],
                       );
@@ -1090,7 +1089,6 @@ class _OnboardingFooter extends StatelessWidget {
     required this.isLight,
     required this.onBack,
     required this.onNext,
-    required this.onSkip,
   });
 
   final int currentIndex;
@@ -1098,13 +1096,13 @@ class _OnboardingFooter extends StatelessWidget {
   final bool isLight;
   final VoidCallback onBack;
   final VoidCallback onNext;
-  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
     final isLast = currentIndex == total - 1;
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (currentIndex > 0)
           _GlassActionButton(
@@ -1114,14 +1112,8 @@ class _OnboardingFooter extends StatelessWidget {
             onPressed: onBack,
           )
         else
-          const SizedBox(width: 90),
-        const Spacer(),
-        _GlassActionButton(
-          label: 'Passer',
-          isLight: isLight,
-          onPressed: onSkip,
-        ),
-        const SizedBox(width: 8),
+          const SizedBox.shrink(),
+        if (currentIndex > 0) const SizedBox(width: 12),
         _GradientButton(
           label: isLast ? 'Terminer' : 'Suivant',
           icon: isLast

@@ -448,7 +448,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
         isEnabled: () => !state.isLoading && state.selectedPaths.isNotEmpty,
       ),
       _PasteSelectionIntent: _buildShortcutAction(
-        () => _viewModel.pasteClipboard(),
+        () => _pasteClipboardWithRename(),
         isEnabled: () => !state.isLoading && _viewModel.canPaste,
       ),
       _SelectAllIntent: _buildShortcutAction(

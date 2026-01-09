@@ -70,9 +70,10 @@ extension ExplorerFileOps on ExplorerViewModel {
     }
   }
 
-  Future<void> restoreSelectedFromTrash() async {
-    if (_state.selectedPaths.isEmpty) return;
-    if (_state.currentPath != SpecialLocations.trash) return;
+  Future<List<String>> restoreSelectedFromTrash() async {
+    if (_state.selectedPaths.isEmpty) return [];
+    if (_state.currentPath != SpecialLocations.trash) return [];
+    final restoredPaths = <String>[];
     _state = _state.copyWith(
       isLoading: true,
       clearError: true,
@@ -83,21 +84,27 @@ extension ExplorerFileOps on ExplorerViewModel {
       final toRestore = _state.entries
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
+      debugPrint('[Trash] Restore requested: ${toRestore.length} item(s)');
       if (!Platform.isMacOS) {
         _state = _state.copyWith(
           isLoading: false,
           error: 'Restauration non supportee sur cette plateforme.',
         );
-        return;
+        return restoredPaths;
       }
       for (final entry in toRestore) {
-        await _putBackFromTrash(entry.path);
+        debugPrint('[Trash] Restoring: ${entry.path}');
+        final restoredPath = await _putBackFromTrash(entry.path);
+        if (restoredPath != null) {
+          restoredPaths.add(restoredPath);
+        }
       }
       await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toRestore.length} element(s) restaure(s)',
         isLoading: false,
       );
+      return restoredPaths;
     } on FileSystemException catch (error) {
       _state = _state.copyWith(isLoading: false, error: error.message);
     } catch (_) {
@@ -108,13 +115,16 @@ extension ExplorerFileOps on ExplorerViewModel {
     } finally {
       notifyListeners();
     }
+    return restoredPaths;
   }
 
   Future<void> _moveEntriesToTrash(List<FileEntry> entries) async {
     for (final entry in entries) {
+      debugPrint('[Trash] Moving to trash: ${entry.path}');
       final script = 'tell application "Finder" to delete POSIX file "${_escapeAppleScriptPath(entry.path)}"';
       final result = await Process.run('osascript', ['-e', script]);
       if (result.exitCode != 0) {
+        debugPrint('[Trash] Move failed: ${result.stderr}');
         throw FileSystemException(
           'Echec de suppression vers la corbeille',
           entry.path,
@@ -123,12 +133,46 @@ extension ExplorerFileOps on ExplorerViewModel {
     }
   }
 
-  Future<void> _putBackFromTrash(String path) async {
-    final script = 'tell application "Finder" to put back (POSIX file "${_escapeAppleScriptPath(path)}")';
-    final result = await Process.run('osascript', ['-e', script]);
-    if (result.exitCode != 0) {
-      throw FileSystemException('Echec de restauration', path);
+  Future<String?> _putBackFromTrash(String path) async {
+    // Essayer d'abord avec put back (nécessite les métadonnées macOS)
+    try {
+      final escaped = _escapeAppleScriptPath(path);
+      final script = '''
+tell application "Finder"
+  set restoredItem to put back (POSIX file "$escaped")
+  return POSIX path of (restoredItem as alias)
+end tell
+''';
+      debugPrint('[Trash] Restore script: $script');
+      final result = await Process.run('osascript', ['-e', script]);
+      if (result.exitCode == 0) {
+        debugPrint('[Trash] Successfully restored via put back');
+        final restoredPath = (result.stdout ?? '').toString().trim();
+        return restoredPath.isEmpty ? null : restoredPath;
+      }
+      debugPrint('[Trash] Put back failed: ${result.stderr}');
+    } catch (e) {
+      debugPrint('[Trash] Put back exception: $e');
     }
+
+    // Si put back échoue, essayer de restaurer dans le dossier Home de l'utilisateur
+    debugPrint(
+        '[Trash] Falling back to manual restore to home directory (metadata lost)');
+    final fileName = path.split('/').last;
+    final homeDir = Platform.environment['HOME'] ?? '/Users';
+    final targetPath = '$homeDir/$fileName';
+
+    // Utiliser mv pour déplacer le fichier
+    final mvResult = await Process.run('mv', [path, targetPath]);
+    if (mvResult.exitCode != 0) {
+      debugPrint('[Trash] Manual restore failed: ${mvResult.stderr}');
+      throw FileSystemException(
+        'Impossible de restaurer: métadonnées perdues. Fichier déplacé manuellement vers: $targetPath',
+        path,
+      );
+    }
+    debugPrint('[Trash] File restored to: $targetPath');
+    return targetPath;
   }
 
   String _escapeAppleScriptPath(String path) {
