@@ -39,6 +39,8 @@ part 'explorer/preferences.dart';
 part 'explorer/search.dart';
 part 'explorer/selection.dart';
 
+const MethodChannel _tagChannel = MethodChannel('xplor/tags');
+
 enum ExplorerViewMode { list, grid }
 
 class ExplorerViewState {

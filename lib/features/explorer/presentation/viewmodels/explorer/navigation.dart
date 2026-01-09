@@ -52,6 +52,14 @@ extension ExplorerNavigationOps on ExplorerViewModel {
 
     try {
       var entries = await _listDirectoryEntries(targetPath);
+      if (Platform.isMacOS) {
+        for (final entry in entries) {
+          final nativeTag = await getNativeTag(entry.path);
+          if (nativeTag != null && nativeTag.isNotEmpty) {
+            _entryTags[entry.path] = nativeTag;
+          }
+        }
+      }
       entries = entries.map(_withTag).toList();
       _state = _state.copyWith(
         currentPath: targetPath,

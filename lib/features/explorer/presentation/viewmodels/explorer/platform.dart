@@ -584,4 +584,29 @@ extension ExplorerPlatformOps on ExplorerViewModel {
     }
     return base;
   }
+
+  Future<String?> getNativeTag(String path) async {
+    if (!Platform.isMacOS) return null;
+    try {
+      final tag =
+          await _tagChannel.invokeMethod<String>('getTag', {'path': path});
+      return tag?.trim().isEmpty ?? true ? null : tag;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setNativeTag(String path, String? tag) async {
+    if (Platform.isMacOS) {
+      try {
+        await _tagChannel.invokeMethod('setTag', {
+          'path': path,
+          'tag': tag ?? '',
+        });
+      } catch (_) {
+        // ignore native failures, still update local state
+      }
+    }
+    await setEntryTag(path, tag);
+  }
 }

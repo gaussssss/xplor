@@ -1,9 +1,7 @@
-import Cocoa
+import Foundation
 import FlutterMacOS
 
-// Simple native tag bridge for macOS Finder tags
-@available(macOS 13.0, *)
-fileprivate class TagChannel {
+class TagChannel {
   static func register(with controller: FlutterViewController) {
     let channel = FlutterMethodChannel(
       name: "xplor/tags",
@@ -41,7 +39,6 @@ fileprivate class TagChannel {
   }
 
   private static func fetchTag(path: String) -> String? {
-    guard #available(macOS 26.0, *) else { return nil }
     let url = URL(fileURLWithPath: path)
     do {
       let values = try url.resourceValues(forKeys: [.tagNamesKey])
@@ -52,27 +49,14 @@ fileprivate class TagChannel {
   }
 
   private static func applyTag(path: String, tag: String) throws {
-    guard #available(macOS 26.0, *) else { return }
-    var url = URL(fileURLWithPath: path)
+    let url = URL(fileURLWithPath: path)
     var values = URLResourceValues()
     let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
-    values.tagNames = trimmed.isEmpty ? [] : [trimmed]
-    try url.setResourceValues(values)
-  }
-}
-
-class MainFlutterWindow: NSWindow {
-  override func awakeFromNib() {
-    let flutterViewController = FlutterViewController()
-    let windowFrame = self.frame
-    self.contentViewController = flutterViewController
-    self.setFrame(windowFrame, display: true)
-
-    RegisterGeneratedPlugins(registry: flutterViewController)
-    if #available(macOS 13.0, *) {
-      TagChannel.register(with: flutterViewController)
+    if trimmed.isEmpty {
+      values.tagNames = []
+    } else {
+      values.tagNames = [trimmed]
     }
-
-    super.awakeFromNib()
+    try url.setResourceValues(values)
   }
 }

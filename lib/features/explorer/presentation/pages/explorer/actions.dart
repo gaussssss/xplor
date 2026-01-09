@@ -722,7 +722,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
         .toList();
     if (selected.isEmpty) return;
     for (final entry in selected) {
-      await _viewModel.setEntryTag(entry.path, tag);
+      await _viewModel.setNativeTag(entry.path, tag);
     }
   }
 
