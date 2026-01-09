@@ -27,6 +27,17 @@
           ]
         },
         {
+          "title": "Chemins spéciaux Xplor",
+          "description": "Xplor utilise des URLs spéciales avec le protocole xplor:// pour accéder à des vues virtuelles et des collections dynamiques. Ces chemins peuvent être saisis directement dans le fil d'Ariane (breadcrumb) pour naviguer instantanément vers ces emplacements spéciaux, ou être utilisés dans des scripts et des automatisations pour interagir avec l'application.",
+          "bullets": [
+            "xplor://recent - Affiche tous les fichiers et dossiers récemment consultés, organisés chronologiquement pour retrouver rapidement votre travail récent.",
+            "xplor://favorites - Accède à la liste de vos emplacements favoris que vous avez marqués pour un accès rapide.",
+            "xplor://disks - Présente une vue centralisée de tous les volumes et disques montés sur votre système (disques internes, externes, partages réseau, images disque).",
+            "xplor://trash - Ouvre la corbeille système pour consulter, restaurer ou supprimer définitivement les fichiers et dossiers mis à la poubelle."
+          ],
+          "tip": "Astuce : tapez directement ces chemins dans le fil d'Ariane en haut de la fenêtre pour y accéder instantanément."
+        },
+        {
           "title": "Recherche instantanée",
           "description": "La fonctionnalité de recherche instantanée vous permet de filtrer le contenu du dossier actuel en temps réel, sans avoir besoin de quitter votre vue ni d'ouvrir une fenêtre de recherche séparée. Les résultats s'affichent immédiatement au fur et à mesure de votre saisie, offrant une expérience de recherche fluide et réactive.",
           "bullets": [

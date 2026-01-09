@@ -47,6 +47,9 @@ extension ExplorerPreferencesOps on ExplorerViewModel {
 
   Future<String> resolveStartupPath(String fallbackPath) async {
     try {
+      if (fallbackPath == SpecialLocations.disks) {
+        return fallbackPath;
+      }
       final prefs = await SharedPreferences.getInstance();
       final lastPath = prefs.getString(_lastPathKey);
       if (lastPath == null || lastPath.trim().isEmpty) {

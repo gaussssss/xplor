@@ -140,6 +140,12 @@ extension ExplorerNavigationOps on ExplorerViewModel {
           }
         }
       }
+      if (resolvedLocation == SpecialLocations.trash) {
+        final trashDir = Directory(SpecialLocations.trashPath);
+        if (await trashDir.exists()) {
+          entries = await _listDirectoryEntries(trashDir.path);
+        }
+      }
 
       _state = _state.copyWith(
         currentPath: locationCode,
@@ -149,6 +155,7 @@ extension ExplorerNavigationOps on ExplorerViewModel {
         clearError: true,
         clearStatus: true,
       );
+      unawaited(_recordLastPath(locationCode));
     } catch (error) {
       _state = _state.copyWith(
         isLoading: false,

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../../explorer/presentation/widgets/glass_panel_v2.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/widgets/animated_background.dart';
 
 class HelpCenterPage extends StatefulWidget {
   const HelpCenterPage({super.key});
@@ -398,6 +399,7 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
     final themeProvider = context.watch<ThemeProvider>();
     final hasImage = themeProvider.hasBackgroundImage;
     final bgImage = themeProvider.backgroundImageProvider;
+    final bgImageKey = themeProvider.backgroundImagePath;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -405,7 +407,10 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
         children: [
           if (hasImage && bgImage != null)
             Positioned.fill(
-              child: Image(image: bgImage, fit: BoxFit.cover),
+              child: AnimatedBackground(
+                image: bgImage,
+                imageKey: bgImageKey,
+              ),
             ),
           const Positioned(top: -140, left: -120, child: _HelpGlow(size: 360)),
           const Positioned(

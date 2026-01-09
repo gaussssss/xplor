@@ -48,7 +48,6 @@ class ThemeControlsV2 extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('APPARENCE', style: titleStyle),
             if (showSettings) ...[
               const Spacer(),
               // Bouton pour ouvrir les paramètres avancés

@@ -43,7 +43,21 @@ extension ExplorerFileOps on ExplorerViewModel {
       final toDelete = _state.entries
           .where((entry) => _state.selectedPaths.contains(entry.path))
           .toList();
-      await _deleteEntries(toDelete);
+      if (_state.currentPath == SpecialLocations.trash) {
+        await _deleteEntries(toDelete);
+        _state = _state.copyWith(
+          statusMessage: '${toDelete.length} element(s) supprime(s)',
+          isLoading: false,
+        );
+        await _reloadCurrent();
+        notifyListeners();
+        return;
+      }
+      if (Platform.isMacOS) {
+        await _moveEntriesToTrash(toDelete);
+      } else {
+        await _deleteEntries(toDelete);
+      }
       await _reloadCurrent();
       _state = _state.copyWith(
         statusMessage: '${toDelete.length} element(s) supprime(s)',
@@ -54,6 +68,71 @@ extension ExplorerFileOps on ExplorerViewModel {
     } finally {
       notifyListeners();
     }
+  }
+
+  Future<void> restoreSelectedFromTrash() async {
+    if (_state.selectedPaths.isEmpty) return;
+    if (_state.currentPath != SpecialLocations.trash) return;
+    _state = _state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearStatus: true,
+    );
+    notifyListeners();
+    try {
+      final toRestore = _state.entries
+          .where((entry) => _state.selectedPaths.contains(entry.path))
+          .toList();
+      if (!Platform.isMacOS) {
+        _state = _state.copyWith(
+          isLoading: false,
+          error: 'Restauration non supportee sur cette plateforme.',
+        );
+        return;
+      }
+      for (final entry in toRestore) {
+        await _putBackFromTrash(entry.path);
+      }
+      await _reloadCurrent();
+      _state = _state.copyWith(
+        statusMessage: '${toRestore.length} element(s) restaure(s)',
+        isLoading: false,
+      );
+    } on FileSystemException catch (error) {
+      _state = _state.copyWith(isLoading: false, error: error.message);
+    } catch (_) {
+      _state = _state.copyWith(
+        isLoading: false,
+        error: 'Impossible de restaurer les elements.',
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _moveEntriesToTrash(List<FileEntry> entries) async {
+    for (final entry in entries) {
+      final script = 'tell application "Finder" to delete POSIX file "${_escapeAppleScriptPath(entry.path)}"';
+      final result = await Process.run('osascript', ['-e', script]);
+      if (result.exitCode != 0) {
+        throw FileSystemException(
+          'Echec de suppression vers la corbeille',
+          entry.path,
+        );
+      }
+    }
+  }
+
+  Future<void> _putBackFromTrash(String path) async {
+    final script = 'tell application "Finder" to put back (POSIX file "${_escapeAppleScriptPath(path)}")';
+    final result = await Process.run('osascript', ['-e', script]);
+    if (result.exitCode != 0) {
+      throw FileSystemException('Echec de restauration', path);
+    }
+  }
+
+  String _escapeAppleScriptPath(String path) {
+    return path.replaceAll('"', '\\"');
   }
 
   Future<void> moveSelected(String destinationPath) async {

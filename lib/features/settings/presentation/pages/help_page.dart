@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/widgets/animated_background.dart';
 
 class HelpPage extends StatefulWidget {
   const HelpPage({super.key});
@@ -153,6 +154,7 @@ class _HelpPageState extends State<HelpPage>
     final isLight = themeProvider.isLight;
     final hasBgImage = themeProvider.hasBackgroundImage;
     final bgImage = themeProvider.backgroundImageProvider;
+    final bgImageKey = themeProvider.backgroundImagePath;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -161,7 +163,10 @@ class _HelpPageState extends State<HelpPage>
         children: [
           if (hasBgImage && bgImage != null)
             Positioned.fill(
-              child: Image(image: bgImage, fit: BoxFit.cover),
+              child: AnimatedBackground(
+                image: bgImage,
+                imageKey: bgImageKey,
+              ),
             ),
           if (hasBgImage)
             Positioned.fill(

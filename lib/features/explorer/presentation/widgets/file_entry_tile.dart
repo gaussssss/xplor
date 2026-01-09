@@ -942,7 +942,7 @@ class _LockBadge extends StatelessWidget {
         child: Icon(
           LucideIcons.lock,
           size: size * 0.58,
-          color: colorScheme.onPrimary,
+          color: Colors.white,
         ),
       ),
     );

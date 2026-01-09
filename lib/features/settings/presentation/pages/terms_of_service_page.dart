@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart' as lucide;
 import 'package:provider/provider.dart';
 
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/widgets/animated_background.dart';
 
 class TermsOfServicePage extends StatefulWidget {
   const TermsOfServicePage({super.key});
@@ -99,6 +100,7 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
     final themeProvider = context.watch<ThemeProvider>();
     final hasBgImage = themeProvider.hasBackgroundImage;
     final bgImage = themeProvider.backgroundImageProvider;
+    final bgImageKey = themeProvider.backgroundImagePath;
     final isLight = themeProvider.isLight;
 
     final adjustedSurface = hasBgImage
@@ -144,11 +146,7 @@ class _TermsOfServicePageState extends State<TermsOfServicePage>
                 ),
               ),
             if (hasBgImage && bgImage != null)
-              Container(
-                decoration: BoxDecoration(
-                  image: DecorationImage(image: bgImage, fit: BoxFit.cover),
-                ),
-              ),
+              AnimatedBackground(image: bgImage, imageKey: bgImageKey),
             if (hasBgImage)
               Container(
                 color: isLight

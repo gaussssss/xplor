@@ -2,6 +2,17 @@ part of '../explorer_page.dart';
 
 extension _ExplorerPageContent on _ExplorerPageState {
   Widget _buildContent(ExplorerViewState state, List<FileEntry> entries) {
+    if (state.currentPath == SpecialLocations.disks) {
+      if (state.isLoading && entries.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return DisksPage(
+        volumes: _volumes,
+        onNavigate: _viewModel.loadDirectory,
+        onRefresh: _refreshVolumes,
+      );
+    }
+
     if (state.isLoading && entries.isEmpty) {
       return const Center(
         child: Column(

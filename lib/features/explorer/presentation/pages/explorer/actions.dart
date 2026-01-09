@@ -1,6 +1,31 @@
 part of '../explorer_page.dart';
 
 extension _ExplorerPageActions on _ExplorerPageState {
+  Dialog _buildCompactDialog(
+    Widget child, {
+    double maxWidth = 360,
+    double maxHeight = 420,
+  }) {
+    final baseTheme = Theme.of(context);
+    final dialogTheme = baseTheme.copyWith(
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(foregroundColor: Colors.white),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(foregroundColor: Colors.white),
+      ),
+    );
+    return Dialog(
+      alignment: Alignment.center,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
+        child: Theme(data: dialogTheme, child: child),
+      ),
+    );
+  }
+
   Widget _buildToolbar(ExplorerViewState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -63,20 +88,22 @@ extension _ExplorerPageActions on _ExplorerPageState {
           ),
           const SizedBox(width: 12),
           _buildSearchToggle(),
-          const SizedBox(width: 12),
-          ToolbarButton(
-            icon: lucide.LucideIcons.list,
-            tooltip: 'Vue liste',
-            isActive: state.viewMode == ExplorerViewMode.list,
-            onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
-          ),
-          const SizedBox(width: 8),
-          ToolbarButton(
-            icon: lucide.LucideIcons.grid,
-            tooltip: 'Vue grille',
-            isActive: state.viewMode == ExplorerViewMode.grid,
-            onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
-          ),
+          if (state.currentPath != SpecialLocations.trash) ...[
+            const SizedBox(width: 12),
+            ToolbarButton(
+              icon: lucide.LucideIcons.list,
+              tooltip: 'Vue liste',
+              isActive: state.viewMode == ExplorerViewMode.list,
+              onPressed: () => _viewModel.setViewMode(ExplorerViewMode.list),
+            ),
+            const SizedBox(width: 8),
+            ToolbarButton(
+              icon: lucide.LucideIcons.grid,
+              tooltip: 'Vue grille',
+              isActive: state.viewMode == ExplorerViewMode.grid,
+              onPressed: () => _viewModel.setViewMode(ExplorerViewMode.grid),
+            ),
+          ],
         ],
       ),
     );
@@ -143,6 +170,10 @@ extension _ExplorerPageActions on _ExplorerPageState {
 
   Widget _buildActionBar(ExplorerViewState state) {
     final selectionCount = state.selectedPaths.length;
+
+    if (state.currentPath == SpecialLocations.trash) {
+      return _buildTrashActionBar(state);
+    }
 
     if (state.isArchiveView) {
       return _buildArchiveActionBar(state);
@@ -238,6 +269,68 @@ extension _ExplorerPageActions on _ExplorerPageState {
             ),
 
             const SizedBox(width: 16),
+            if (selectionCount > 0) ...[
+              Text(
+                '$selectionCount sélectionné(s)',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: state.isLoading ? null : _viewModel.clearSelection,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      lucide.LucideIcons.x,
+                      size: 16,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrashActionBar(ExplorerViewState state) {
+    final selectionCount = state.selectedPaths.length;
+    return SizedBox(
+      height: 44,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Row(
+          children: [
+            ToolbarButton(
+              icon: lucide.LucideIcons.undo2,
+              tooltip: 'Restaurer',
+              isActive: !state.isLoading && selectionCount > 0,
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _viewModel.restoreSelectedFromTrash,
+            ),
+            const SizedBox(width: 8),
+            ToolbarButton(
+              icon: lucide.LucideIcons.trash2,
+              tooltip: 'Supprimer définitivement',
+              isActive: !state.isLoading && selectionCount > 0,
+              onPressed: state.isLoading || selectionCount == 0
+                  ? null
+                  : _confirmDeletion,
+            ),
+            const SizedBox(width: 12),
             if (selectionCount > 0) ...[
               Text(
                 '$selectionCount sélectionné(s)',
@@ -459,13 +552,11 @@ extension _ExplorerPageActions on _ExplorerPageState {
     return showDialog<bool>(
       context: context,
       builder: (context) {
-        return Dialog(
-          alignment: Alignment.center,
-          insetPadding: EdgeInsets.symmetric(
-            horizontal: Platform.isMacOS ? 80 : 40,
-            vertical: 40,
-          ),
-          child: AlertDialog(
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             title: const Text('Extraction terminee'),
             content: Text(
               message ?? 'Ouvrir le dossier ou les fichiers ont ete extraits ?',
@@ -481,6 +572,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
               ),
             ],
           ),
+          maxWidth: 360,
         );
       },
     );
@@ -488,20 +580,21 @@ extension _ExplorerPageActions on _ExplorerPageState {
 
   Future<void> _confirmDeletion() async {
     final count = _viewModel.state.selectedPaths.length;
+    final isTrash = _viewModel.state.currentPath == SpecialLocations.trash;
+    final title = isTrash ? 'Suppression definitive' : 'Supprimer';
+    final content = isTrash
+        ? 'Supprimer definitivement $count element(s) ? Cette action est irreversible.'
+        : 'Deplacer $count element(s) dans la corbeille ?';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return Dialog(
-          alignment: Alignment.center,
-          insetPadding: EdgeInsets.symmetric(
-            horizontal: Platform.isMacOS ? 80 : 40,
-            vertical: 40,
-          ),
-          child: AlertDialog(
-            title: const Text('Supprimer'),
-            content: Text(
-              'Supprimer $count element(s) ? Cette action est definitive.',
-            ),
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            title: Text(title),
+            content: Text(content),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -510,12 +603,14 @@ extension _ExplorerPageActions on _ExplorerPageState {
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.redAccent.shade200,
+                  backgroundColor:
+                      isTrash ? Colors.redAccent.shade200 : null,
                 ),
-                child: const Text('Supprimer'),
+                child: Text(isTrash ? 'Supprimer' : 'Deplacer'),
               ),
             ],
           ),
+          maxWidth: 360,
         );
       },
     );
@@ -990,45 +1085,51 @@ extension _ExplorerPageActions on _ExplorerPageState {
     return showDialog<OpenWithApp?>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Ouvrir avec'),
-          content: SizedBox(
-            width: 320,
-            height: apps.isEmpty ? 120 : maxHeight,
-            child: apps.isEmpty
-                ? const Center(child: Text('Aucune application trouvée.'))
-                : ListView.separated(
-                    itemCount: apps.length + 1,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      if (index == apps.length) {
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            title: const Text('Ouvrir avec'),
+            content: SizedBox(
+              width: 300,
+              height: apps.isEmpty ? 120 : maxHeight,
+              child: apps.isEmpty
+                  ? const Center(child: Text('Aucune application trouvée.'))
+                  : ListView.separated(
+                      itemCount: apps.length + 1,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        if (index == apps.length) {
+                          return ListTile(
+                            leading: const Icon(lucide.LucideIcons.search),
+                            title: const Text('Choisir une autre application'),
+                            onTap: () => Navigator.of(context).pop(
+                              const OpenWithApp(name: '__choose__', path: ''),
+                            ),
+                          );
+                        }
+                        final app = apps[index];
                         return ListTile(
-                          leading: const Icon(lucide.LucideIcons.search),
-                          title: const Text('Choisir une autre application'),
-                          onTap: () => Navigator.of(context).pop(
-                            const OpenWithApp(name: '__choose__', path: ''),
+                          title: Text(app.name),
+                          subtitle: Text(
+                            app.path,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                          onTap: () => Navigator.of(context).pop(app),
                         );
-                      }
-                      final app = apps[index];
-                      return ListTile(
-                        title: Text(app.name),
-                        subtitle: Text(
-                          app.path,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onTap: () => Navigator.of(context).pop(app),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Annuler'),
+                      },
+                    ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Annuler'),
+              ),
+            ],
+          ),
+          maxWidth: 360,
         );
       },
     );
@@ -1228,16 +1329,14 @@ extension _ExplorerPageActions on _ExplorerPageState {
     return showDialog<String>(
       context: context,
       builder: (context) {
-        return Dialog(
-          alignment: Alignment.center,
-          insetPadding: EdgeInsets.symmetric(
-            horizontal: Platform.isMacOS ? 80 : 40,
-            vertical: 40,
-          ),
-          child: AlertDialog(
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             title: Text(title),
             content: SizedBox(
-              width: 320,
+              width: 300,
               child: TextField(
                 controller: controller,
                 decoration: InputDecoration(labelText: label),
@@ -1256,6 +1355,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
               ),
             ],
           ),
+          maxWidth: 360,
         );
       },
     );
@@ -1292,76 +1392,82 @@ extension _ExplorerPageActions on _ExplorerPageState {
             final description = confirm
                 ? 'Definissez une cle de chiffrement. Elle ne sera pas stockee.'
                 : 'Entrez la cle utilisee lors du verrouillage.';
-            return AlertDialog(
-              title: Text(title),
-              content: SizedBox(
-                width: 420,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.7,
+            return _buildCompactDialog(
+              AlertDialog(
+                titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                title: Text(title),
+                content: SizedBox(
+                  width: 360,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        description,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: keyController,
-                      obscureText: true,
-                      enableSuggestions: false,
-                      autocorrect: false,
-                      textInputAction: confirm
-                          ? TextInputAction.next
-                          : TextInputAction.done,
-                      decoration: const InputDecoration(
-                        labelText: 'Cle de chiffrement',
-                      ),
-                      autofocus: true,
-                      onSubmitted: (_) {
-                        if (confirm) {
-                          FocusScope.of(context).nextFocus();
-                        } else {
-                          submit();
-                        }
-                      },
-                    ),
-                    if (confirm) ...[
                       const SizedBox(height: 12),
                       TextField(
-                        controller: confirmController,
+                        controller: keyController,
                         obscureText: true,
                         enableSuggestions: false,
                         autocorrect: false,
-                        textInputAction: TextInputAction.done,
+                        textInputAction: confirm
+                            ? TextInputAction.next
+                            : TextInputAction.done,
                         decoration: const InputDecoration(
-                          labelText: 'Confirmer la cle',
+                          labelText: 'Cle de chiffrement',
                         ),
-                        onSubmitted: (_) => submit(),
+                        autofocus: true,
+                        onSubmitted: (_) {
+                          if (confirm) {
+                            FocusScope.of(context).nextFocus();
+                          } else {
+                            submit();
+                          }
+                        },
                       ),
-                    ],
-                    if (errorText != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        errorText!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error,
+                      if (confirm) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: confirmController,
+                          obscureText: true,
+                          enableSuggestions: false,
+                          autocorrect: false,
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Confirmer la cle',
+                          ),
+                          onSubmitted: (_) => submit(),
                         ),
-                      ),
+                      ],
+                      if (errorText != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          errorText!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Annuler'),
+                  ),
+                  FilledButton(onPressed: submit, child: const Text('Valider')),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Annuler'),
-                ),
-                FilledButton(onPressed: submit, child: const Text('Valider')),
-              ],
+              maxWidth: 400,
             );
           },
         );
@@ -1375,52 +1481,58 @@ extension _ExplorerPageActions on _ExplorerPageState {
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
-        return AlertDialog(
-          title: const Text('Cle de chiffrement'),
-          content: SizedBox(
-            width: 460,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Conservez cette cle dans un endroit sur. Elle est requise pour '
-                  'deverrouiller le fichier ou le dossier.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+        return _buildCompactDialog(
+          AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            title: const Text('Cle de chiffrement'),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Conservez cette cle dans un endroit sur. Elle est requise pour '
+                    'deverrouiller le fichier ou le dossier.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SelectableText(
-                  '•' * key.length,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 12),
+                  SelectableText(
+                    '•' * key.length,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: key));
+                  Navigator.of(context).pop();
+                  _showToast('Cle copiee');
+                },
+                child: const Text('Copier'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _shareSecret(key);
+                },
+                child: const Text('Partager'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Fermer'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: key));
-                Navigator.of(context).pop();
-                _showToast('Cle copiee');
-              },
-              child: const Text('Copier'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _shareSecret(key);
-              },
-              child: const Text('Partager'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fermer'),
-            ),
-          ],
+          maxWidth: 380,
         );
       },
     );

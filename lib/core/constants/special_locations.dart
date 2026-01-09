@@ -8,6 +8,20 @@ class SpecialLocations {
   /// Code pour l'emplacement "Favoris"
   static const String favorites = 'xplor://favorites';
 
+  /// Code pour l'emplacement "Disques"
+  static const String disks = 'xplor://disks';
+
+  /// Code pour l'emplacement "Corbeille"
+  static const String trash = 'xplor://trash';
+
+  static String get trashPath {
+    final home = Platform.environment['HOME'] ?? '';
+    if (home.isNotEmpty) {
+      return '$home/.Trash';
+    }
+    return '.Trash';
+  }
+
   /// Code pour l'emplacement "Téléchargements"
   static String get downloads {
     if (Platform.isMacOS) {
@@ -76,6 +90,10 @@ class SpecialLocations {
         return 'Récemment consulté';
       case favorites:
         return 'Favoris';
+      case disks:
+        return 'Disques';
+      case trash:
+        return 'Corbeille';
       default:
         // Pour les chemins système, extraire le nom du dernier segment
         final segments = path.split(Platform.pathSeparator);
@@ -122,6 +140,11 @@ class SpecialLocations {
   static List<SpecialLocationInfo> getAllSpecialLocations() {
     return [
       SpecialLocationInfo(
+        code: disks,
+        displayName: 'Disques',
+        isVirtual: true,
+      ),
+      SpecialLocationInfo(
         code: recentFiles,
         displayName: 'Fichiers récents',
         isVirtual: true,
@@ -150,6 +173,11 @@ class SpecialLocations {
         code: normalizePath(applications),
         displayName: 'Applications',
         isVirtual: false,
+      ),
+      SpecialLocationInfo(
+        code: trash,
+        displayName: 'Corbeille',
+        isVirtual: true,
       ),
     ];
   }

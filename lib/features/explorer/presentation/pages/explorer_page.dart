@@ -22,6 +22,8 @@ import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/color_palettes.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/mini_explorer_dialog.dart';
+import '../../../../core/widgets/animated_background.dart';
+import '../widgets/disks_page.dart';
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';
@@ -236,8 +238,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   void initState() {
     super.initState();
     // Utiliser le vrai HOME de l'utilisateur au lieu du chemin sandbox
-    final initialPath =
-        Platform.environment['HOME'] ?? SpecialLocations.desktop;
+    const initialPath = SpecialLocations.disks;
     final repository = FileSystemRepositoryImpl(LocalFileSystemDataSource());
     final searchRepository = SearchRepositoryImpl(SqliteSearchDatabase());
     _viewModel = ExplorerViewModel(
@@ -344,6 +345,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Future<void> _loadPreferredRootPath() async {
+    if (_viewModel.state.currentPath == SpecialLocations.disks) return;
     final preferred = await OnboardingService.getPreferredRootPath();
     if (preferred == null || preferred.trim().isEmpty) return;
     if (!Directory(preferred).existsSync()) return;
@@ -362,10 +364,19 @@ class _ExplorerPageState extends State<ExplorerPage> {
     });
   }
 
+  void _refreshVolumes() {
+    setState(() {
+      _volumes = _volumeInfoService.readVolumes();
+    });
+  }
+
   bool _isTextInputFocused() {
     final focus = FocusManager.instance.primaryFocus;
-    final widget = focus?.context?.widget;
-    return widget is EditableText;
+    final context = focus?.context;
+    if (context == null) return false;
+    final widget = context.widget;
+    if (widget is EditableText) return true;
+    return context.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   bool _shouldHandleShortcut({bool allowWhenTextInput = false}) {
@@ -499,12 +510,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mergedListenable = Listenable.merge(
+      [_viewModel, FocusManager.instance],
+    );
     return AnimatedBuilder(
-      animation: _viewModel,
+      animation: mergedListenable,
       builder: (context, _) {
         final themeProvider = context.watch<ThemeProvider>();
         final hasBgImage = themeProvider.hasBackgroundImage;
         final bgImage = themeProvider.backgroundImageProvider;
+        final bgImageKey = themeProvider.backgroundImagePath;
         final isLight = themeProvider.isLight;
         final theme = Theme.of(context);
         final bgColor = hasBgImage
@@ -588,10 +603,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
           _lastPendingOpenPath = null;
         }
 
+        final shortcutMap = _isTextInputFocused()
+            ? const <ShortcutActivator, Intent>{}
+            : _shortcuts;
         return Theme(
           data: themed,
           child: Shortcuts(
-            shortcuts: _shortcuts,
+            shortcuts: shortcutMap,
             child: Actions(
               actions: _buildShortcutActions(state),
               child: Focus(
@@ -605,13 +623,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
                       children: [
                         // Background image
                         if (hasBgImage && bgImage != null)
-                          Container(
-                            decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: bgImage,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                          AnimatedBackground(
+                            image: bgImage,
+                            imageKey: bgImageKey,
                           ),
                         // Overlay layer (dark in dark mode, light in light mode)
                         if (hasBgImage)
@@ -734,12 +748,15 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                 child: _buildToolbar(state),
                                               ),
                                               const SizedBox(height: 8),
-                                              GlassPanelV2(
-                                                level:
-                                                    GlassPanelLevel.secondary,
-                                                child: _buildActionBar(state),
-                                              ),
-                                              const SizedBox(height: 8),
+                                              if (state.currentPath !=
+                                                  SpecialLocations.disks) ...[
+                                                GlassPanelV2(
+                                                  level:
+                                                      GlassPanelLevel.secondary,
+                                                  child: _buildActionBar(state),
+                                                ),
+                                                const SizedBox(height: 8),
+                                              ],
                                               Expanded(
                                                 child: GlassPanelV2(
                                                   level:
@@ -753,17 +770,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
                                                   ),
                                                 ),
                                               ),
-                                              const SizedBox(height: 8),
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 4,
-                                                    ),
-                                                child: _StatsFooter(
-                                                  state: state,
+                                              if (state.currentPath !=
+                                                  SpecialLocations.disks) ...[
+                                                const SizedBox(height: 8),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                  child: _StatsFooter(
+                                                    state: state,
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(height: 8),
+                                                const SizedBox(height: 8),
+                                              ],
                                               GlassPanelV2(
                                                 level: GlassPanelLevel.tertiary,
                                                 padding:

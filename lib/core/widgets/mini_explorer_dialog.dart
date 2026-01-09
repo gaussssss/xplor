@@ -537,7 +537,7 @@ class _MiniExplorerDialogState extends State<MiniExplorerDialog> {
                     onPressed: isConfirmEnabled ? _confirmSelection : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 12,

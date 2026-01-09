@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/assets.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/widgets/animated_background.dart';
 
 const String _appVersion = String.fromEnvironment(
   'APP_VERSION',
@@ -137,6 +138,7 @@ class _AboutPageState extends State<AboutPage>
     final themeProvider = context.watch<ThemeProvider>();
     final hasBgImage = themeProvider.hasBackgroundImage;
     final bgImage = themeProvider.backgroundImageProvider;
+    final bgImageKey = themeProvider.backgroundImagePath;
     final bgAttribution = themeProvider.backgroundImageAttribution;
     final isLight = themeProvider.isLight;
 
@@ -185,11 +187,7 @@ class _AboutPageState extends State<AboutPage>
                   ),
                 ),
               if (hasBgImage && bgImage != null)
-                Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(image: bgImage, fit: BoxFit.cover),
-                  ),
-                ),
+                AnimatedBackground(image: bgImage, imageKey: bgImageKey),
               if (hasBgImage)
                 Container(
                   color: isLight

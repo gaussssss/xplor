@@ -66,24 +66,6 @@ class _Sidebar extends StatelessWidget {
                     children: [
                       // Pas de header avec doublon du toggle - juste les icônes
                       const SizedBox(height: 8),
-                      // Favoris (3 premiers)
-                      ...favoriteItems
-                          .take(3)
-                          .map(
-                            (item) => _RailButton(
-                              icon: item.icon,
-                              tooltip: item.label,
-                              onTap: () => onNavigate(item.path),
-                            ),
-                          ),
-                      const SizedBox(height: 6),
-                      // Divider subtil
-                      Container(
-                        width: 32,
-                        height: 1,
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                      const SizedBox(height: 6),
                       // Emplacements système
                       ...systemItems.map(
                         (item) => _RailButton(
@@ -116,11 +98,8 @@ class _Sidebar extends StatelessWidget {
                             child: _RailButton(
                               icon: lucide.LucideIcons.chevronRight,
                               tooltip: 'Tous les disques',
-                              onTap: () => _showAllDisksDialog(
-                                context,
-                                volumes,
-                                onNavigate,
-                              ),
+                              onTap: () =>
+                                  onNavigate(SpecialLocations.disks),
                             ),
                           ),
                       ],
@@ -248,22 +227,6 @@ class _Sidebar extends StatelessWidget {
                 children: [
                   const SizedBox(height: 8),
 
-                  // Favoris
-                  SidebarSection(
-                    title: 'Favoris',
-                    items: favoriteItems
-                        .map(
-                          (item) => SidebarItem(
-                            label: item.label,
-                            icon: item.icon,
-                            onTap: () => onNavigate(item.path),
-                          ),
-                        )
-                        .toList(),
-                  ),
-
-                  const SizedBox(height: 4),
-
                   // Emplacements (incluant Fichiers récents)
                   SidebarSection(
                     title: 'Emplacements',
@@ -339,11 +302,8 @@ class _Sidebar extends StatelessWidget {
                                   ),
                                   minimumSize: const Size(0, 32),
                                 ),
-                                onPressed: () => _showAllDisksDialog(
-                                  context,
-                                  volumes,
-                                  onNavigate,
-                                ),
+                                onPressed: () =>
+                                    onNavigate(SpecialLocations.disks),
                                 icon: const Icon(
                                   lucide.LucideIcons.chevronRight,
                                   size: 14,
@@ -470,8 +430,8 @@ class _FooterSectionLabel extends StatelessWidget {
   }
 }
 
-class _FooterActionItem extends StatelessWidget {
-  const _FooterActionItem({
+class _FooterLinkButton extends StatelessWidget {
+  const _FooterLinkButton({
     required this.icon,
     required this.label,
     required this.isLight,
@@ -487,44 +447,129 @@ class _FooterActionItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final iconColor = theme.colorScheme.onSurface.withValues(
-      alpha: isLight ? 0.7 : 0.65,
+      alpha: isLight ? 0.55 : 0.6,
     );
     final textColor = theme.colorScheme.onSurface.withValues(
-      alpha: isLight ? 0.75 : 0.7,
+      alpha: isLight ? 0.65 : 0.7,
+    );
+    return TextButton.icon(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        minimumSize: const Size(0, 0),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        foregroundColor: textColor,
+      ),
+      icon: Icon(icon, size: 14, color: iconColor),
+      label: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: textColor,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterLinkSeparator extends StatelessWidget {
+  const _FooterLinkSeparator();
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final color = Theme.of(context).colorScheme.onSurface.withValues(
+          alpha: isLight ? 0.28 : 0.35,
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Icon(lucide.LucideIcons.dot, size: 10, color: color),
+    );
+  }
+}
+
+class _FooterList extends StatelessWidget {
+  const _FooterList({required this.isLight, required this.children});
+
+  final bool isLight;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = Theme.of(context).colorScheme.onSurface.withValues(
+          alpha: isLight ? 0.08 : 0.12,
+        );
+    return Container(
+      decoration: BoxDecoration(
+        color: isLight
+            ? Colors.black.withValues(alpha: 0.02)
+            : Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 0.6),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(height: 1, thickness: 0.6, color: borderColor),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FooterListItem extends StatelessWidget {
+  const _FooterListItem({
+    required this.icon,
+    required this.label,
+    required this.isLight,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isLight;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = theme.colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.6 : 0.7,
+    );
+    final textColor = theme.colorScheme.onSurface.withValues(
+      alpha: isLight ? 0.7 : 0.75,
     );
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: isLight
-                ? Colors.black.withValues(alpha: 0.03)
-                : Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(
-                alpha: isLight ? 0.08 : 0.12,
-              ),
-              width: 0.6,
-            ),
-          ),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: iconColor),
-              const SizedBox(width: 10),
+              Icon(icon, size: 14, color: iconColor),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: textColor,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),
-              Icon(lucide.LucideIcons.chevronRight, size: 14, color: iconColor),
+              Icon(
+                lucide.LucideIcons.chevronRight,
+                size: 12,
+                color: iconColor,
+              ),
             ],
           ),
         ),
@@ -623,7 +668,7 @@ class _ThemeModeSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'MODE THEME',
+          'APPARENCE',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             letterSpacing: 1.2,
             fontWeight: FontWeight.w600,
@@ -785,70 +830,70 @@ class _SidebarFooter extends StatelessWidget {
               _BuildChip(buildNumber: buildNumber, isLight: isLight),
             ],
           ),
-          const SizedBox(height: 8),
-          _FooterActionItem(
-            icon: lucide.LucideIcons.helpCircle,
-            label: 'Aide',
-            isLight: isLight,
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(_noTransitionRoute(const HelpCenterPage()));
-            },
-          ),
           const SizedBox(height: 6),
-          _FooterActionItem(
-            icon: lucide.LucideIcons.fileText,
-            label: 'CGU',
+          _FooterList(
             isLight: isLight,
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(_noTransitionRoute(const TermsOfServicePage()));
-            },
-          ),
-          const SizedBox(height: 6),
-          _FooterActionItem(
-            icon: lucide.LucideIcons.info,
-            label: 'À propos',
-            isLight: isLight,
-            onTap: () {
-              Navigator.of(context).push(_noTransitionRoute(const AboutPage()));
-            },
+            children: [
+              _FooterListItem(
+                icon: lucide.LucideIcons.helpCircle,
+                label: 'Aide',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const HelpCenterPage()));
+                },
+              ),
+              _FooterListItem(
+                icon: lucide.LucideIcons.fileText,
+                label: 'CGU',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const TermsOfServicePage()));
+                },
+              ),
+              _FooterListItem(
+                icon: lucide.LucideIcons.info,
+                label: 'À propos',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const AboutPage()));
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [_FooterSectionLabel(label: 'Système', isLight: isLight)],
           ),
-          const SizedBox(height: 8),
-          Row(
+          const SizedBox(height: 6),
+          _FooterList(
+            isLight: isLight,
             children: [
-              Expanded(
-                child: _FooterMiniButton(
-                  icon: lucide.LucideIcons.settings,
-                  label: 'Réglages',
-                  isLight: isLight,
-                  onTap: () async {
-                    await showDialog(
-                      context: context,
-                      builder: (context) =>
-                          const settings.AppearanceSettingsDialogV2(),
-                    );
-                    await onSettingsClosed?.call();
-                  },
-                ),
+              _FooterListItem(
+                icon: lucide.LucideIcons.settings,
+                label: 'Réglages',
+                isLight: isLight,
+                onTap: () async {
+                  await showDialog(
+                    context: context,
+                    builder: (context) =>
+                        const settings.AppearanceSettingsDialogV2(),
+                  );
+                  await onSettingsClosed?.call();
+                },
               ),
-              if (onToggleCollapse != null) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _FooterMiniButton(
-                    icon: lucide.LucideIcons.chevronsLeft,
-                    label: 'Replier',
-                    isLight: isLight,
-                    onTap: onToggleCollapse!,
-                  ),
+              if (onToggleCollapse != null)
+                _FooterListItem(
+                  icon: lucide.LucideIcons.chevronsLeft,
+                  label: 'Replier',
+                  isLight: isLight,
+                  onTap: onToggleCollapse!,
                 ),
-              ],
             ],
           ),
         ],
@@ -1318,338 +1363,6 @@ class _TagItem {
 
   final String label;
   final Color color;
-}
-
-/// Affiche une dialog avec tous les disques
-void _showAllDisksDialog(
-  BuildContext context,
-  List<VolumeInfo> volumes,
-  void Function(String) onNavigate,
-) {
-  showDialog(
-    context: context,
-    builder: (context) => Dialog(
-      backgroundColor: Colors.transparent,
-      alignment: Alignment.center,
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: Platform.isMacOS ? 80 : 40,
-        vertical: 40,
-      ),
-      child: _AllDisksDialogContent(volumes: volumes, onNavigate: onNavigate),
-    ),
-  );
-}
-
-class _AllDisksDialogContent extends StatelessWidget {
-  const _AllDisksDialogContent({
-    required this.volumes,
-    required this.onNavigate,
-  });
-
-  final List<VolumeInfo> volumes;
-  final void Function(String) onNavigate;
-  static final Map<String, Future<bool>> _assetPresenceCache = {};
-
-  Widget _buildVolumeIcon(VolumeInfo volume, Color primary, Color onSurface) {
-    final logo = _cloudLogoFor(volume);
-    final bg = logo != null
-        ? onSurface.withValues(alpha: 0.06)
-        : primary.withValues(alpha: 0.1);
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      alignment: Alignment.center,
-      child: logo != null
-          ? FutureBuilder<bool>(
-              future: _assetAvailable(logo),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Icon(
-                    lucide.LucideIcons.hardDrive,
-                    color: primary,
-                    size: 18,
-                  );
-                }
-                if (snapshot.data == true) {
-                  return Image.asset(logo, width: 20, height: 20);
-                }
-                return Icon(
-                  lucide.LucideIcons.hardDrive,
-                  color: primary,
-                  size: 18,
-                );
-              },
-            )
-          : Icon(lucide.LucideIcons.hardDrive, color: primary, size: 18),
-    );
-  }
-
-  String? _cloudLogoFor(VolumeInfo volume) {
-    final label = volume.label.toLowerCase();
-    final path = volume.path.toLowerCase();
-
-    bool match(List<String> needles) {
-      for (final needle in needles) {
-        final n = needle.toLowerCase();
-        if (label.contains(n) || path.contains(n)) return true;
-      }
-      return false;
-    }
-
-    if (match([
-      'icloud',
-      'clouddocs',
-      'mobile documents',
-      'cloudstorage/icloud',
-    ])) {
-      debugPrint(
-        '[Disks] Matched iCloud logo for "${volume.label}" (${volume.path})',
-      );
-      return AppAssets.iCloud_logo;
-    }
-
-    if (match([
-      'google drive',
-      'googledrive',
-      'cloudstorage/googledrive',
-      'drivefs',
-    ])) {
-      debugPrint(
-        '[Disks] Matched Google Drive logo for "${volume.label}" (${volume.path})',
-      );
-      return AppAssets.google_Drive_logo;
-    }
-
-    if (match(['onedrive', 'cloudstorage/onedrive'])) {
-      debugPrint(
-        '[Disks] Matched OneDrive logo for "${volume.label}" (${volume.path})',
-      );
-      return AppAssets.oneDrive_logo;
-    }
-
-    debugPrint(
-      '[Disks] No cloud logo match for "${volume.label}" (${volume.path})',
-    );
-    return null;
-  }
-
-  Future<bool> _assetAvailable(String asset) {
-    debugPrint('[Disks] Checking asset presence: $asset');
-    return _assetPresenceCache.putIfAbsent(asset, () async {
-      try {
-        await rootBundle.load(asset);
-        debugPrint('[Disks] Asset present: $asset');
-        return true;
-      } catch (e) {
-        debugPrint('[Disks] Asset NOT found: $asset -> $e');
-        return false;
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-    final onSurface = theme.colorScheme.onSurface;
-    final bgColor = isLight
-        ? Colors.white.withOpacity(0.94)
-        : Colors.black.withOpacity(0.8);
-    final borderColor = isLight
-        ? Colors.black.withValues(alpha: 0.06)
-        : Colors.white.withValues(alpha: 0.1);
-    final headerText = onSurface.withValues(alpha: isLight ? 0.88 : 0.94);
-    final subtitleText = onSurface.withValues(alpha: isLight ? 0.58 : 0.68);
-    final tileBg = isLight
-        ? onSurface.withValues(alpha: 0.04)
-        : Colors.white.withValues(alpha: 0.05);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 520),
-          decoration: BoxDecoration(
-            color: bgColor,
-            gradient: LinearGradient(
-              colors: [bgColor, bgColor.withOpacity(isLight ? 0.9 : 0.72)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 24,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      lucide.LucideIcons.hardDrive,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Tous les disques',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: headerText,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(lucide.LucideIcons.x),
-                      onPressed: () => Navigator.of(context).pop(),
-                      color: onSurface.withValues(alpha: 0.45),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 32,
-                        height: 32,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(height: 1, color: borderColor),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 3.3,
-                  ),
-                  itemCount: volumes.length,
-                  itemBuilder: (context, index) {
-                    final volume = volumes[index];
-                    final percent = (volume.usage * 100).clamp(0, 100).round();
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate(volume.path);
-                        },
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: tileBg,
-                          ),
-                          child: Row(
-                            children: [
-                              _buildVolumeIcon(
-                                volume,
-                                theme.colorScheme.primary,
-                                onSurface,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      volume.label,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(
-                                            color: headerText,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      volume.path,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: subtitleText,
-                                            fontSize: 10.5,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(3),
-                                      child: LinearProgressIndicator(
-                                        value: volume.usage.clamp(0, 1),
-                                        minHeight: 3,
-                                        backgroundColor: onSurface.withValues(
-                                          alpha: 0.08,
-                                        ),
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              theme.colorScheme.primary,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    '$percent%',
-                                    style: theme.textTheme.labelMedium
-                                        ?.copyWith(
-                                          color: headerText,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 12,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    _formatBytes(volume.totalBytes),
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: subtitleText,
-                                      fontSize: 10.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // Widget de dialogue pour gérer les doublons avec options avancées

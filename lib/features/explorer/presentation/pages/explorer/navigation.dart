@@ -50,6 +50,11 @@ extension _ExplorerPageNavigation on _ExplorerPageState {
         icon: lucide.LucideIcons.image,
         path: SpecialLocations.pictures,
       ),
+      _NavItem(
+        label: 'Corbeille',
+        icon: lucide.LucideIcons.trash2,
+        path: SpecialLocations.trash,
+      ),
     ];
   }
 
