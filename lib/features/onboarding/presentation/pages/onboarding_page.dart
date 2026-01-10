@@ -270,91 +270,91 @@ class _OnboardingPageState extends State<OnboardingPage>
         : _currentPage.toDouble();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          if (!hasBgImage)
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isLight
-                      ? const [Color(0xFFF7F4EF), Color(0xFFEDEAF1)]
-                      : const [Color(0xFF0D0D11), Color(0xFF171720)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            if (!hasBgImage)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isLight
+                        ? const [Color(0xFFF7F4EF), Color(0xFFEDEAF1)]
+                        : const [Color(0xFF0D0D11), Color(0xFF171720)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
               ),
-            ),
-          if (hasBgImage && bgImage != null)
-            AnimatedBackground(image: bgImage, imageKey: bgImageKey),
-          if (hasBgImage)
-            Container(
-              color: isLight
-                  ? Colors.white.withValues(alpha: 0.3)
-                  : Colors.black.withValues(alpha: 0.4),
-            ),
-          _OnboardingBackdrop(isLight: isLight, progress: pageValue),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fade,
-              child: SlideTransition(
-                position: _slideUp,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 24,
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth > 900;
-                      return Column(
-                        children: [
-                          _OnboardingHeader(
-                            isLight: isLight,
-                            onSkip: _completeOnboarding,
-                          ),
-                          const SizedBox(height: 18),
-                          Expanded(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (isWide)
-                                  SizedBox(
-                                    width: 260,
-                                    child: _StepRail(
-                                      steps: _steps,
-                                      currentIndex: _currentPage,
+            if (hasBgImage && bgImage != null)
+              AnimatedBackground(image: bgImage, imageKey: bgImageKey),
+            if (hasBgImage)
+              Container(
+                color: isLight
+                    ? Colors.white.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.4),
+              ),
+            _OnboardingBackdrop(isLight: isLight, progress: pageValue),
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fade,
+                child: SlideTransition(
+                  position: _slideUp,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 24,
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth > 900;
+                        return Column(
+                          children: [
+                            _OnboardingHeader(
+                              isLight: isLight,
+                              onSkip: _completeOnboarding,
+                            ),
+                            const SizedBox(height: 18),
+                            Expanded(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (isWide)
+                                    SizedBox(
+                                      width: 260,
+                                      child: _StepRail(
+                                        steps: _steps,
+                                        currentIndex: _currentPage,
+                                        isLight: isLight,
+                                        onSelect: (index) {
+                                          _pageController.animateToPage(
+                                            index,
+                                            duration: const Duration(
+                                              milliseconds: 350,
+                                            ),
+                                            curve: Curves.easeOutCubic,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  if (isWide) const SizedBox(width: 24),
+                                  Expanded(
+                                    child: _buildPageView(
+                                      theme: theme,
                                       isLight: isLight,
-                                      onSelect: (index) {
-                                        _pageController.animateToPage(
-                                          index,
-                                          duration: const Duration(
-                                            milliseconds: 350,
-                                          ),
-                                          curve: Curves.easeOutCubic,
-                                        );
-                                      },
+                                      pageValue: pageValue,
+                                      isWide: isWide,
                                     ),
                                   ),
-                                if (isWide) const SizedBox(width: 24),
-                                Expanded(
-                                  child: _buildPageView(
-                                    theme: theme,
-                                    isLight: isLight,
-                                    pageValue: pageValue,
-                                    isWide: isWide,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          if (!isWide)
-                            _StepDots(
-                              count: _steps.length,
-                              currentIndex: _currentPage,
-                              isLight: isLight,
-                            ),
+                            const SizedBox(height: 16),
+                            if (!isWide)
+                              _StepDots(
+                                count: _steps.length,
+                                currentIndex: _currentPage,
+                                isLight: isLight,
+                              ),
                           if (!isWide) const SizedBox(height: 12),
                           _OnboardingFooter(
                             currentIndex: _currentPage,

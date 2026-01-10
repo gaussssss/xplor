@@ -5,6 +5,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/app_menu_bar.dart';
 import 'features/explorer/presentation/pages/explorer_page.dart';
 import 'features/onboarding/data/onboarding_service.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
@@ -82,16 +83,21 @@ class _XplorAppContentState extends State<_XplorAppContent> {
     // Résoudre un bundle cohérent (Material + Shad) à partir de la palette courante
     final themeBundle = AppTheme.current(themeProvider);
 
-    return ShadApp(
-      title: 'Xplor',
-      debugShowCheckedModeBanner: false,
-      theme: themeBundle.shad,
-      // Utiliser le thème avec palette ou le thème classique selon feature flag
-      materialThemeBuilder: (context, _) => themeBundle.material,
-      home: _onboardingCompleted!
-          ? const ExplorerPage()
-          : OnboardingPage(onComplete: _onOnboardingComplete),
-      backgroundColor: themeBundle.background,
+    final home = _onboardingCompleted!
+        ? const ExplorerPage()
+        : OnboardingPage(onComplete: _onOnboardingComplete);
+
+    return AppMenuBar(
+      onboardingMode: !_onboardingCompleted!,
+      child: ShadApp(
+        title: 'Xplor',
+        debugShowCheckedModeBanner: false,
+        theme: themeBundle.shad,
+        // Utiliser le thème avec palette ou le thème classique selon feature flag
+        materialThemeBuilder: (context, _) => themeBundle.material,
+        home: home,
+        backgroundColor: themeBundle.background,
+      ),
     );
   }
 }

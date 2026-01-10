@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:another_flushbar/flushbar.dart';
@@ -18,7 +17,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../../../core/constants/assets.dart';
 import '../../../../core/constants/special_locations.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/color_palettes.dart';
@@ -588,13 +586,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
         final theme = Theme.of(context);
         final bgColor = hasBgImage
             ? (isLight
-                  ? Colors.white.withOpacity(0.7)
-                  : Colors.black.withOpacity(0.5))
-            : theme.colorScheme.background;
+                  ? Colors.white.withValues(alpha: 0.7)
+                  : Colors.black.withValues(alpha: 0.5))
+            : theme.colorScheme.surface;
         final adjustedSurface = hasBgImage
             ? (isLight
-                  ? Colors.white.withOpacity(0.98)
-                  : Colors.black.withOpacity(0.75))
+                  ? Colors.white.withValues(alpha: 0.98)
+                  : Colors.black.withValues(alpha: 0.75))
             : theme.colorScheme.surface;
         final adjustedOnSurface = hasBgImage && isLight
             ? Colors.black

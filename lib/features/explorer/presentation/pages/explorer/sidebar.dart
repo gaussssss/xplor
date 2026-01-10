@@ -817,50 +817,6 @@ class _SidebarFooter extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            children: [
-              _FooterSectionLabel(label: 'Support', isLight: isLight),
-              const Spacer(),
-              _BuildChip(isLight: isLight),
-            ],
-          ),
-          const SizedBox(height: 6),
-          _FooterList(
-            isLight: isLight,
-            children: [
-              _FooterListItem(
-                icon: lucide.LucideIcons.helpCircle,
-                label: 'Aide',
-                isLight: isLight,
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(_noTransitionRoute(const HelpCenterPage()));
-                },
-              ),
-              _FooterListItem(
-                icon: lucide.LucideIcons.fileText,
-                label: 'CGU',
-                isLight: isLight,
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(_noTransitionRoute(const TermsOfServicePage()));
-                },
-              ),
-              _FooterListItem(
-                icon: lucide.LucideIcons.info,
-                label: 'À propos',
-                isLight: isLight,
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(_noTransitionRoute(const AboutPage()));
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
             children: [_FooterSectionLabel(label: 'Système', isLight: isLight)],
           ),
           const SizedBox(height: 6),
@@ -889,6 +845,50 @@ class _SidebarFooter extends StatelessWidget {
                 ),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _FooterSectionLabel(label: 'Support', isLight: isLight),
+              const Spacer(),
+              const _BuildChip(),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _FooterList(
+            isLight: isLight,
+            children: [
+              _FooterListItem(
+                icon: lucide.LucideIcons.helpCircle,
+                label: 'Aide',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const HelpCenterPage()));
+                },
+              ),
+              _FooterListItem(
+                icon: lucide.LucideIcons.fileText,
+                label: 'Conditions d\'utilisation',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const TermsOfServicePage()));
+                },
+              ),
+              _FooterListItem(
+                icon: lucide.LucideIcons.info,
+                label: 'À propos',
+                isLight: isLight,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(_noTransitionRoute(const AboutPage()));
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -896,9 +896,7 @@ class _SidebarFooter extends StatelessWidget {
 }
 
 class _BuildChip extends StatefulWidget {
-  const _BuildChip({required this.isLight});
-
-  final bool isLight;
+  const _BuildChip();
 
   @override
   State<_BuildChip> createState() => _BuildChipState();
@@ -933,15 +931,17 @@ class _BuildChipState extends State<_BuildChip> {
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    final bg = widget.isLight
-        ? Colors.black.withValues(alpha: 0.05)
-        : Colors.white.withValues(alpha: 0.06);
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+    final onSurface = theme.colorScheme.onSurface;
+    final bg = isLight
+        ? Colors.black.withValues(alpha: 0.03)
+        : Colors.white.withValues(alpha: 0.05);
     final border = onSurface.withValues(
-      alpha: widget.isLight ? 0.12 : 0.18,
+      alpha: isLight ? 0.08 : 0.1,
     );
     final textColor = onSurface.withValues(
-      alpha: widget.isLight ? 0.7 : 0.8,
+      alpha: isLight ? 0.55 : 0.7,
     );
     final label = _label ?? '—';
     return Container(
@@ -952,7 +952,7 @@ class _BuildChipState extends State<_BuildChip> {
         border: Border.all(color: border, width: 0.6),
       ),
       child: Text(
-        'BUILD $label',
+        'Version $label',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontSize: 10,
           fontWeight: FontWeight.w700,
