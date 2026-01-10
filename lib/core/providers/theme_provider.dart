@@ -396,12 +396,14 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         return const Color(0xFF05060A);
       case ColorPalette.modernTech:
         return const Color(0xFF0B1220);
-      case ColorPalette.glassIos26:
-        return const Color(0xFF0C0E12); // Fond froid et neutre pour le verre
       case ColorPalette.warmSunset:
         return const Color(0xFF0F0A0A);
       case ColorPalette.deepOcean:
         return const Color(0xFF050910);
+      case ColorPalette.forestMist:
+        return const Color(0xFF0A120F);
+      case ColorPalette.desertDawn:
+        return const Color(0xFF120C07);
     }
   }
 
@@ -411,12 +413,14 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         return const Color(0xFFF5FBFF);
       case ColorPalette.modernTech:
         return const Color(0xFFF1F4FA);
-      case ColorPalette.glassIos26:
-        return const Color(0xFFF6F9FF);
       case ColorPalette.warmSunset:
         return const Color(0xFFFFF8F4);
       case ColorPalette.deepOcean:
         return const Color(0xFFF1F6FB);
+      case ColorPalette.forestMist:
+        return const Color(0xFFF4FAF6);
+      case ColorPalette.desertDawn:
+        return const Color(0xFFFFF4E8);
     }
   }
 

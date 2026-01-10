@@ -239,13 +239,20 @@ class AppTheme {
       case 'warm':
       case 'warmsunset':
         return ThemeBundle.fromPalette(ColorPalette.warmSunset);
-      case 'glass':
-      case 'glassios':
-      case 'glassios26':
-        return ThemeBundle.fromPalette(ColorPalette.glassIos26);
       case 'modern':
       case 'moderntech':
         return ThemeBundle.fromPalette(ColorPalette.modernTech);
+      case 'forest':
+      case 'forestmix':
+      case 'forestmind':
+      case 'forestmind':
+      case 'forestmix2':
+      case 'forestmist':
+        return ThemeBundle.fromPalette(ColorPalette.forestMist);
+      case 'desert':
+      case 'desertdawn':
+      case 'sand':
+        return ThemeBundle.fromPalette(ColorPalette.desertDawn);
       default:
         return ThemeBundle.fromPalette(ColorPalette.neonCyberpunk);
     }
