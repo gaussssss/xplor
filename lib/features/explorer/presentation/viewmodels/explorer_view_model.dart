@@ -28,6 +28,7 @@ import '../../../search/domain/usecases/update_index.dart';
 import '../../../search/domain/usecases/get_index_status.dart';
 import '../../../search/domain/entities/search_result.dart';
 import 'search_view_model.dart';
+import '../models/sort_config.dart';
 
 part 'explorer/archive.dart';
 part 'explorer/clipboard.dart';
@@ -65,6 +66,7 @@ class ExplorerViewState {
     required this.selectedTypes,
     required this.recentPaths,
     required this.isArchiveView,
+    required this.sortConfig,
     this.archivePath,
     this.archiveRootPath,
     this.pendingOpenPath,
@@ -85,6 +87,7 @@ class ExplorerViewState {
   final Set<String> selectedTypes;
   final List<String> recentPaths;
   final bool isArchiveView;
+  final SortConfig sortConfig;
   final String? archivePath;
   final String? archiveRootPath;
   final String? pendingOpenPath;
@@ -106,6 +109,10 @@ class ExplorerViewState {
       selectedTypes: const <String>{},
       recentPaths: const [],
       isArchiveView: false,
+      sortConfig: const SortConfig(
+        column: FileColumn.name,
+        order: SortOrder.ascending,
+      ),
       pendingOpenPath: null,
       pendingOpenLabel: null,
     );
@@ -124,6 +131,7 @@ class ExplorerViewState {
     Set<String>? selectedTypes,
     List<String>? recentPaths,
     bool? isArchiveView,
+    SortConfig? sortConfig,
     String? archivePath,
     String? archiveRootPath,
     String? pendingOpenPath,
@@ -148,6 +156,7 @@ class ExplorerViewState {
       selectedTypes: selectedTypes ?? this.selectedTypes,
       recentPaths: recentPaths ?? this.recentPaths,
       isArchiveView: isArchiveView ?? this.isArchiveView,
+      sortConfig: sortConfig ?? this.sortConfig,
       archivePath: clearArchive ? null : (archivePath ?? this.archivePath),
       archiveRootPath: clearArchive
           ? null
@@ -218,6 +227,7 @@ class ExplorerViewModel extends ChangeNotifier {
   bool get isArchiveView => _state.isArchiveView;
   Set<String> get selectedTags => _state.selectedTags;
   Set<String> get selectedTypes => _state.selectedTypes;
+  SortConfig get sortConfig => _state.sortConfig;
   List<String> get recentPaths => _state.recentPaths;
   List<FileEntry> get clipboardEntries => List.unmodifiable(_clipboard);
   String? tagForPath(String path) => _entryTags[path];
@@ -225,6 +235,11 @@ class ExplorerViewModel extends ChangeNotifier {
   void clearStatus() {
     if (_state.statusMessage == null) return;
     _state = _state.copyWith(statusMessage: null);
+    notifyListeners();
+  }
+
+  void setSort(SortConfig config) {
+    _state = _state.copyWith(sortConfig: config);
     notifyListeners();
   }
 

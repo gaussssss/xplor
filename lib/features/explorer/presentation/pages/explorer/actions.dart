@@ -777,6 +777,14 @@ extension _ExplorerPageActions on _ExplorerPageState {
         lower.endsWith('.xz');
   }
 
+  void _applySort(FileColumn column) {
+    final current = _viewModel.state.sortConfig;
+    final newConfig = current.column == column
+        ? current.toggle()
+        : SortConfig(column: column, order: SortOrder.ascending);
+    _viewModel.setSort(newConfig);
+  }
+
   Future<void> _applyTagToSelection(String? tag) async {
     final selected = _viewModel.state.entries
         .where((e) => _viewModel.state.selectedPaths.contains(e.path))
@@ -981,6 +989,36 @@ extension _ExplorerPageActions on _ExplorerPageState {
         id: 'refresh',
         label: 'Rafraichir',
         icon: lucide.LucideIcons.refreshCw,
+      ),
+    );
+
+    items.add(
+      _ContextMenuEntry(
+        id: 'sortMenu',
+        label: 'Trier par',
+        icon: lucide.LucideIcons.arrowUpDown,
+        children: const [
+          _ContextMenuEntry(
+            id: 'sort:name',
+            label: 'Nom',
+            icon: lucide.LucideIcons.arrowUpAZ,
+          ),
+          _ContextMenuEntry(
+            id: 'sort:date',
+            label: 'Date de modification',
+            icon: lucide.LucideIcons.calendarClock,
+          ),
+          _ContextMenuEntry(
+            id: 'sort:size',
+            label: 'Taille',
+            icon: lucide.LucideIcons.ruler,
+          ),
+          _ContextMenuEntry(
+            id: 'sort:type',
+            label: 'Type',
+            icon: lucide.LucideIcons.layers,
+          ),
+        ],
       ),
     );
 
@@ -1307,6 +1345,18 @@ extension _ExplorerPageActions on _ExplorerPageState {
         break;
       case 'move':
         await _promptMove();
+        break;
+      case 'sort:name':
+        _applySort(FileColumn.name);
+        break;
+      case 'sort:date':
+        _applySort(FileColumn.dateModified);
+        break;
+      case 'sort:size':
+        _applySort(FileColumn.size);
+        break;
+      case 'sort:type':
+        _applySort(FileColumn.kind);
         break;
       case 'rename':
         await _promptRename();

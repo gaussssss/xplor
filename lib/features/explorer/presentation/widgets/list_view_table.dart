@@ -8,18 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/providers/theme_provider.dart';
 import '../../domain/entities/file_entry.dart';
-
-/// Colonne disponible pour la vue liste
-enum FileColumn {
-  name,
-  size,
-  dateModified,
-  kind,
-  dateCreated,
-  dateAccessed,
-  permissions,
-  tags,
-}
+import '../models/sort_config.dart';
 
 /// Configuration d'une colonne
 class ColumnConfig {
@@ -38,32 +27,6 @@ class ColumnConfig {
   final double maxWidth;
 }
 
-/// Ordre de tri
-enum SortOrder {
-  ascending,
-  descending,
-}
-
-/// Configuration de tri
-class SortConfig {
-  const SortConfig({
-    required this.column,
-    required this.order,
-  });
-
-  final FileColumn column;
-  final SortOrder order;
-
-  SortConfig toggle() {
-    return SortConfig(
-      column: column,
-      order: order == SortOrder.ascending
-          ? SortOrder.descending
-          : SortOrder.ascending,
-    );
-  }
-}
-
 /// Vue liste avec colonnes configurables
 class ListViewTable extends StatefulWidget {
   const ListViewTable({
@@ -75,6 +38,8 @@ class ListViewTable extends StatefulWidget {
     required this.isSelected,
     this.selectionMode = false,
     this.scrollController,
+    this.sortConfig,
+    this.onSortChanged,
   });
 
   final List<FileEntry> entries;
@@ -84,6 +49,8 @@ class ListViewTable extends StatefulWidget {
   final bool Function(FileEntry) isSelected;
   final bool selectionMode;
   final ScrollController? scrollController;
+  final SortConfig? sortConfig;
+  final void Function(SortConfig)? onSortChanged;
 
   @override
   State<ListViewTable> createState() => _ListViewTableState();
@@ -100,12 +67,26 @@ class _ListViewTableState extends State<ListViewTable> {
 
   SortConfig? _sortConfig;
   final Set<String> _hoveredRows = {};
+  bool get _usesExternalSort =>
+      widget.sortConfig != null && widget.onSortChanged != null;
 
   @override
   void initState() {
     super.initState();
     _loadColumnPreferences();
-    _loadSortPreferences();
+    if (_usesExternalSort) {
+      _sortConfig = widget.sortConfig;
+    } else {
+      _loadSortPreferences();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ListViewTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_usesExternalSort) {
+      _sortConfig = widget.sortConfig;
+    }
   }
 
   Future<void> _loadColumnPreferences() async {
@@ -218,6 +199,7 @@ class _ListViewTableState extends State<ListViewTable> {
   ];
 
   List<FileEntry> get _sortedEntries {
+    if (_usesExternalSort) return widget.entries;
     if (_sortConfig == null) return widget.entries;
 
     final sorted = List<FileEntry>.from(widget.entries);
@@ -269,6 +251,17 @@ class _ListViewTableState extends State<ListViewTable> {
   }
 
   void _toggleSort(FileColumn column) {
+    if (_usesExternalSort) {
+      final current = widget.sortConfig;
+      if (current != null && current.column == column) {
+        widget.onSortChanged?.call(current.toggle());
+      } else {
+        widget.onSortChanged?.call(
+          SortConfig(column: column, order: SortOrder.ascending),
+        );
+      }
+      return;
+    }
     setState(() {
       if (_sortConfig?.column == column) {
         _sortConfig = _sortConfig!.toggle();
@@ -476,8 +469,9 @@ class _ListViewTableState extends State<ListViewTable> {
   }
 
   Widget _buildHeaderCell(ColumnConfig column, int index) {
-    final isSorted = _sortConfig?.column == column.column;
-    final isAscending = _sortConfig?.order == SortOrder.ascending;
+    final currentSort = _usesExternalSort ? widget.sortConfig : _sortConfig;
+    final isSorted = currentSort?.column == column.column;
+    final isAscending = currentSort?.order == SortOrder.ascending;
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return SizedBox(

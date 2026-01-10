@@ -90,7 +90,9 @@ extension ExplorerSearchOps on ExplorerViewModel {
     if (_state.selectedTypes.isNotEmpty) {
       filtered = filtered.where(_matchesType);
     }
-    return filtered.toList();
+    final list = filtered.toList();
+    _applySorting(list);
+    return list;
   }
 
   /// Retourne les resultats de recherche globale
@@ -200,5 +202,58 @@ extension ExplorerSearchOps on ExplorerViewModel {
     Future.microtask(() async {
       await _searchViewModel.updateSearchIndex(path);
     });
+  }
+
+  void _applySorting(List<FileEntry> entries) {
+    final sort = _state.sortConfig;
+    int compareStrings(String a, String b) =>
+        a.toLowerCase().compareTo(b.toLowerCase());
+    entries.sort((a, b) {
+      int result = 0;
+      switch (sort.column) {
+        case FileColumn.name:
+          result = compareStrings(a.name, b.name);
+          break;
+        case FileColumn.size:
+          result = (a.size ?? 0).compareTo(b.size ?? 0);
+          break;
+        case FileColumn.dateModified:
+          result = (a.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(
+                  b.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0));
+          break;
+        case FileColumn.kind:
+          final aType = a.isDirectory ? 'Dossier' : _getFileType(a.name);
+          final bType = b.isDirectory ? 'Dossier' : _getFileType(b.name);
+          result = compareStrings(aType, bType);
+          break;
+        case FileColumn.dateCreated:
+          result = (a.created ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(b.created ?? DateTime.fromMillisecondsSinceEpoch(0));
+          break;
+        case FileColumn.dateAccessed:
+          result = (a.accessed ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(b.accessed ?? DateTime.fromMillisecondsSinceEpoch(0));
+          break;
+        case FileColumn.permissions:
+          result = (a.mode ?? 0).compareTo(b.mode ?? 0);
+          break;
+        case FileColumn.tags:
+          result = compareStrings(a.tag ?? '', b.tag ?? '');
+          break;
+      }
+
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return sort.order == SortOrder.ascending ? result : -result;
+    });
+  }
+
+  String _getFileType(String filename) {
+    if (filename.contains('.')) {
+      final ext = filename.split('.').last.toUpperCase();
+      return 'Fichier $ext';
+    }
+    return 'Fichier';
   }
 }

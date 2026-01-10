@@ -388,6 +388,8 @@ extension _ExplorerPageContent on _ExplorerPageState {
       entries: entries,
       selectionMode: selectionMode,
       scrollController: _scrollController,
+      sortConfig: _viewModel.state.sortConfig,
+      onSortChanged: _viewModel.setSort,
       isSelected: (entry) => _viewModel.isSelected(entry),
       onEntryTap: (entry) {
         _handleEntrySingleTap(entry, selectionMode: selectionMode);
