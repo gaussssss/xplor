@@ -54,8 +54,8 @@ fileprivate class TagChannel {
   private static func applyTag(path: String, tag: String) throws {
     guard #available(macOS 26.0, *) else { return }
     var url = URL(fileURLWithPath: path)
-    var values = URLResourceValues()
     let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+    var values = try url.resourceValues(forKeys: [.tagNamesKey])
     values.tagNames = trimmed.isEmpty ? [] : [trimmed]
     try url.setResourceValues(values)
   }
