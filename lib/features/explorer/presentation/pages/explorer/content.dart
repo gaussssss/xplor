@@ -53,6 +53,9 @@ extension _ExplorerPageContent on _ExplorerPageState {
     }
 
     final selectionMode = _isMultiSelectionMode;
+    final groupedSections = state.groupBy != GroupByOption.none
+        ? _groupEntries(entries, state.groupBy)
+        : null;
     final content = entries.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -67,8 +70,8 @@ extension _ExplorerPageContent on _ExplorerPageState {
             ],
           )
         : state.viewMode == ExplorerViewMode.list
-        ? _buildList(entries, selectionMode)
-        : _buildGrid(entries, selectionMode);
+            ? _buildList(entries, selectionMode, groupedSections)
+            : _buildGrid(entries, selectionMode, groupedSections);
 
     return DropTarget(
       onDragEntered: (details) {
@@ -383,13 +386,18 @@ extension _ExplorerPageContent on _ExplorerPageState {
     return normalizedChild.startsWith(normalizedParent);
   }
 
-  Widget _buildList(List<FileEntry> entries, bool selectionMode) {
+  Widget _buildList(
+    List<FileEntry> entries,
+    bool selectionMode,
+    List<GroupSection>? groupedSections,
+  ) {
     return ListViewTable(
       entries: entries,
       selectionMode: selectionMode,
       scrollController: _scrollController,
       sortConfig: _viewModel.state.sortConfig,
       onSortChanged: _viewModel.setSort,
+      groupedSections: groupedSections,
       isSelected: (entry) => _viewModel.isSelected(entry),
       onEntryTap: (entry) {
         _handleEntrySingleTap(entry, selectionMode: selectionMode);
@@ -404,7 +412,45 @@ extension _ExplorerPageContent on _ExplorerPageState {
     );
   }
 
-  Widget _buildGrid(List<FileEntry> entries, bool selectionMode) {
+  Widget _buildGrid(
+    List<FileEntry> entries,
+    bool selectionMode,
+    List<GroupSection>? groupedSections,
+  ) {
+    if (groupedSections != null && groupedSections.isNotEmpty) {
+      return ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: groupedSections.length,
+        itemBuilder: (context, index) {
+          final section = groupedSections[index];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  section.label,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              _buildGridSection(section.entries, selectionMode,
+                  embedded: true),
+            ],
+          );
+        },
+      );
+    }
+    return _buildGridSection(entries, selectionMode);
+  }
+
+  Widget _buildGridSection(List<FileEntry> entries, bool selectionMode,
+      {bool embedded = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -412,8 +458,11 @@ extension _ExplorerPageContent on _ExplorerPageState {
         final crossAxisCount = (maxWidth / 160).clamp(3, 8).floor();
 
         return GridView.builder(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
+          controller: embedded ? null : _scrollController,
+          shrinkWrap: embedded,
+          physics: embedded
+              ? const NeverScrollableScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           itemCount: entries.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -433,6 +482,80 @@ extension _ExplorerPageContent on _ExplorerPageState {
         );
       },
     );
+  }
+
+  List<GroupSection> _groupEntries(
+    List<FileEntry> entries,
+    GroupByOption option,
+  ) {
+    if (entries.isEmpty || option == GroupByOption.none) return const [];
+
+    String labelFor(FileEntry entry) {
+      switch (option) {
+        case GroupByOption.nameInitial:
+          return entry.name.isNotEmpty
+              ? entry.name.substring(0, 1).toUpperCase()
+              : '#';
+        case GroupByOption.size:
+          if (entry.isDirectory) return 'Dossiers';
+          final size = entry.size ?? 0;
+          if (size < 1024 * 1024) return '< 1 Mo';
+          if (size < 1024 * 1024 * 128) return '< 128 Mo';
+          if (size < 1024 * 1024 * 1024) return '< 1 Go';
+          return '>= 1 Go';
+        case GroupByOption.dateModified:
+          final date = entry.lastModified ?? entry.created ?? entry.accessed;
+          if (date == null) return 'Sans date';
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final entryDay = DateTime(date.year, date.month, date.day);
+          if (entryDay == today) return "Aujourd'hui";
+          if (entryDay == today.subtract(const Duration(days: 1))) {
+            return 'Hier';
+          }
+          if (now.difference(entryDay).inDays < 7) return 'Cette semaine';
+          if (now.month == date.month && now.year == date.year) {
+            return 'Ce mois-ci';
+          }
+          return 'Plus anciens';
+        case GroupByOption.type:
+          if (entry.isDirectory) return 'Dossiers';
+          if (entry.name.contains('.')) {
+            return entry.name.split('.').last.toUpperCase();
+          }
+          return 'Fichier';
+        case GroupByOption.tag:
+          return entry.tag ?? 'Sans tag';
+        case GroupByOption.none:
+          return '';
+      }
+    }
+
+    final sections = <GroupSection>[];
+    String? currentLabel;
+    final currentEntries = <FileEntry>[];
+
+    for (final entry in entries) {
+      final label = labelFor(entry);
+      if (currentLabel == null || currentLabel != label) {
+        if (currentEntries.isNotEmpty) {
+          sections.add(GroupSection(
+            label: currentLabel!,
+            entries: List.unmodifiable(currentEntries),
+          ));
+          currentEntries.clear();
+        }
+        currentLabel = label;
+      }
+      currentEntries.add(entry);
+    }
+
+    if (currentEntries.isNotEmpty && currentLabel != null) {
+      sections.add(
+        GroupSection(label: currentLabel!, entries: List.unmodifiable(currentEntries)),
+      );
+    }
+    return sections;
   }
 
   void _handleEntrySingleTap(

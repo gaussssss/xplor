@@ -27,6 +27,7 @@ import '../../../../core/widgets/mini_explorer_dialog.dart';
 import '../../../../core/widgets/animated_background.dart';
 import '../widgets/disks_page.dart';
 import '../models/sort_config.dart';
+import '../models/group_section.dart';
 import '../../../explorer/data/datasources/local_file_system_data_source.dart';
 import '../../../explorer/data/repositories/file_system_repository_impl.dart';
 import '../../../explorer/domain/entities/file_entry.dart';

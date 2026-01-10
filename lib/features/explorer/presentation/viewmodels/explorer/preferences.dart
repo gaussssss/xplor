@@ -3,6 +3,7 @@ part of '../explorer_view_model.dart';
 const String _recentKey = 'recent_paths';
 const String _lastPathKey = 'last_opened_path';
 const String _entryTagsKey = 'entry_tags_map';
+const String _groupByKey = 'group_by_option';
 
 extension ExplorerPreferencesOps on ExplorerViewModel {
   void setViewMode(ExplorerViewMode mode) async {
@@ -45,10 +46,16 @@ extension ExplorerPreferencesOps on ExplorerViewModel {
       final viewMode = savedViewMode == 'list'
           ? ExplorerViewMode.list
           : ExplorerViewMode.grid;
+      final savedGroupName = prefs.getString(_groupByKey);
+      final savedGroup = GroupByOption.values.firstWhere(
+        (g) => g.name == savedGroupName,
+        orElse: () => GroupByOption.none,
+      );
 
       _state = _state.copyWith(
         recentPaths: List.unmodifiable(_recentPaths),
         viewMode: viewMode,
+        groupBy: savedGroup,
       );
       notifyListeners();
 
@@ -122,6 +129,15 @@ extension ExplorerPreferencesOps on ExplorerViewModel {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_entryTagsKey, json.encode(_entryTags));
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _persistGroupPreference(GroupByOption option) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_groupByKey, option.name);
     } catch (_) {
       // ignore
     }

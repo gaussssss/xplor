@@ -40,6 +40,15 @@ part 'explorer/preferences.dart';
 part 'explorer/search.dart';
 part 'explorer/selection.dart';
 
+enum GroupByOption {
+  none,
+  type,
+  dateModified,
+  size,
+  tag,
+  nameInitial,
+}
+
 class ArchivePasswordRequired implements Exception {
   ArchivePasswordRequired(
       [this.message = 'Archive protegee par mot de passe']);
@@ -66,6 +75,7 @@ class ExplorerViewState {
     required this.selectedTypes,
     required this.recentPaths,
     required this.isArchiveView,
+    required this.groupBy,
     required this.sortConfig,
     this.archivePath,
     this.archiveRootPath,
@@ -87,6 +97,7 @@ class ExplorerViewState {
   final Set<String> selectedTypes;
   final List<String> recentPaths;
   final bool isArchiveView;
+  final GroupByOption groupBy;
   final SortConfig sortConfig;
   final String? archivePath;
   final String? archiveRootPath;
@@ -109,6 +120,7 @@ class ExplorerViewState {
       selectedTypes: const <String>{},
       recentPaths: const [],
       isArchiveView: false,
+      groupBy: GroupByOption.none,
       sortConfig: const SortConfig(
         column: FileColumn.name,
         order: SortOrder.ascending,
@@ -131,6 +143,7 @@ class ExplorerViewState {
     Set<String>? selectedTypes,
     List<String>? recentPaths,
     bool? isArchiveView,
+    GroupByOption? groupBy,
     SortConfig? sortConfig,
     String? archivePath,
     String? archiveRootPath,
@@ -156,6 +169,7 @@ class ExplorerViewState {
       selectedTypes: selectedTypes ?? this.selectedTypes,
       recentPaths: recentPaths ?? this.recentPaths,
       isArchiveView: isArchiveView ?? this.isArchiveView,
+      groupBy: groupBy ?? this.groupBy,
       sortConfig: sortConfig ?? this.sortConfig,
       archivePath: clearArchive ? null : (archivePath ?? this.archivePath),
       archiveRootPath: clearArchive
@@ -228,6 +242,7 @@ class ExplorerViewModel extends ChangeNotifier {
   Set<String> get selectedTags => _state.selectedTags;
   Set<String> get selectedTypes => _state.selectedTypes;
   SortConfig get sortConfig => _state.sortConfig;
+  GroupByOption get groupBy => _state.groupBy;
   List<String> get recentPaths => _state.recentPaths;
   List<FileEntry> get clipboardEntries => List.unmodifiable(_clipboard);
   String? tagForPath(String path) => _entryTags[path];
@@ -241,6 +256,12 @@ class ExplorerViewModel extends ChangeNotifier {
   void setSort(SortConfig config) {
     _state = _state.copyWith(sortConfig: config);
     notifyListeners();
+  }
+
+  void setGroupBy(GroupByOption option) {
+    _state = _state.copyWith(groupBy: option);
+    notifyListeners();
+    _persistGroupPreference(option);
   }
 
   void clearPendingOpenPath() {

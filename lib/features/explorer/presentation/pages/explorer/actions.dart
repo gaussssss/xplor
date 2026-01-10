@@ -1024,6 +1024,46 @@ extension _ExplorerPageActions on _ExplorerPageState {
 
     items.add(
       _ContextMenuEntry(
+        id: 'groupMenu',
+        label: 'Grouper par',
+        icon: lucide.LucideIcons.layoutGrid,
+        children: const [
+          _ContextMenuEntry(
+            id: 'group:none',
+            label: 'Aucun',
+            icon: lucide.LucideIcons.x,
+          ),
+          _ContextMenuEntry(
+            id: 'group:type',
+            label: 'Type',
+            icon: lucide.LucideIcons.layers,
+          ),
+          _ContextMenuEntry(
+            id: 'group:date',
+            label: 'Période (date modif.)',
+            icon: lucide.LucideIcons.calendarClock,
+          ),
+          _ContextMenuEntry(
+            id: 'group:size',
+            label: 'Taille',
+            icon: lucide.LucideIcons.ruler,
+          ),
+          _ContextMenuEntry(
+            id: 'group:tag',
+            label: 'Tag',
+            icon: lucide.LucideIcons.tag,
+          ),
+          _ContextMenuEntry(
+            id: 'group:name',
+            label: 'Initiale du nom',
+            icon: lucide.LucideIcons.type,
+          ),
+        ],
+      ),
+    );
+
+    items.add(
+      _ContextMenuEntry(
         id: 'share',
         label: 'Partager',
         icon: lucide.LucideIcons.share2,
@@ -1357,6 +1397,24 @@ extension _ExplorerPageActions on _ExplorerPageState {
         break;
       case 'sort:type':
         _applySort(FileColumn.kind);
+        break;
+      case 'group:none':
+        _viewModel.setGroupBy(GroupByOption.none);
+        break;
+      case 'group:type':
+        _viewModel.setGroupBy(GroupByOption.type);
+        break;
+      case 'group:date':
+        _viewModel.setGroupBy(GroupByOption.dateModified);
+        break;
+      case 'group:size':
+        _viewModel.setGroupBy(GroupByOption.size);
+        break;
+      case 'group:tag':
+        _viewModel.setGroupBy(GroupByOption.tag);
+        break;
+      case 'group:name':
+        _viewModel.setGroupBy(GroupByOption.nameInitial);
         break;
       case 'rename':
         await _promptRename();

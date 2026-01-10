@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../domain/entities/file_entry.dart';
 import '../models/sort_config.dart';
+import '../models/group_section.dart';
 
 /// Configuration d'une colonne
 class ColumnConfig {
@@ -27,6 +28,19 @@ class ColumnConfig {
   final double maxWidth;
 }
 
+class _GroupedItem {
+  const _GroupedItem.header(this.label)
+      : entry = null,
+        isHeader = true;
+  const _GroupedItem.entry(this.entry)
+      : label = '',
+        isHeader = false;
+
+  final String label;
+  final FileEntry? entry;
+  final bool isHeader;
+}
+
 /// Vue liste avec colonnes configurables
 class ListViewTable extends StatefulWidget {
   const ListViewTable({
@@ -40,6 +54,7 @@ class ListViewTable extends StatefulWidget {
     this.scrollController,
     this.sortConfig,
     this.onSortChanged,
+    this.groupedSections,
   });
 
   final List<FileEntry> entries;
@@ -51,6 +66,7 @@ class ListViewTable extends StatefulWidget {
   final ScrollController? scrollController;
   final SortConfig? sortConfig;
   final void Function(SortConfig)? onSortChanged;
+  final List<GroupSection>? groupedSections;
 
   @override
   State<ListViewTable> createState() => _ListViewTableState();
@@ -69,6 +85,20 @@ class _ListViewTableState extends State<ListViewTable> {
   final Set<String> _hoveredRows = {};
   bool get _usesExternalSort =>
       widget.sortConfig != null && widget.onSortChanged != null;
+  bool get _isGrouped =>
+      widget.groupedSections != null && widget.groupedSections!.isNotEmpty;
+
+  List<_GroupedItem> get _groupedItems {
+    final sections = widget.groupedSections ?? [];
+    final items = <_GroupedItem>[];
+    for (final section in sections) {
+      items.add(_GroupedItem.header(section.label));
+      for (final entry in section.entries) {
+        items.add(_GroupedItem.entry(entry));
+      }
+    }
+    return items;
+  }
 
   @override
   void initState() {
@@ -199,6 +229,7 @@ class _ListViewTableState extends State<ListViewTable> {
   ];
 
   List<FileEntry> get _sortedEntries {
+    if (_isGrouped) return widget.entries;
     if (_usesExternalSort) return widget.entries;
     if (_sortConfig == null) return widget.entries;
 
@@ -381,6 +412,7 @@ class _ListViewTableState extends State<ListViewTable> {
   @override
   Widget build(BuildContext context) {
     final sortedEntries = _sortedEntries;
+    final groupedItems = _isGrouped ? _groupedItems : null;
     final themeProvider = context.watch<ThemeProvider>();
     final isLight = themeProvider.isLight;
 
@@ -404,8 +436,27 @@ class _ListViewTableState extends State<ListViewTable> {
                 Expanded(
                   child: ListView.builder(
                     controller: widget.scrollController,
-                    itemCount: sortedEntries.length,
+                    itemCount:
+                        _isGrouped ? groupedItems!.length : sortedEntries.length,
                     itemBuilder: (context, index) {
+                      if (_isGrouped) {
+                        final item = groupedItems![index];
+                        if (item.isHeader) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            child: Text(
+                              item.label,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          );
+                        }
+                        final entry = item.entry!;
+                        return _buildRow(entry, isLight);
+                      }
                       final entry = sortedEntries[index];
                       return _buildRow(entry, isLight);
                     },
