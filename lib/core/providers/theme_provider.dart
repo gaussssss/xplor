@@ -45,7 +45,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       'assets/themes/background_themes.json';
 
   /// Palette actuellement active
-  ColorPalette _currentPalette = ColorPalette.warmSunset;
+  ColorPalette _currentPalette = ColorPalette.forestMist;
   Color _backgroundColor = DesignTokens.background;
   String? _backgroundImagePath;
   String? _backgroundImageAttribution;

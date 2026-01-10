@@ -228,6 +228,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   late final List<_NavItem> _systemItems;
   late final List<_NavItem> _quickItems;
   late final List<_TagItem> _tagItems;
+  int? _lastSelectedIndex;
   late final List<VolumeInfo> _volumes;
   late final VolumeInfoService _volumeInfoService;
   String? _lastStatusMessage;
@@ -267,6 +268,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
       updateIndex: UpdateIndex(searchRepository),
       getIndexStatus: GetIndexStatus(searchRepository),
     );
+    _viewModel.registerNavigationChannel();
     _pathController = TextEditingController(text: initialPath);
     _searchController = TextEditingController(text: '');
     _searchFocusNode = FocusNode();

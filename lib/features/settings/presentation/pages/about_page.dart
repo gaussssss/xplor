@@ -15,6 +15,7 @@ import '../../../../core/widgets/animated_background.dart';
 const String _githubRepoUrl = 'https://github.com/gaussssss/xplor';
 const String _githubRepoLabel = 'github.com/gaussssss/xplor';
 const String _githubApiUrl = 'https://api.github.com/repos/gaussssss/xplor';
+const String _sponsorsAsset = 'assets/images/sponsors/sponsors.json';
 
 class _GithubRepoStats {
   const _GithubRepoStats({
@@ -37,6 +38,35 @@ class _GithubRepoStats {
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
+    );
+  }
+}
+
+class _Sponsor {
+  const _Sponsor({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.logoPath,
+    required this.tier,
+    required this.active,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final String logoPath;
+  final String tier;
+  final bool active;
+
+  factory _Sponsor.fromJson(Map<String, dynamic> json) {
+    return _Sponsor(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      logoPath: json['logo'] as String? ?? '',
+      tier: json['tier'] as String? ?? '',
+      active: json['active'] as bool? ?? true,
     );
   }
 }
@@ -74,7 +104,10 @@ class _AboutPageState extends State<AboutPage>
   String _appVersion = '1.0.0';
   String _buildNumber = 'dev';
   late final Animation<double> _bounce;
-  late final Future<_GithubRepoStats> _githubStatsFuture;
+  late final Future<_GithubRepoStats?> _githubStatsFuture;
+  late final Future<List<_Sponsor>> _sponsorsFuture;
+  late final PageController _sponsorController;
+  int _sponsorIndex = 0;
 
   static const List<Contributor> _contributors = [
     Contributor(
@@ -119,6 +152,9 @@ class _AboutPageState extends State<AboutPage>
       ),
     );
     _githubStatsFuture = _fetchGithubStats();
+    _sponsorsFuture = _loadSponsors();
+    _sponsorController = PageController(viewportFraction: 0.88);
+    _sponsorController.addListener(_handleSponsorScroll);
     _controller.forward();
   }
 
@@ -136,7 +172,21 @@ class _AboutPageState extends State<AboutPage>
   @override
   void dispose() {
     _controller.dispose();
+    _sponsorController
+      ..removeListener(_handleSponsorScroll)
+      ..dispose();
     super.dispose();
+  }
+
+  void _handleSponsorScroll() {
+    if (!_sponsorController.hasClients) return;
+    final page = _sponsorController.page ?? 0;
+    final current = page.round();
+    if (current != _sponsorIndex && mounted) {
+      setState(() {
+        _sponsorIndex = current;
+      });
+    }
   }
 
   @override
@@ -307,6 +357,7 @@ class _AboutPageState extends State<AboutPage>
                                               description:
                                                   'Vos données restent sur votre machine.',
                                               isLight: isLight,
+                                              showIcon: false,
                                             ),
                                             _ValueTile(
                                               icon: lucide.LucideIcons.archive,
@@ -314,6 +365,7 @@ class _AboutPageState extends State<AboutPage>
                                               description:
                                                   'Ouvrir, explorer et extraire sans friction.',
                                               isLight: isLight,
+                                              showIcon: false,
                                             ),
                                             _ValueTile(
                                               icon: lucide.LucideIcons.palette,
@@ -321,6 +373,7 @@ class _AboutPageState extends State<AboutPage>
                                               description:
                                                   'Thèmes, fonds, raccourcis, tout est modulable.',
                                               isLight: isLight,
+                                              showIcon: false,
                                             ),
                                             _ValueTile(
                                               icon:
@@ -329,6 +382,7 @@ class _AboutPageState extends State<AboutPage>
                                               description:
                                                   'Open-source MIT et transparence totale.',
                                               isLight: isLight,
+                                              showIcon: false,
                                             ),
                                           ];
                                           if (!isWideCard) {
@@ -372,6 +426,7 @@ class _AboutPageState extends State<AboutPage>
                                             title: 'Code source',
                                             subtitle: _githubRepoLabel,
                                             isLight: isLight,
+                                            showIcon: false,
                                             onTap: () => _copyLink(
                                               context,
                                               _githubRepoUrl,
@@ -383,6 +438,7 @@ class _AboutPageState extends State<AboutPage>
                                             title: 'Contribution',
                                             subtitle: 'Pull requests & idées',
                                             isLight: isLight,
+                                            showIcon: false,
                                             onTap: () => _copyLink(
                                               context,
                                               '$_githubRepoUrl/pulls',
@@ -394,12 +450,102 @@ class _AboutPageState extends State<AboutPage>
                                             title: 'Signaler un bug',
                                             subtitle: 'Issues GitHub',
                                             isLight: isLight,
+                                            showIcon: false,
                                             onTap: () => _copyLink(
                                               context,
                                               '$_githubRepoUrl/issues',
                                             ),
                                           ),
-                                        ],
+                                    ],
+                                  ),
+                                );
+                                    final sponsorsSection = _SectionCard(
+                                      title: 'Sponsors',
+                                      subtitle: 'Merci pour le soutien',
+                                      icon: lucide.LucideIcons.heartHandshake,
+                                      isLight: isLight,
+                                      child: FutureBuilder<List<_Sponsor>>(
+                                        future: _sponsorsFuture,
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            );
+                                          }
+                                          final sponsors = snapshot.data;
+                                          if (sponsors == null ||
+                                              sponsors.isEmpty) {
+                                            return Text(
+                                              'Pas encore de sponsors à afficher.',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color: theme.colorScheme
+                                                        .onSurface
+                                                        .withValues(
+                                                          alpha: 0.6,
+                                                        ),
+                                                  ),
+                                            );
+                                          }
+                                          return Column(
+                                            children: [
+                                              SizedBox(
+                                                height: 170,
+                                                child: PageView.builder(
+                                                  controller:
+                                                      _sponsorController,
+                                                  itemCount: sponsors.length,
+                                                  itemBuilder: (context, index) {
+                                                    final sponsor =
+                                                        sponsors[index];
+                                                    return Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                        right: 12,
+                                                      ),
+                                                      child: _SponsorCard(
+                                                        sponsor: sponsor,
+                                                        isLight: isLight,
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  for (int i = 0;
+                                                      i < sponsors.length;
+                                                      i++)
+                                                    Container(
+                                                      width: 8,
+                                                      height: 8,
+                                                      margin:
+                                                          const EdgeInsets.all(
+                                                              4),
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        color: i == _sponsorIndex
+                                                            ? theme.colorScheme
+                                                                .primary
+                                                            : theme.colorScheme
+                                                                .onSurface
+                                                                .withValues(
+                                                                  alpha: 0.25,
+                                                                ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          );
+                                        },
                                       ),
                                     );
 
@@ -433,6 +579,8 @@ class _AboutPageState extends State<AboutPage>
                                                   child: Column(
                                                     children: [
                                                       links,
+                                                      const SizedBox(height: 12),
+                                                      sponsorsSection,
                                                     ],
                                                   ),
                                                 ),
@@ -454,6 +602,8 @@ class _AboutPageState extends State<AboutPage>
                                           const SizedBox(height: 16),
                                           values,
                                           links,
+                                          const SizedBox(height: 12),
+                                          sponsorsSection,
                                         ],
                                       ),
                                     );
@@ -484,7 +634,7 @@ class _AboutPageState extends State<AboutPage>
     );
   }
 
-  Future<_GithubRepoStats> _fetchGithubStats() async {
+  Future<_GithubRepoStats?> _fetchGithubStats() async {
     final client = HttpClient();
     try {
       final request = await client.getUrl(Uri.parse(_githubApiUrl));
@@ -496,10 +646,12 @@ class _AboutPageState extends State<AboutPage>
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
       if (response.statusCode != 200) {
-        throw HttpException('GitHub API error: ${response.statusCode}');
+        return null;
       }
       final data = jsonDecode(body) as Map<String, dynamic>;
       return _GithubRepoStats.fromJson(data);
+    } catch (_) {
+      return null;
     } finally {
       client.close();
     }
@@ -564,6 +716,27 @@ class _AboutPageState extends State<AboutPage>
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<List<_Sponsor>> _loadSponsors() async {
+    try {
+      final raw = await rootBundle.loadString(_sponsorsAsset);
+      final decoded = jsonDecode(raw);
+      final List<dynamic> items;
+      if (decoded is Map<String, dynamic> && decoded['sponsors'] is List) {
+        items = decoded['sponsors'] as List<dynamic>;
+      } else if (decoded is List) {
+        items = decoded;
+      } else {
+        items = const [];
+      }
+      return items
+          .map((e) => _Sponsor.fromJson(e as Map<String, dynamic>))
+          .where((s) => s.active && s.name.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 }
 
@@ -705,10 +878,12 @@ class _BrandBadge extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
-        lucide.LucideIcons.folderOpen,
-        color: Colors.white,
-        size: 30,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Image.asset(
+          AppAssets.logo,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
@@ -750,6 +925,120 @@ class _MetaPill extends StatelessWidget {
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SponsorCard extends StatelessWidget {
+  const _SponsorCard({
+    required this.sponsor,
+    required this.isLight,
+  });
+
+  final _Sponsor sponsor;
+  final bool isLight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final base = isLight
+        ? Colors.white.withValues(alpha: 0.85)
+        : Colors.black.withValues(alpha: 0.62);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: base,
+        border: Border.all(
+          color: onSurface.withValues(alpha: isLight ? 0.12 : 0.18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: isLight ? 0.05 : 0.25),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.primary.withValues(alpha: 0.12),
+                  theme.colorScheme.tertiary.withValues(alpha: 0.10),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            padding: const EdgeInsets.all(8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                sponsor.logoPath,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        sponsor.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        sponsor.tier.isEmpty ? 'Sponsor' : sponsor.tier,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  sponsor.description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: onSurface.withValues(alpha: 0.65),
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -993,12 +1282,14 @@ class _ValueTile extends StatelessWidget {
     required this.title,
     required this.description,
     required this.isLight,
+    this.showIcon = true,
   });
 
   final IconData icon;
   final String title;
   final String description;
   final bool isLight;
+  final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -1021,16 +1312,18 @@ class _ValueTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: theme.colorScheme.primary.withValues(alpha: 0.18),
+            if (showIcon) ...[
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                ),
+                child: Icon(icon, size: 18, color: theme.colorScheme.primary),
               ),
-              child: Icon(icon, size: 18, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1208,6 +1501,7 @@ class _LinkTile extends StatelessWidget {
     required this.subtitle,
     required this.isLight,
     required this.onTap,
+    this.showIcon = true,
   });
 
   final IconData icon;
@@ -1215,6 +1509,7 @@ class _LinkTile extends StatelessWidget {
   final String subtitle;
   final bool isLight;
   final VoidCallback onTap;
+  final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -1237,16 +1532,18 @@ class _LinkTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: theme.colorScheme.primary.withValues(alpha: 0.15),
+            if (showIcon) ...[
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                ),
+                child: Icon(icon, color: theme.colorScheme.primary, size: 18),
               ),
-              child: Icon(icon, color: theme.colorScheme.primary, size: 18),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -1175,36 +1175,6 @@ extension _ExplorerPageActions on _ExplorerPageState {
       ),
     );
 
-    items.add(
-      _ContextMenuEntry(
-        id: 'clipboardMenu',
-        label: 'Presse-papier',
-        icon: lucide.LucideIcons.clipboard,
-        children: [
-          _ContextMenuEntry(
-            id: 'copy',
-            label: 'Copier',
-            icon: lucide.LucideIcons.copy,
-            enabled: selectionCount > 0,
-          ),
-          _ContextMenuEntry(
-            id: 'cut',
-            label: 'Couper',
-            icon: lucide.LucideIcons.scissors,
-            enabled: selectionCount > 0 && !isArchiveView,
-          ),
-          _ContextMenuEntry(
-            id: 'paste',
-            label: pasteDestination != null
-                ? 'Coller dans ce dossier'
-                : 'Coller ici',
-            icon: lucide.LucideIcons.clipboard,
-            enabled: canPaste,
-          ),
-        ],
-      ),
-    );
-
     if (entry != null && !isArchiveView) {
       items.add(
         _ContextMenuEntry(

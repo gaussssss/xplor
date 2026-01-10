@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -188,7 +189,9 @@ class _ListEntryState extends State<_ListEntry> {
         onTap: widget.onToggleSelection,
         onDoubleTap: widget.onOpen,
         onSecondaryTapDown: (details) =>
-            widget.onContextMenu?.call(details.globalPosition),
+            _isModifierPressed()
+                ? widget.onToggleSelection?.call()
+                : widget.onContextMenu?.call(details.globalPosition),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           height: DesignTokens.fileEntryTileHeight,
@@ -252,6 +255,15 @@ class _ListEntryState extends State<_ListEntry> {
         ),
       ),
     );
+  }
+
+  bool _isModifierPressed() {
+    return HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.metaLeft) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.metaRight) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.meta) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.controlLeft) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.controlRight) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.control);
   }
 }
 
@@ -358,10 +370,12 @@ class _GridEntryState extends State<_GridEntry> {
         onTap: widget.onToggleSelection,
         onDoubleTap: widget.onOpen,
         onSecondaryTapDown: (details) =>
-            widget.onContextMenu?.call(details.globalPosition),
+            _isModifierPressed()
+                ? widget.onToggleSelection?.call()
+                : widget.onContextMenu?.call(details.globalPosition),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
@@ -389,47 +403,53 @@ class _GridEntryState extends State<_GridEntry> {
                               )
                             : null)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Preview/Icon - BEAUCOUP PLUS GRAND
-              Stack(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  previewWidget,
-                  if (widget.tagColor != null)
-                    Positioned(
-                      top: -2,
-                      left: -2,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: widget.tagColor,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
+                  // Preview/Icon - BEAUCOUP PLUS GRAND
+                  Stack(
+                    children: [
+                      SizedBox(
+                        width: 96,
+                        height: 96,
+                        child: previewWidget,
+                      ),
+                      if (widget.tagColor != null)
+                        Positioned(
+                          top: -2,
+                          left: -2,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.tagColor,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  if (!widget.entry.isDirectory)
-                    Positioned(
-                      left: -2,
-                      bottom: -2,
-                      child: FutureBuilder<String?>(
-                        future: _appIconFuture,
-                        builder: (context, snapshot) {
-                          final appIconPath = snapshot.data;
-                          if (appIconPath == null || appIconPath.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return _AppIconBadge(iconPath: appIconPath, size: 16);
-                        },
-                      ),
-                    ),
-                  if (isAudio)
+                      if (!widget.entry.isDirectory)
+                        Positioned(
+                          left: -2,
+                          bottom: -2,
+                          child: FutureBuilder<String?>(
+                            future: _appIconFuture,
+                            builder: (context, snapshot) {
+                              final appIconPath = snapshot.data;
+                              if (appIconPath == null || appIconPath.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return _AppIconBadge(iconPath: appIconPath, size: 16);
+                            },
+                          ),
+                        ),
+                      if (isAudio)
                     Positioned(
                       left: 0,
                       right: 0,
@@ -454,7 +474,7 @@ class _GridEntryState extends State<_GridEntry> {
                     ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               // Nom du fichier
               Text(
                 widget.entry.name,
@@ -480,7 +500,9 @@ class _GridEntryState extends State<_GridEntry> {
                   fontSize: 10,
                 ),
               ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -712,13 +734,13 @@ class _GridEntryState extends State<_GridEntry> {
           height: 96,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(
-            width: 120,
-            height: 120,
+            width: 96,
+            height: 96,
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(iconData, color: iconColor, size: 56),
+            child: Icon(iconData, color: iconColor, size: 52),
           ),
         ),
       );
@@ -726,13 +748,13 @@ class _GridEntryState extends State<_GridEntry> {
 
     // Icône par défaut
     return Container(
-      width: 120,
-      height: 120,
+      width: 96,
+      height: 96,
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(iconData, color: iconColor, size: 56),
+      child: Icon(iconData, color: iconColor, size: 52),
     );
   }
 
@@ -770,6 +792,15 @@ class _GridEntryState extends State<_GridEntry> {
         ],
       ),
     );
+  }
+
+  bool _isModifierPressed() {
+    return HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.metaLeft) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.metaRight) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.meta) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.controlLeft) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.controlRight) ||
+        HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.control);
   }
 }
 

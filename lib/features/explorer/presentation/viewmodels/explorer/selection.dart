@@ -31,6 +31,28 @@ extension ExplorerSelectionOps on ExplorerViewModel {
     notifyListeners();
   }
 
+  void selectPath(String path) {
+    FileEntry? entry;
+    try {
+      entry = _state.entries.firstWhere((e) => e.path == path);
+    } catch (_) {}
+    if (entry != null) selectSingle(entry);
+  }
+
+  void selectRange(List<FileEntry> orderedEntries, int anchorIndex, int targetIndex) {
+    if (orderedEntries.isEmpty) return;
+    final start = anchorIndex < targetIndex ? anchorIndex : targetIndex;
+    final end = anchorIndex > targetIndex ? anchorIndex : targetIndex;
+    final clampedStart = start.clamp(0, orderedEntries.length - 1);
+    final clampedEnd = end.clamp(0, orderedEntries.length - 1);
+    final selected = orderedEntries
+        .sublist(clampedStart, clampedEnd + 1)
+        .map((e) => e.path)
+        .toSet();
+    _state = _state.copyWith(selectedPaths: selected, clearStatus: true);
+    notifyListeners();
+  }
+
   void selectAllVisible({bool force = false}) {
     if (!_multiSelectionEnabled && !force) return;
     final entries = visibleEntries;

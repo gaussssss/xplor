@@ -57,6 +57,7 @@ class ArchivePasswordRequired implements Exception {
   String toString() => message;
 }
 
+const MethodChannel _navigationChannel = MethodChannel('xplor/navigation');
 const MethodChannel _tagChannel = MethodChannel('xplor/tags');
 
 enum ExplorerViewMode { list, grid }
@@ -236,6 +237,7 @@ class ExplorerViewModel extends ChangeNotifier {
   final Map<String, String?> _mediaPreviewCache = {};
   final Map<String, Uint8List?> _audioArtCache = {};
   final Map<String, String> _entryTags = {};
+  bool _navigationChannelRegistered = false;
 
   ExplorerViewState get state => _state;
   bool get isArchiveView => _state.isArchiveView;
@@ -251,6 +253,26 @@ class ExplorerViewModel extends ChangeNotifier {
     if (_state.statusMessage == null) return;
     _state = _state.copyWith(statusMessage: null);
     notifyListeners();
+  }
+
+  Future<void> registerNavigationChannel() async {
+    if (_navigationChannelRegistered) return;
+    _navigationChannelRegistered = true;
+    _navigationChannel.setMethodCallHandler((call) async {
+      if (call.method != 'openFile') return;
+      final path = call.arguments as String?;
+      if (path == null || path.isEmpty) return;
+      await openExternalPath(path);
+    });
+  }
+
+  Future<void> openExternalPath(String path) async {
+    final isDirectory = Directory(path).existsSync();
+    final targetDir = isDirectory ? path : File(path).parent.path;
+    await loadDirectory(targetDir);
+    if (!isDirectory) {
+      selectPath(path);
+    }
   }
 
   void setSort(SortConfig config) {

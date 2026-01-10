@@ -1,0 +1,43 @@
+{
+  "sponsors": [
+    {
+      "id": "overlimits",
+      "name": "Overlimits Digital Enterprise",
+      "description": "Overlimits Digital Enterprise est une entreprise digitale innovante qui soutient le projet Xplor, un explorateur de fichiers open source moderne et élégant.",
+      "contact": {
+        "email": "contact@overlimits.digital",
+        "website": "https://overlimits.digital"
+      },
+      "logo": "assets/images/sponsors/Overlimits_logo.png",
+      "tier": "gold",
+      "active": true,
+      "joinedDate": "2025-12-26"
+    }
+  ],
+  "tiers": {
+    "gold": {
+      "name": "Or",
+      "minAmount": 1000,
+      "benefits": [
+        "Logo sur la page d'accueil",
+        "Mention dans les notes de version",
+        "Support prioritaire"
+      ]
+    },
+    "silver": {
+      "name": "Argent",
+      "minAmount": 500,
+      "benefits": [
+        "Logo sur la page À propos",
+        "Mention dans les notes de version"
+      ]
+    },
+    "bronze": {
+      "name": "Bronze",
+      "minAmount": 100,
+      "benefits": [
+        "Mention dans la liste des sponsors"
+      ]
+    }
+  }
+}

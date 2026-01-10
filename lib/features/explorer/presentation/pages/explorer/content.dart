@@ -274,16 +274,15 @@ extension _ExplorerPageContent on _ExplorerPageState {
     required FileEntry entry,
     required bool selectionMode,
     required ExplorerViewMode viewMode,
+    required int index,
   }) {
     final selectedEntries = _viewModel.state.selectedPaths.contains(entry.path)
         ? _viewModel.state.entries
               .where((e) => _viewModel.state.selectedPaths.contains(e.path))
               .toList()
         : <FileEntry>[entry];
-    final handleSelection = () => _handleEntrySingleTap(
-      entry,
-      selectionMode: selectionMode,
-    );
+    final handleSelection = () =>
+        _handleEntrySingleTap(entry, index, selectionMode: selectionMode);
     final appIconFuture = entry.isDirectory
         ? null
         : _viewModel.resolveDefaultAppIconPath(entry.path);
@@ -400,7 +399,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
       groupedSections: groupedSections,
       isSelected: (entry) => _viewModel.isSelected(entry),
       onEntryTap: (entry) {
-        _handleEntrySingleTap(entry, selectionMode: selectionMode);
+        _handleEntrySingleTap(entry, null, selectionMode: selectionMode);
       },
       onEntryDoubleTap: (entry) => _handleEntryTap(entry),
       onEntrySecondaryTap: (entry, offset) {
@@ -469,7 +468,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 16, // Espacement horizontal réduit
             mainAxisSpacing: 16, // Espacement vertical réduit
-            childAspectRatio: 0.75, // Ratio ajusté pour les previews 120x120
+            childAspectRatio: 1.2, // Ratio plus large pour des cartes moins hautes
           ),
           itemBuilder: (context, index) {
             final entry = entries[index];
@@ -477,6 +476,7 @@ extension _ExplorerPageContent on _ExplorerPageState {
               entry: entry,
               selectionMode: selectionMode,
               viewMode: ExplorerViewMode.grid,
+              index: index,
             );
           },
         );
@@ -559,19 +559,45 @@ extension _ExplorerPageContent on _ExplorerPageState {
   }
 
   void _handleEntrySingleTap(
-    FileEntry entry, {
+    FileEntry entry,
+    int? index, {
     required bool selectionMode,
   }) {
-    if (selectionMode) {
-      _viewModel.toggleSelection(entry);
+    final entries = _viewModel.visibleEntries;
+    final currentIndex = index ?? entries.indexOf(entry);
+    if (currentIndex < 0) {
+      _viewModel.selectSingle(entry);
       return;
     }
+    final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+    final isShift = pressed.contains(LogicalKeyboardKey.shiftLeft) ||
+        pressed.contains(LogicalKeyboardKey.shiftRight);
+    final isMeta = pressed.contains(LogicalKeyboardKey.metaLeft) ||
+        pressed.contains(LogicalKeyboardKey.metaRight);
+    final isCtrl = pressed.contains(LogicalKeyboardKey.controlLeft) ||
+        pressed.contains(LogicalKeyboardKey.controlRight);
+    final useToggle = isMeta || isCtrl;
+
+    if (selectionMode || useToggle || isShift) {
+      if (isShift && _lastSelectedIndex != null) {
+        _viewModel.selectRange(entries, _lastSelectedIndex!, currentIndex);
+      } else if (useToggle) {
+        _viewModel.toggleSelection(entry);
+        _lastSelectedIndex = currentIndex;
+      } else {
+        _viewModel.selectSingle(entry);
+        _lastSelectedIndex = currentIndex;
+      }
+      return;
+    }
+
     final isTrash = _viewModel.state.currentPath == SpecialLocations.trash;
     final isArchive = _viewModel.state.isArchiveView;
     final selectedPaths = _viewModel.state.selectedPaths;
     final isSingleSelected =
         selectedPaths.length == 1 && selectedPaths.contains(entry.path);
 
+    _lastSelectedIndex = currentIndex;
     if (isSingleSelected && !isTrash && !isArchive) {
       _promptRename();
       return;
