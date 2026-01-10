@@ -928,6 +928,26 @@ extension _ExplorerPageActions on _ExplorerPageState {
         !entry.isDirectory &&
         !isLocked &&
         _viewModel.canPreviewPath(entry.path);
+    final toolbarActions = <_ToolbarAction>[
+      _ToolbarAction(
+        id: 'copy',
+        icon: lucide.LucideIcons.copy,
+        tooltip: 'Copier',
+        enabled: selectionCount > 0 && !isArchiveView,
+      ),
+      _ToolbarAction(
+        id: 'cut',
+        icon: lucide.LucideIcons.scissors,
+        tooltip: 'Couper',
+        enabled: selectionCount > 0 && !isArchiveView,
+      ),
+      _ToolbarAction(
+        id: 'paste',
+        icon: lucide.LucideIcons.clipboard,
+        tooltip: 'Coller',
+        enabled: canPaste,
+      ),
+    ];
 
     final items = <_ContextMenuEntry>[];
     if (entry != null) {
@@ -991,6 +1011,28 @@ extension _ExplorerPageActions on _ExplorerPageState {
         icon: lucide.LucideIcons.refreshCw,
       ),
     );
+
+    items.addAll([
+      _ContextMenuEntry(
+        id: 'copy',
+        label: 'Copier',
+        icon: lucide.LucideIcons.copy,
+        enabled: selectionCount > 0 && !isArchiveView,
+      ),
+      _ContextMenuEntry(
+        id: 'cut',
+        label: 'Couper',
+        icon: lucide.LucideIcons.scissors,
+        enabled: selectionCount > 0 && !isArchiveView,
+      ),
+      _ContextMenuEntry(
+        id: 'paste',
+        label: pasteDestination != null ? 'Coller dans ce dossier' : 'Coller ici',
+        icon: lucide.LucideIcons.clipboard,
+        enabled: canPaste,
+      ),
+      const _ContextMenuEntry.separator(),
+    ]);
 
     items.add(
       _ContextMenuEntry(
@@ -1073,37 +1115,6 @@ extension _ExplorerPageActions on _ExplorerPageState {
             label: 'Partager...',
             icon: lucide.LucideIcons.send,
             enabled: entry != null || selectionCount > 0,
-          ),
-          _ContextMenuEntry(
-            id: 'shareBluetooth',
-            label: 'Envoyer par Bluetooth',
-            icon: lucide.LucideIcons.bluetooth,
-            enabled: entry != null || selectionCount > 0,
-          ),
-          _ContextMenuEntry(
-            id: 'shareWifi',
-            label: 'Envoyer par Wi-Fi',
-            icon: lucide.LucideIcons.wifi,
-            enabled: entry != null || selectionCount > 0,
-          ),
-          const _ContextMenuEntry.separator(),
-          _ContextMenuEntry(
-            id: 'shareCopyMenu',
-            label: 'Copier',
-            icon: lucide.LucideIcons.copy,
-            children: [
-              _ContextMenuEntry(
-                id: 'shareCopyName',
-                label: 'Nom du fichier',
-                icon: lucide.LucideIcons.type,
-                enabled: entry != null,
-              ),
-              _ContextMenuEntry(
-                id: 'shareCopyPath',
-                label: entry == null ? 'Chemin courant' : 'Chemin complet',
-                icon: lucide.LucideIcons.link2,
-              ),
-            ],
           ),
           _ContextMenuEntry(
             id: 'shareReveal',
@@ -1314,6 +1325,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
         context: context,
         position: globalPosition,
         items: items,
+        toolbarActions: toolbarActions,
       );
     } finally {
       _contextMenuOpen = false;
@@ -1344,25 +1356,8 @@ extension _ExplorerPageActions on _ExplorerPageState {
       case 'refresh':
         await _viewModel.refresh();
         break;
-      case 'shareCopyName':
-        if (entry != null) {
-          Clipboard.setData(ClipboardData(text: entry.name));
-          _showToast('Nom copie');
-        }
-        break;
       case 'shareSystem':
         await _shareSelection(entry);
-        break;
-      case 'shareBluetooth':
-        await _shareSelection(entry, channelLabel: 'Bluetooth');
-        break;
-      case 'shareWifi':
-        await _shareSelection(entry, channelLabel: 'Wi-Fi');
-        break;
-      case 'shareCopyPath':
-        _viewModel.copyPathToClipboard(
-          entry?.path ?? _viewModel.state.currentPath,
-        );
         break;
       case 'shareReveal':
         if (entry != null) {

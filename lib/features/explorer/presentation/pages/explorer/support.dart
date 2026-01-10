@@ -61,15 +61,18 @@ class _ContextMenuOverlay extends StatefulWidget {
   const _ContextMenuOverlay({
     required this.position,
     required this.items,
+    this.toolbarActions = const [],
   });
 
   final Offset position;
   final List<_ContextMenuEntry> items;
+  final List<_ToolbarAction> toolbarActions;
 
   static Future<String?> show({
     required BuildContext context,
     required Offset position,
     required List<_ContextMenuEntry> items,
+    List<_ToolbarAction> toolbarActions = const [],
   }) {
     return showGeneralDialog<String>(
       context: context,
@@ -78,7 +81,11 @@ class _ContextMenuOverlay extends StatefulWidget {
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 120),
       pageBuilder: (context, _, __) {
-        return _ContextMenuOverlay(position: position, items: items);
+        return _ContextMenuOverlay(
+          position: position,
+          items: items,
+          toolbarActions: toolbarActions,
+        );
       },
       transitionBuilder: (context, animation, _, child) {
         return FadeTransition(
@@ -99,6 +106,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
   static const double _separatorHeight = 10;
   static const EdgeInsets _menuPadding =
       EdgeInsets.symmetric(vertical: 6, horizontal: 6);
+  static const double _toolbarHeight = 42;
 
   late List<_MenuLayer> _layers;
   bool _initialized = false;
@@ -158,6 +166,9 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
 
   double _menuHeight(List<_ContextMenuEntry> items) {
     var height = _menuPadding.vertical;
+    if (widget.toolbarActions.isNotEmpty) {
+      height += _toolbarHeight + _separatorHeight;
+    }
     for (final item in items) {
       height += item.isSeparator ? _separatorHeight : _menuItemHeight;
     }
@@ -254,113 +265,156 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(layer.items.length, (index) {
-                    final item = layer.items[index];
-                    if (item.isSeparator) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                  children: [
+                    if (layer.level == 0 && widget.toolbarActions.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: widget.toolbarActions.map((action) {
+                            final iconColor = action.enabled
+                                ? onSurface.withValues(alpha: 0.9)
+                                : onSurface.withValues(alpha: 0.3);
+                            return IconButton(
+                              tooltip: action.tooltip,
+                              onPressed: action.enabled
+                                  ? () => Navigator.of(context).pop(action.id)
+                                  : null,
+                              icon:
+                                  Icon(action.icon, size: 18, color: iconColor),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 32,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    if (layer.level == 0 && widget.toolbarActions.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
                         child: Container(
                           height: 1,
                           color: onSurface.withValues(alpha: 0.1),
                         ),
-                      );
-                    }
-
-                    final isHovered = _hoveredIndexByLayer[layer.level] == index;
-                    final isEnabled = item.enabled;
-                    final labelColor = item.destructive
-                        ? theme.colorScheme.error
-                        : onSurface.withValues(alpha: isEnabled ? 0.95 : 0.45);
-
-                    return Builder(
-                      builder: (itemContext) {
-                        return MouseRegion(
-                          onEnter: (_) {
-                            setState(() {
-                              _hoveredIndexByLayer[layer.level] = index;
-                            });
-                            if (item.hasChildren) {
-                              _openSubmenu(
-                                level: layer.level,
-                                entry: item,
-                                itemContext: itemContext,
-                              );
-                            } else {
-                              _closeFromLevel(layer.level);
-                            }
-                          },
-                          child: InkWell(
-                            onTap: isEnabled
-                                ? () {
-                                    if (item.hasChildren) {
-                                      _openSubmenu(
-                                        level: layer.level,
-                                        entry: item,
-                                        itemContext: itemContext,
-                                      );
-                                      return;
-                                    }
-                                    Navigator.of(context).pop(item.id);
-                                  }
-                                : null,
-                            borderRadius: BorderRadius.circular(8),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 120),
-                              height: _menuItemHeight,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: isHovered
-                                    ? onSurface.withValues(alpha: 0.08)
-                                    : Colors.transparent,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (item.icon != null)
-                                    Icon(
-                                      item.icon,
-                                      size: 16,
-                                      color: item.iconColor ?? labelColor,
-                                    )
-                                  else
-                                    const SizedBox(width: 16),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      item.label,
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        color: labelColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (item.shortcut != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 6),
-                                      child: Text(
-                                        item.shortcut!,
-                                        style:
-                                            theme.textTheme.labelSmall?.copyWith(
-                                          color: onSurface.withValues(alpha: 0.55),
-                                        ),
-                                      ),
-                                    ),
-                                  if (item.hasChildren)
-                                    Icon(
-                                      lucide.LucideIcons.chevronRight,
-                                      size: 16,
-                                      color: onSurface.withValues(alpha: 0.7),
-                                    ),
-                                ],
-                              ),
-                            ),
+                      ),
+                    ...List.generate(layer.items.length, (index) {
+                      final item = layer.items[index];
+                      if (item.isSeparator) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Container(
+                            height: 1,
+                            color: onSurface.withValues(alpha: 0.1),
                           ),
                         );
-                      },
-                    );
-                  }),
+                      }
+
+                      final isHovered =
+                          _hoveredIndexByLayer[layer.level] == index;
+                      final isEnabled = item.enabled;
+                      final labelColor = item.destructive
+                          ? theme.colorScheme.error
+                          : onSurface.withValues(
+                              alpha: isEnabled ? 0.95 : 0.45);
+
+                      return Builder(
+                        builder: (itemContext) {
+                          return MouseRegion(
+                            onEnter: (_) {
+                              setState(() {
+                                _hoveredIndexByLayer[layer.level] = index;
+                              });
+                              if (item.hasChildren) {
+                                _openSubmenu(
+                                  level: layer.level,
+                                  entry: item,
+                                  itemContext: itemContext,
+                                );
+                              } else {
+                                _closeFromLevel(layer.level);
+                              }
+                            },
+                            child: InkWell(
+                              onTap: isEnabled
+                                  ? () {
+                                      if (item.hasChildren) {
+                                        _openSubmenu(
+                                          level: layer.level,
+                                          entry: item,
+                                          itemContext: itemContext,
+                                        );
+                                        return;
+                                      }
+                                      Navigator.of(context).pop(item.id);
+                                    }
+                                  : null,
+                              borderRadius: BorderRadius.circular(8),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 120),
+                                height: _menuItemHeight,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: isHovered
+                                      ? onSurface.withValues(alpha: 0.08)
+                                      : Colors.transparent,
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (item.icon != null)
+                                      Icon(
+                                        item.icon,
+                                        size: 16,
+                                        color: item.iconColor ?? labelColor,
+                                      )
+                                    else
+                                      const SizedBox(width: 16),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        item.label,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: labelColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (item.shortcut != null)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(left: 6),
+                                        child: Text(
+                                          item.shortcut!,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: onSurface.withValues(
+                                                alpha: 0.55),
+                                          ),
+                                        ),
+                                      ),
+                                    if (item.hasChildren)
+                                      Icon(
+                                        lucide.LucideIcons.chevronRight,
+                                        size: 16,
+                                        color: onSurface
+                                            .withValues(alpha: 0.7),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }),
+                  ],
                 ),
               ),
             ),
@@ -424,4 +478,18 @@ class _DragFeedback extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ToolbarAction {
+  const _ToolbarAction({
+    required this.id,
+    required this.icon,
+    required this.tooltip,
+    this.enabled = true,
+  });
+
+  final String id;
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
 }
