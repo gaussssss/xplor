@@ -240,6 +240,11 @@ class _DiskTile extends StatelessWidget {
     final tileBg = isLight
         ? onSurface.withValues(alpha: 0.04)
         : Colors.white.withValues(alpha: 0.05);
+    final isCloud = _cloudLogoFor(volume) != null;
+    final total = volume.totalBytes;
+    final usedBytes =
+        total > 0 ? (total * volume.usage).clamp(0, total).toInt() : -1;
+    final freeBytes = total > 0 ? (total - usedBytes).clamp(0, total) : -1;
 
     return Material(
       color: Colors.transparent,
@@ -279,27 +284,51 @@ class _DiskTile extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          volume.path,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: subtitleText,
-                            fontSize: 10.5,
+                        if (!isCloud) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            volume.path,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: subtitleText,
+                              fontSize: 10.5,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: volume.usage.clamp(0, 1),
-                            minHeight: 3,
-                            backgroundColor:
-                                onSurface.withValues(alpha: 0.08),
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(primary),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: volume.usage.clamp(0, 1),
+                              minHeight: 8,
+                              backgroundColor:
+                                  onSurface.withValues(alpha: 0.08),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(primary),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            total > 0
+                                ? '${_formatBytes(usedBytes)} utilisés · ${_formatBytes(freeBytes)} libres'
+                                : 'Capacité inconnue',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: subtitleText,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Stockage cloud',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: subtitleText,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -308,22 +337,33 @@ class _DiskTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '$percent%',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: headerText,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11.5,
+                      if (!isCloud) ...[
+                        Text(
+                          '$percent%',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: headerText,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatBytes(volume.totalBytes),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: subtitleText,
-                          fontSize: 10.5,
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatBytes(volume.totalBytes),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: subtitleText,
+                            fontSize: 10.5,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        Text(
+                          'Capacité cloud',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: subtitleText,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

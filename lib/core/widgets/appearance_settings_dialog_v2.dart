@@ -551,36 +551,11 @@ class _AppearanceSettingsDialogV2State
       children: [
         _buildSectionTitle('Options avancées', LucideIcons.sliders, textColor),
         const SizedBox(height: 12),
-        _buildToggleOption(
-          'Glassmorphism',
-          'Effets de verre et de flou',
-          _useGlassmorphism,
-          (value) => setState(() => _useGlassmorphism = value),
-          isLight,
-          textColor,
-          subtleTextColor,
-        ),
-        if (_useGlassmorphism) ...[
-          const SizedBox(height: 12),
-          _buildSliderOption(
-            'Intensité du flou',
-            _blurIntensity,
-            0.0,
-            20.0,
-            (value) => setState(() => _blurIntensity = value),
-            isLight,
-            textColor,
-          ),
-        ],
-        const SizedBox(height: 12),
-        _buildToggleOption(
-          'Animations',
-          'Transitions et effets animés',
-          _showAnimations,
-          (value) => setState(() => _showAnimations = value),
-          isLight,
-          textColor,
-          subtleTextColor,
+        Text(
+          'Les réglages visuels avancés sont désactivés pour le moment.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: subtleTextColor,
+              ),
         ),
         const SizedBox(height: 24),
         _buildSectionTitle(
@@ -1259,7 +1234,7 @@ class _ThemePickerDialogState extends State<_ThemePickerDialog> {
             constraints: const BoxConstraints(maxHeight: 520),
             decoration: BoxDecoration(
               color: widget.isLight
-                  ? Colors.white.withValues(alpha: 0.92)
+                  ? Colors.white.withValues(alpha: 0.96)
                   : Colors.black.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
