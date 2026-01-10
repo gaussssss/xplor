@@ -164,7 +164,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     final themeProvider = context.read<ThemeProvider>();
     for (var attempt = 0; attempt < 5; attempt += 1) {
       if (themeProvider.backgroundThemes.isNotEmpty) {
-        await themeProvider.applyRandomThemeImage('green');
+        await themeProvider.applyRandomThemeImage('green', limitToFirst: 3);
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 200));

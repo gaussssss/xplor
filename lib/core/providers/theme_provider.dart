@@ -308,11 +308,16 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     _scheduleBackgroundRefreshTimer();
   }
 
-  Future<void> applyRandomThemeImage(String themeId) async {
+  Future<void> applyRandomThemeImage(String themeId, {int? limitToFirst}) async {
     final theme = _findThemeById(themeId);
     if (theme == null || theme.images.isEmpty) return;
+    final maxCount = (limitToFirst == null)
+        ? theme.images.length
+        : theme.images.length < limitToFirst
+            ? theme.images.length
+            : limitToFirst;
     _backgroundThemeId = themeId;
-    _backgroundImageIndex = Random().nextInt(theme.images.length);
+    _backgroundImageIndex = Random().nextInt(maxCount);
     _applyThemeImage();
     _lastBackgroundChange = DateTime.now();
     notifyListeners();

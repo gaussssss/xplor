@@ -7,6 +7,18 @@
       "description": "Végétal, lumineux, apaisant. Un thème naturel pour un espace de travail calme.",
       "images": [
         {
+          "path": "assets/images/Backgrounds/Green/sarah-dorweiler-9Z1KRIfpBTM-unsplash.jpg",
+          "attribution": "Photo by Sarah Dorweiler on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/pawel-czerwinski-lWBZ01XRRoI-unsplash.jpg",
+          "attribution": "Photo by Pawel Czerwinski on Unsplash"
+        },
+        {
+          "path": "assets/images/Backgrounds/Green/annie-spratt-hX_hf2lPpUU-unsplash.jpg",
+          "attribution": "Photo by Annie Spratt on Unsplash"
+        },
+        {
           "path": "assets/images/Backgrounds/Green/foad-roshan-TtDNu-Heh3Y-unsplash.jpg",
           "attribution": "Photo by Foad Roshan on Unsplash"
         },
