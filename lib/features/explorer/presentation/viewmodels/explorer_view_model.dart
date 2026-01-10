@@ -39,6 +39,14 @@ part 'explorer/preferences.dart';
 part 'explorer/search.dart';
 part 'explorer/selection.dart';
 
+class ArchivePasswordRequired implements Exception {
+  ArchivePasswordRequired(
+      [this.message = 'Archive protegee par mot de passe']);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 const MethodChannel _tagChannel = MethodChannel('xplor/tags');
 
 enum ExplorerViewMode { list, grid }

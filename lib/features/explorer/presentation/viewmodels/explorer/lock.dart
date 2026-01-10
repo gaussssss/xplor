@@ -205,6 +205,7 @@ extension ExplorerLockOps on ExplorerViewModel {
     } finally {
       _state = _state.copyWith(isLoading: false);
       notifyListeners();
+      debugPrint('[Xplor][Unlock] Fin du flux pour ${entry.path}');
     }
   }
 

@@ -163,8 +163,13 @@ extension ExplorerArchiveOps on ExplorerViewModel {
       ..addAll(remaining);
   }
 
-  Future<void> openArchive(FileEntry entry, {bool pushHistory = true}) async {
+  Future<void> openArchive(
+    FileEntry entry, {
+    bool pushHistory = true,
+    String? password,
+  }) async {
     final archivePath = entry.path;
+    debugPrint('[Xplor][Archive] Ouverture de $archivePath (locked=${isLockedEntry(entry)})');
     _state = _state.copyWith(
       isLoading: true,
       clearError: true,
@@ -176,14 +181,25 @@ extension ExplorerArchiveOps on ExplorerViewModel {
       if (_state.isArchiveView && !_isWithinArchive(archivePath)) {
         await _closeArchiveSession(notify: false);
       }
-      final extractedRoot = await _prepareArchiveExtraction(archivePath);
+      final extractedRoot = await _prepareArchiveExtraction(
+        archivePath,
+        password: password,
+      );
       _state = _state.copyWith(
         isArchiveView: true,
         archivePath: archivePath,
         archiveRootPath: extractedRoot,
       );
       await loadDirectory(extractedRoot, pushHistory: pushHistory);
+    } on ArchivePasswordRequired catch (error) {
+      _state = _state.copyWith(
+        isLoading: false,
+        error: error.message,
+      );
+      notifyListeners();
+      rethrow;
     } catch (error) {
+      debugPrint('[Xplor][Archive] Erreur à l ouverture: $error');
       _state = _state.copyWith(
         isLoading: false,
         error: 'Impossible d ouvrir l archive.',
@@ -270,9 +286,12 @@ extension ExplorerArchiveOps on ExplorerViewModel {
     }
   }
 
-  Future<String> _prepareArchiveExtraction(String archivePath) async {
+  Future<String> _prepareArchiveExtraction(
+    String archivePath, {
+    String? password,
+  }) async {
     final tempDir = await Directory.systemTemp.createTemp('xplor_archive_');
-    await _extractArchive(archivePath, tempDir.path);
+    await _extractArchive(archivePath, tempDir.path, password: password);
     return tempDir.path;
   }
 
@@ -303,14 +322,40 @@ extension ExplorerArchiveOps on ExplorerViewModel {
 
   Future<void> _extractArchive(
     String archivePath,
-    String destinationPath,
-  ) async {
+    String destinationPath, {
+    String? password,
+  }) async {
     final tools = <({String cmd, List<String> args})>[
-      (cmd: 'unrar', args: ['x', '-o+', archivePath, destinationPath]),
-      (cmd: '7z', args: ['x', '-y', '-o$destinationPath', archivePath]),
+      (
+        cmd: 'unrar',
+        args: [
+          'x',
+          if (password != null && password.isNotEmpty) '-p$password' else '-p-',
+          '-o+',
+          archivePath,
+          destinationPath,
+        ],
+      ),
+      (
+        cmd: '7z',
+        args: [
+          'x',
+          '-y',
+          if (password != null && password.isNotEmpty) '-p$password',
+          '-o$destinationPath',
+          archivePath,
+        ].whereType<String>().toList(),
+      ),
       (
         cmd: 'unar',
-        args: ['-quiet', '-output-directory', destinationPath, archivePath],
+        args: [
+          '-quiet',
+          '-output-directory',
+          destinationPath,
+          if (password != null && password.isNotEmpty) '-password',
+          if (password != null && password.isNotEmpty) password!,
+          archivePath,
+        ].whereType<String>().toList(),
       ),
       (cmd: 'bsdtar', args: ['-xf', archivePath, '-C', destinationPath]),
       (cmd: 'unzip', args: ['-q', '-o', archivePath, '-d', destinationPath]),
@@ -319,6 +364,7 @@ extension ExplorerArchiveOps on ExplorerViewModel {
 
     String? lastError;
     var attempted = false;
+    var passwordNeeded = false;
     for (final tool in tools) {
       if (!await _commandExists(tool.cmd)) {
         continue;
@@ -337,11 +383,22 @@ extension ExplorerArchiveOps on ExplorerViewModel {
       lastError = stderrText.trim().isNotEmpty
           ? stderrText.trim()
           : stdoutText.trim();
+      final lower = lastError.toLowerCase();
+      if (lower.contains('password') ||
+          lower.contains('encrypted') ||
+          lower.contains('decryption')) {
+        passwordNeeded = true;
+      }
     }
     if (!attempted) {
       throw FileSystemException(
         'Aucun outil d extraction disponible. Installez 7z ou unar.',
         archivePath,
+      );
+    }
+    if (passwordNeeded && (password == null || password.isEmpty)) {
+      throw ArchivePasswordRequired(
+        'Archive protegee : mot de passe requis',
       );
     }
     throw FileSystemException(

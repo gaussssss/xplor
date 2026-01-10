@@ -42,10 +42,6 @@ class _OnboardingPageState extends State<OnboardingPage>
       description:
           "Xplor mélange élégance, vitesse et clarté pour transformer la navigation en expérience fluide.",
       icon: lucide.LucideIcons.sparkle,
-      primaryCtaLabel: 'Entrer dans Xplor',
-      primaryCtaIcon: lucide.LucideIcons.arrowRight,
-      secondaryCtaLabel: 'Voir les détails',
-      secondaryCtaIcon: lucide.LucideIcons.sparkles,
       highlights: ['Interface glass', 'Navigation fluide', 'Local-first'],
     ),
     OnboardingStep(
@@ -599,12 +595,9 @@ class _OnboardingCard extends StatelessWidget {
         : CrossAxisAlignment.start;
     final textAlign = alignRight ? TextAlign.right : TextAlign.left;
     final alignment = alignRight ? Alignment.centerRight : Alignment.centerLeft;
-    final titleSize = isWide ? 40.0 : 32.0;
-    final subtitleSize = isWide ? 18.0 : 16.0;
-    final bodySize = isWide ? 16.0 : 14.0;
-    final showCtas =
-        step.kind == OnboardingStepKind.standard &&
-        (step.primaryCtaLabel != null || step.secondaryCtaLabel != null);
+    final titleSize = isWide ? 60.0 : 46.0;
+    final subtitleSize = isWide ? 20.0 : 18.0;
+    final bodySize = isWide ? 17.0 : 15.0;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 720),
@@ -706,7 +699,7 @@ class _OnboardingCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   if (isActive)
                     _TypewriterText(
                       key: ValueKey('subtitle-${step.subtitle}-$isActive'),
@@ -714,7 +707,8 @@ class _OnboardingCard extends StatelessWidget {
                       textAlign: textAlign,
                       style: GoogleFonts.manrope(
                         fontSize: subtitleSize,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
                         color: onSurface.withValues(alpha: 0.74),
                         shadows: [
                           Shadow(
@@ -733,7 +727,8 @@ class _OnboardingCard extends StatelessWidget {
                       textAlign: textAlign,
                       style: GoogleFonts.manrope(
                         fontSize: subtitleSize,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
                         color: onSurface.withValues(alpha: 0.74),
                         shadows: [
                           Shadow(
@@ -746,7 +741,7 @@ class _OnboardingCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Text(
                     step.description,
                     textAlign: textAlign,
@@ -765,7 +760,7 @@ class _OnboardingCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
@@ -792,31 +787,6 @@ class _OnboardingCard extends StatelessWidget {
                       onRequestAccess: onRequestAccess,
                       onUseHome: onUseHome,
                       onRemovePath: onRemoveAccessPath,
-                    )
-                  else if (showCtas)
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      alignment: alignRight
-                          ? WrapAlignment.end
-                          : WrapAlignment.start,
-                      children: [
-                        if (step.primaryCtaLabel != null &&
-                            step.primaryCtaIcon != null)
-                          _GradientButton(
-                            label: step.primaryCtaLabel!,
-                            icon: step.primaryCtaIcon!,
-                            isLight: isLight,
-                            onPressed: onPrimaryCta,
-                          ),
-                        if (step.secondaryCtaLabel != null)
-                          _GlassActionButton(
-                            label: step.secondaryCtaLabel!,
-                            icon: step.secondaryCtaIcon,
-                            isLight: isLight,
-                            onPressed: onSecondaryCta,
-                          ),
-                      ],
                     ),
                 ],
               ),
@@ -1654,30 +1624,21 @@ class _HighlightChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         color: isLight
-            ? Colors.white.withValues(alpha: 0.22)
-            : Colors.white.withValues(alpha: 0.14),
-        border: Border.all(
-          color: accent.withValues(alpha: isLight ? 0.32 : 0.42),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.22),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+            ? accent.withValues(alpha: 0.08)
+            : Colors.white.withValues(alpha: 0.08),
       ),
       child: Text(
         label.toUpperCase(),
         style: GoogleFonts.manrope(
           textStyle: Theme.of(context).textTheme.labelSmall,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+          color:
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
         ),
       ),
     );

@@ -431,11 +431,7 @@ extension _ExplorerPageActions on _ExplorerPageState {
   }
 
   void _handleEntryTap(FileEntry entry) {
-    if (entry.isApplication) {
-      _viewModel.launchApplication(entry);
-    } else {
-      _viewModel.open(entry);
-    }
+    _openEntryWithUnlock(entry);
   }
 
   Future<void> _promptCreateFolder() async {
@@ -714,6 +710,71 @@ extension _ExplorerPageActions on _ExplorerPageState {
       mode: null,
     );
     await _viewModel.openInFinder(entry);
+  }
+
+  Future<void> _openEntryWithUnlock(FileEntry entry) async {
+    if (entry.isApplication) {
+      await _viewModel.launchApplication(entry);
+      return;
+    }
+    if (_isArchive(entry.path)) {
+      try {
+        await _viewModel.openArchive(entry);
+      } on ArchivePasswordRequired {
+        final pwd = await _promptEncryptionKey(
+          title: 'Archive protegee',
+          confirm: false,
+        );
+        if (pwd == null || pwd.trim().isEmpty) return;
+        try {
+          await _viewModel.openArchive(entry, password: pwd);
+        } on ArchivePasswordRequired {
+          _showToast('Mot de passe requis pour cette archive.');
+        }
+      }
+      return;
+    }
+    if (_viewModel.isLockedEntry(entry)) {
+      _showToast('Fichier verrouille, demande de cle...');
+      final key = await _promptEncryptionKey(
+        title: 'Fichier verrouille',
+        confirm: true,
+      );
+      if (key == null || key.trim().isEmpty) return;
+      debugPrint('[Xplor][Unlock] Tentative de déverrouillage de ${entry.path}');
+      final success = await _viewModel.unlockEntry(entry, key);
+      debugPrint('[Xplor][Unlock] Résultat: ${success ? 'OK' : 'ECHEC'} pour ${entry.path}');
+      if (!success) return;
+      await _viewModel.refresh();
+      final unlockedName =
+          p.basename(entry.path).replaceAll(RegExp(r'\\.xplrlock$'), '');
+      final maybe = _viewModel.state.entries.firstWhere(
+        (e) => e.name == unlockedName,
+        orElse: () => FileEntry(
+          name: unlockedName,
+          path: p.join(p.dirname(entry.path), unlockedName),
+          isDirectory: Directory(p.join(p.dirname(entry.path), unlockedName))
+              .existsSync(),
+          created: null,
+          accessed: null,
+          mode: null,
+        ),
+      );
+      await _viewModel.open(maybe);
+      return;
+    }
+    await _viewModel.open(entry);
+  }
+
+  bool _isArchive(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.zip') ||
+        lower.endsWith('.rar') ||
+        lower.endsWith('.7z') ||
+        lower.endsWith('.tar') ||
+        lower.endsWith('.gz') ||
+        lower.endsWith('.bz2') ||
+        lower.endsWith('.xz');
   }
 
   Future<void> _applyTagToSelection(String? tag) async {
@@ -1182,10 +1243,10 @@ extension _ExplorerPageActions on _ExplorerPageState {
 
     switch (selected) {
       case 'open':
-        if (entry != null) _viewModel.open(entry);
+        if (entry != null) await _openEntryWithUnlock(entry);
         break;
       case 'openWithDefault':
-        if (entry != null) _viewModel.open(entry);
+        if (entry != null) await _openEntryWithUnlock(entry);
         break;
       case 'openWithCustom':
         if (entry != null) await _promptOpenWith(entry);
